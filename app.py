@@ -139,32 +139,6 @@ def _scheduled_pipeline_run():
     _run_scraper_pipeline()
 
 
-def _parse_digest_time(time_str):
-    """Parse a human-readable time string into (hour, minute).
-    Accepts '6:00 AM', '11:00 PM', '18:30', '6.00 AM'.
-    Falls back to (11, 0) on any parse failure.
-    """
-    import re as _re
-    s = (time_str or "").strip()
-    # Normalize period separator: "11.00 AM" → "11:00 AM"
-    s = _re.sub(r"(\d+)\.(\d+)", r"\1:\2", s)
-    # 12-hour: "6:00 AM", "11:30 PM"
-    m = _re.match(r"(\d{1,2}):(\d{2})\s*(AM|PM)", s, _re.IGNORECASE)
-    if m:
-        h, mn, period = int(m.group(1)), int(m.group(2)), m.group(3).upper()
-        if period == "PM" and h != 12:
-            h += 12
-        elif period == "AM" and h == 12:
-            h = 0
-        return h, mn
-    # 24-hour: "18:30", "9:00"
-    m = _re.match(r"(\d{1,2}):(\d{2})", s)
-    if m:
-        return int(m.group(1)), int(m.group(2))
-    logger.warning("Could not parse digest_time '%s', defaulting to 11:00 AM", time_str)
-    return 11, 0
-
-
 def setup_background_scheduler():
     """Start APScheduler with two fixed daily pipeline runs: 07:00 and 19:00."""
     global _scheduler
@@ -1007,7 +981,9 @@ def live_search_status_api():
 def scheduler_status():
     """Return the current scheduler state and next run time."""
     if _scheduler and _scheduler.running:
-        job = _scheduler.get_job("daily_pipeline")
+        morning_job = _scheduler.get_job("morning_pipeline")
+        evening_job = _scheduler.get_job("evening_pipeline")
+        job = morning_job or evening_job
         if job:
             next_run = job.next_run_time
             return jsonify({
