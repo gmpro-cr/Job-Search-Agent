@@ -108,7 +108,6 @@ def run_reminders(preferences: dict) -> None:
             continue
 
         min_score = max(0, min(100, int(reminder.get("min_score", 65))))
-        max_jobs = max(1, min(50, int(reminder.get("max_jobs", 20))))
         recipient = (reminder.get("email") or "").strip()
         name = reminder.get("name", "Job Alert")
 
