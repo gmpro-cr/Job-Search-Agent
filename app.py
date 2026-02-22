@@ -8,6 +8,7 @@ import os
 import sys
 import logging
 import threading
+import uuid
 from datetime import datetime, timedelta
 
 # Load .env before anything else reads os.environ
@@ -1188,7 +1189,6 @@ def reminders():
 @app.route("/reminders/create", methods=["POST"])
 def reminders_create():
     """Create a new reminder with a mandatory CV upload."""
-    import uuid
     from reminder_runner import load_reminders, save_reminders
     name = request.form.get("name", "").strip()
     keyword = request.form.get("keyword", "").strip()
@@ -1226,7 +1226,11 @@ def reminders_create():
         "last_sent": None,
         "cv_data": cv_data,
     })
-    save_reminders(all_reminders)
+    try:
+        save_reminders(all_reminders)
+    except OSError as e:
+        flash(f"Failed to save reminder: {e}", "error")
+        return redirect(url_for("reminders"))
     flash(f"Reminder '{name}' created with {len(cv_data['skills'])} CV skills detected.", "success")
     return redirect(url_for("reminders"))
 
