@@ -1,113 +1,101 @@
 {% extends "base.html" %}
-{% block title %}Reminders - Job Search Agent{% endblock %}
+{% block title %}Reminders — Job Agent{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-  <h1 class="text-2xl font-bold text-gray-900">Reminders</h1>
-  <p class="text-gray-500 mt-1">Manage your job alert reminders</p>
-</div>
+<div class="max-w-4xl mx-auto">
+  <div class="mb-6">
+    <h1 class="text-xl font-semibold text-gray-900">Job Reminders</h1>
+    <p class="text-sm text-gray-500 mt-1">Create alerts that email you matching jobs after each scrape (7 AM &amp; 7 PM daily).</p>
+  </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-    <div class="mb-4 px-4 py-3 rounded {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
-      {{ message }}
+  <!-- Create form -->
+  <div class="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+    <h2 class="text-sm font-semibold text-gray-700 mb-4">New Reminder</h2>
+    <form method="POST" action="{{ url_for('reminders_create') }}">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Alert name</label>
+          <input type="text" name="name" placeholder="e.g. PM jobs Bangalore" required
+                 class="w-full text-sm rounded-lg border border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 py-2 px-3">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Job title keyword</label>
+          <input type="text" name="keyword" placeholder="e.g. Product Manager" required
+                 class="w-full text-sm rounded-lg border border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 py-2 px-3">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Recipient email</label>
+          <input type="email" name="email" placeholder="you@gmail.com" required
+                 class="w-full text-sm rounded-lg border border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 py-2 px-3">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Min match score (0–100)</label>
+          <input type="number" name="min_score" value="65" min="0" max="100"
+                 class="w-full text-sm rounded-lg border border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 py-2 px-3">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Max jobs per email (1–50)</label>
+          <input type="number" name="max_jobs" value="20" min="1" max="50"
+                 class="w-full text-sm rounded-lg border border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 py-2 px-3">
+        </div>
+      </div>
+      <button type="submit"
+              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors">
+        + Create Reminder
+      </button>
+    </form>
+  </div>
+
+  <!-- Reminder list -->
+  {% if reminders %}
+  <div class="space-y-3">
+    {% for r in reminders %}
+    <div class="bg-white border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+      <!-- Info -->
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="font-semibold text-gray-900 text-sm">{{ r.name }}</span>
+          {% if r.enabled %}
+          <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Active</span>
+          {% else %}
+          <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">Paused</span>
+          {% endif %}
+        </div>
+        <div class="text-xs text-gray-500 flex flex-wrap gap-3">
+          <span>Keyword: <strong class="text-gray-700">{{ r.keyword }}</strong></span>
+          <span>Score ≥ <strong class="text-gray-700">{{ r.min_score }}</strong></span>
+          <span>Max <strong class="text-gray-700">{{ r.max_jobs }}</strong> jobs</span>
+          <span>→ <strong class="text-gray-700">{{ r.email }}</strong></span>
+          <span>Last sent: <strong class="text-gray-700">
+            {% if r.last_sent %}{{ r.last_sent[:16].replace('T', ' ') }}{% else %}Never{% endif %}
+          </strong></span>
+        </div>
+      </div>
+      <!-- Actions -->
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <form method="POST" action="{{ url_for('reminders_toggle', reminder_id=r.id) }}">
+          <button type="submit"
+                  class="text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors
+                         {% if r.enabled %}border-amber-200 text-amber-700 hover:bg-amber-50
+                         {% else %}border-green-200 text-green-700 hover:bg-green-50{% endif %}">
+            {% if r.enabled %}Pause{% else %}Enable{% endif %}
+          </button>
+        </form>
+        <form method="POST" action="{{ url_for('reminders_delete', reminder_id=r.id) }}"
+              onsubmit="return confirm('Delete reminder \'{{ r.name }}\'?')">
+          <button type="submit"
+                  class="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 font-medium transition-colors">
+            Delete
+          </button>
+        </form>
+      </div>
     </div>
     {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-400 text-sm">
+    No reminders yet. Create one above.
+  </div>
   {% endif %}
-{% endwith %}
-
-<div class="bg-white rounded-lg shadow p-6 mb-6">
-  <h2 class="text-lg font-semibold text-gray-800 mb-4">Create Reminder</h2>
-  <form method="POST" action="{{ url_for('reminders_create') }}">
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-        <input type="text" name="name" required
-               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Keyword</label>
-        <input type="text" name="keyword" required
-               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-        <input type="email" name="email" required
-               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Min Score (0-100)</label>
-        <input type="number" name="min_score" value="65" min="0" max="100"
-               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Max Jobs (1-50)</label>
-        <input type="number" name="max_jobs" value="20" min="1" max="50"
-               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      </div>
-    </div>
-    <div class="mt-4">
-      <button type="submit"
-              class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700">
-        Create Reminder
-      </button>
-    </div>
-  </form>
 </div>
-
-{% if reminders %}
-<div class="bg-white rounded-lg shadow overflow-hidden">
-  <table class="min-w-full divide-y divide-gray-200">
-    <thead class="bg-gray-50">
-      <tr>
-        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Keyword</th>
-        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Min Score</th>
-        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Max Jobs</th>
-        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-      </tr>
-    </thead>
-    <tbody class="bg-white divide-y divide-gray-200">
-      {% for r in reminders %}
-      <tr class="hover:bg-gray-50">
-        <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ r.name }}</td>
-        <td class="px-6 py-4 text-sm text-gray-500">{{ r.keyword }}</td>
-        <td class="px-6 py-4 text-sm text-gray-500">{{ r.email }}</td>
-        <td class="px-6 py-4 text-sm text-gray-500">{{ r.min_score }}</td>
-        <td class="px-6 py-4 text-sm text-gray-500">{{ r.max_jobs }}</td>
-        <td class="px-6 py-4 text-sm">
-          {% if r.enabled %}
-            <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded">Enabled</span>
-          {% else %}
-            <span class="px-2 py-1 text-xs bg-gray-100 text-gray-500 rounded">Disabled</span>
-          {% endif %}
-        </td>
-        <td class="px-6 py-4 text-right space-x-2">
-          <form method="POST" action="{{ url_for('reminders_toggle', reminder_id=r.id) }}" class="inline">
-            <button type="submit"
-                    class="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
-              {% if r.enabled %}Disable{% else %}Enable{% endif %}
-            </button>
-          </form>
-          <form method="POST" action="{{ url_for('reminders_delete', reminder_id=r.id) }}" class="inline"
-                onsubmit="return confirm('Delete this reminder?')">
-            <button type="submit"
-                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-red-600 text-white hover:bg-red-700">
-              Delete
-            </button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% else %}
-<div class="bg-white rounded-lg shadow p-10 text-center">
-  <p class="text-gray-500 text-lg">No reminders configured yet.</p>
-</div>
-{% endif %}
 {% endblock %}
