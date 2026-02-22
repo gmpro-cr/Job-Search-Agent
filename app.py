@@ -1163,7 +1163,7 @@ def _extract_cv_text(file_storage) -> str:
             text = "\n".join(p.text for p in doc.paragraphs)
         except Exception as e:
             raise ValueError(f"DOCX parsing failed: {e}")
-    elif ext in ("txt", ""):
+    elif ext == "txt":
         text = data.decode("utf-8", errors="replace")
     else:
         raise ValueError(f"Unsupported file type '.{ext}'. Use PDF, DOCX, or TXT.")
