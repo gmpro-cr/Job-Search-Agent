@@ -52,6 +52,12 @@ def run_reminders(preferences: dict) -> None:
         logger.info("No reminders configured, skipping")
         return
 
+    gmail_address = preferences.get("gmail_address", "").strip()
+    gmail_app_password = preferences.get("gmail_app_password", "").strip()
+    if not gmail_address or not gmail_app_password:
+        logger.info("Gmail credentials not configured - skipping reminders")
+        return
+
     updated = False
     for reminder in reminders:
         if not reminder.get("enabled", True):

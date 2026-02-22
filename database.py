@@ -809,7 +809,7 @@ def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int) -> list:
         SELECT * FROM job_listings
         WHERE LOWER(role) LIKE ?
           AND relevance_score >= ?
-          AND hidden = 0
+          AND (hidden = 0 OR hidden IS NULL)
         ORDER BY date_found DESC
         LIMIT ?
         """,
