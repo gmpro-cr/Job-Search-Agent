@@ -775,3 +775,46 @@ def get_normalized_locations():
 
     # Sort by count descending so most popular cities appear first
     return sorted(counts.items(), key=lambda x: -x[1])
+
+
+def delete_old_jobs(days: int = 30) -> int:
+    """
+    Delete job listings older than `days` days.
+    Returns the number of rows deleted.
+    """
+    cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "DELETE FROM job_listings WHERE date_found < ?",
+        (cutoff,),
+    )
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    logger.info("delete_old_jobs: removed %d jobs older than %d days", deleted, days)
+    return deleted
+
+
+def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int) -> list:
+    """
+    Return up to max_jobs listings whose role contains `keyword` (case-insensitive)
+    and whose relevance_score >= min_score, ordered newest first.
+    Only returns non-hidden jobs.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT * FROM job_listings
+        WHERE LOWER(role) LIKE ?
+          AND relevance_score >= ?
+          AND hidden = 0
+        ORDER BY date_found DESC
+        LIMIT ?
+        """,
+        (f"%{keyword.lower()}%", int(min_score), int(max_jobs)),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
