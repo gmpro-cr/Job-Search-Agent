@@ -35,6 +35,46 @@ def save_reminders(reminders: list) -> None:
         json.dump(reminders, f, indent=2)
 
 
+def score_jobs_for_cv_reminder(reminder: dict) -> list:
+    """
+    Fetch and score jobs for a reminder that has cv_data.
+
+    - Fetches up to 200 candidate jobs matching the keyword (ignoring min_score)
+    - Scores each against the reminder's CV using cv_score()
+    - Filters by min_score, sorts by CV match % descending, returns top max_jobs
+
+    Returns a list of job dicts (same shape as get_jobs_for_reminder returns).
+    Falls back to relevance_score query if cv_data is absent.
+    """
+    from database import get_jobs_for_reminder
+    from analyzer import cv_score
+
+    keyword = (reminder.get("keyword") or "").strip()
+    min_score = max(0, min(100, int(reminder.get("min_score", 65))))
+    max_jobs = max(1, min(50, int(reminder.get("max_jobs", 20))))
+    cv_data = reminder.get("cv_data")
+
+    if not cv_data:
+        # Legacy fallback: filter by AI relevance score
+        return get_jobs_for_reminder(keyword, min_score, max_jobs)
+
+    # Fetch broad candidate set (skip score filter, use large limit)
+    candidates = get_jobs_for_reminder(keyword, min_score=0, max_jobs=200)
+    if not candidates:
+        return []
+
+    # Score each job against this reminder's CV
+    scored = [(job, cv_score(job, cv_data)) for job in candidates]
+
+    # Filter by min_score, sort descending, cap at max_jobs
+    filtered = sorted(
+        [(j, s) for j, s in scored if s >= min_score],
+        key=lambda x: -x[1],
+    )[:max_jobs]
+
+    return [j for j, _ in filtered]
+
+
 def run_reminders(preferences: dict) -> None:
     """
     For each enabled reminder in reminders.json:
