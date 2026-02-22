@@ -84,7 +84,6 @@ def run_reminders(preferences: dict) -> None:
 
     preferences must contain gmail_address and gmail_app_password.
     """
-    from database import get_jobs_for_reminder
     from email_notifier import send_job_email
 
     reminders = load_reminders()
@@ -117,7 +116,7 @@ def run_reminders(preferences: dict) -> None:
             logger.warning("Reminder '%s' has no email, skipping", name)
             continue
 
-        jobs = get_jobs_for_reminder(keyword, min_score, max_jobs)
+        jobs = score_jobs_for_cv_reminder(reminder)
         if not jobs:
             logger.info("Reminder '%s': no jobs found (keyword=%s, min_score=%d)", name, keyword, min_score)
             continue
