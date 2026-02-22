@@ -1263,7 +1263,6 @@ def reminders_toggle(reminder_id):
 def reminders_send(reminder_id):
     """Manually trigger a single reminder right now."""
     from reminder_runner import load_reminders, save_reminders
-    from database import get_jobs_for_reminder
     from email_notifier import send_job_email
 
     preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
@@ -1285,7 +1284,8 @@ def reminders_send(reminder_id):
     recipient = (reminder.get("email") or "").strip()
     name = reminder.get("name", "Job Alert")
 
-    jobs = get_jobs_for_reminder(keyword, min_score, max_jobs)
+    from reminder_runner import score_jobs_for_cv_reminder
+    jobs = score_jobs_for_cv_reminder(reminder)
     if not jobs:
         flash(f"No jobs found matching '{keyword}' with score ≥ {min_score}.", "error")
         return redirect(url_for("reminders"))
