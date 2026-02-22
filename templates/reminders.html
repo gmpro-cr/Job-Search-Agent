@@ -73,6 +73,12 @@
       </div>
       <!-- Actions -->
       <div class="flex items-center gap-2 flex-shrink-0">
+        <form method="POST" action="{{ url_for('reminders_send', reminder_id=r.id) }}">
+          <button type="submit"
+                  class="text-xs px-3 py-1.5 rounded-lg border border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-medium transition-colors">
+            Send Now
+          </button>
+        </form>
         <form method="POST" action="{{ url_for('reminders_toggle', reminder_id=r.id) }}">
           <button type="submit"
                   class="text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors

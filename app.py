@@ -1209,6 +1209,51 @@ def reminders_toggle(reminder_id):
     return redirect(url_for("reminders"))
 
 
+@app.route("/reminders/<reminder_id>/send", methods=["POST"])
+def reminders_send(reminder_id):
+    """Manually trigger a single reminder right now."""
+    from reminder_runner import load_reminders, save_reminders
+    from database import get_jobs_for_reminder
+    from email_notifier import send_job_email
+
+    preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
+    gmail_address = preferences.get("gmail_address", "").strip()
+    gmail_app_password = preferences.get("gmail_app_password", "").strip()
+    if not gmail_address or not gmail_app_password:
+        flash("Gmail credentials not configured. Add them in Settings first.", "error")
+        return redirect(url_for("reminders"))
+
+    all_reminders = load_reminders()
+    reminder = next((r for r in all_reminders if r.get("id") == reminder_id), None)
+    if not reminder:
+        flash("Reminder not found.", "error")
+        return redirect(url_for("reminders"))
+
+    keyword = (reminder.get("keyword") or "").strip()
+    min_score = max(0, min(100, int(reminder.get("min_score", 65))))
+    max_jobs = max(1, min(50, int(reminder.get("max_jobs", 20))))
+    recipient = (reminder.get("email") or "").strip()
+    name = reminder.get("name", "Job Alert")
+
+    jobs = get_jobs_for_reminder(keyword, min_score, max_jobs)
+    if not jobs:
+        flash(f"No jobs found matching '{keyword}' with score ≥ {min_score}.", "error")
+        return redirect(url_for("reminders"))
+
+    alert_prefs = dict(preferences)
+    alert_prefs["job_titles"] = [keyword]
+    success = send_job_email(recipient, jobs, alert_prefs)
+    if success:
+        from datetime import datetime
+        reminder["last_sent"] = datetime.now().isoformat()
+        save_reminders(all_reminders)
+        flash(f"Sent {len(jobs)} jobs for '{name}' to {recipient}.", "success")
+    else:
+        flash(f"Failed to send email to {recipient}. Check Gmail credentials in Settings.", "error")
+
+    return redirect(url_for("reminders"))
+
+
 # ---------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------
