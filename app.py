@@ -1187,7 +1187,7 @@ def reminders():
 
 @app.route("/reminders/create", methods=["POST"])
 def reminders_create():
-    """Create a new reminder and save to reminders.json."""
+    """Create a new reminder with a mandatory CV upload."""
     import uuid
     from reminder_runner import load_reminders, save_reminders
     name = request.form.get("name", "").strip()
@@ -1202,6 +1202,18 @@ def reminders_create():
     except (ValueError, TypeError):
         flash("Score and max jobs must be numbers.", "error")
         return redirect(url_for("reminders"))
+
+    cv_file = request.files.get("cv_file")
+    if not cv_file or not cv_file.filename:
+        flash("A CV/resume file is required to create a reminder.", "error")
+        return redirect(url_for("reminders"))
+    try:
+        cv_text = _extract_cv_text(cv_file)
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("reminders"))
+    cv_data = parse_cv_text(cv_text)
+
     all_reminders = load_reminders()
     all_reminders.append({
         "id": uuid.uuid4().hex[:8],
@@ -1212,9 +1224,10 @@ def reminders_create():
         "email": email_addr,
         "enabled": True,
         "last_sent": None,
+        "cv_data": cv_data,
     })
     save_reminders(all_reminders)
-    flash(f"Reminder '{name}' created.", "success")
+    flash(f"Reminder '{name}' created with {len(cv_data['skills'])} CV skills detected.", "success")
     return redirect(url_for("reminders"))
 
 
