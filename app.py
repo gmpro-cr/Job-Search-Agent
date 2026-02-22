@@ -166,26 +166,29 @@ def _parse_digest_time(time_str):
 
 
 def setup_background_scheduler():
-    """Create and start the APScheduler BackgroundScheduler using the user's digest_time."""
+    """Start APScheduler with two fixed daily pipeline runs: 07:00 and 19:00."""
     global _scheduler
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.cron import CronTrigger
 
-        prefs = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
-        digest_time = prefs.get("digest_time", "11:00 AM")
-        hour, minute = _parse_digest_time(digest_time)
-
         _scheduler = BackgroundScheduler(daemon=True)
         _scheduler.add_job(
             _scheduled_pipeline_run,
-            trigger=CronTrigger(hour=hour, minute=minute),
-            id="daily_pipeline",
-            name=f"Daily job scraper pipeline at {digest_time}",
+            trigger=CronTrigger(hour=7, minute=0),
+            id="morning_pipeline",
+            name="Morning job scraper pipeline at 07:00",
+            replace_existing=True,
+        )
+        _scheduler.add_job(
+            _scheduled_pipeline_run,
+            trigger=CronTrigger(hour=19, minute=0),
+            id="evening_pipeline",
+            name="Evening job scraper pipeline at 19:00",
             replace_existing=True,
         )
         _scheduler.start()
-        logger.info("Background scheduler started - daily pipeline at %02d:%02d (%s)", hour, minute, digest_time)
+        logger.info("Background scheduler started - pipeline runs at 07:00 and 19:00 daily")
     except ImportError:
         logger.warning("APScheduler not installed - daily scheduling disabled")
     except Exception as e:
