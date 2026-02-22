@@ -1140,6 +1140,39 @@ def gap_analysis(job_id):
     return jsonify({"ok": True, **result})
 
 
+def _extract_cv_text(file_storage) -> str:
+    """
+    Extract plain text from an uploaded CV file (PDF, DOCX, or TXT).
+    Returns extracted text string, or raises ValueError with a user-friendly message.
+    """
+    filename = (file_storage.filename or "").lower()
+    ext = filename.rsplit(".", 1)[-1] if "." in filename else ""
+    data = file_storage.read()
+
+    if ext == "pdf":
+        try:
+            import pdfplumber, io
+            with pdfplumber.open(io.BytesIO(data)) as pdf:
+                text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+        except Exception as e:
+            raise ValueError(f"PDF parsing failed: {e}")
+    elif ext == "docx":
+        try:
+            import docx, io
+            doc = docx.Document(io.BytesIO(data))
+            text = "\n".join(p.text for p in doc.paragraphs)
+        except Exception as e:
+            raise ValueError(f"DOCX parsing failed: {e}")
+    elif ext in ("txt", ""):
+        text = data.decode("utf-8", errors="replace")
+    else:
+        raise ValueError(f"Unsupported file type '.{ext}'. Use PDF, DOCX, or TXT.")
+
+    if not text.strip():
+        raise ValueError("Could not extract any text from the CV file.")
+    return text
+
+
 # ---------------------------------------------------------------------------
 # Reminders
 # ---------------------------------------------------------------------------
