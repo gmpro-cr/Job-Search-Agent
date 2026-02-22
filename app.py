@@ -42,6 +42,8 @@ from scrapers import scrape_all_portals
 from analyzer import analyze_jobs, generate_tailored_points, parse_nlp_query, parse_cv_text, cv_score, compute_gap_analysis, load_cv_data, save_cv_data, CV_DATA_PATH
 from digest_generator import generate_digest, get_latest_digest, DIGEST_DIR
 from email_notifier import send_job_email
+from reminder_runner import run_reminders
+from database import delete_old_jobs
 from contact_scraper import enrich_jobs_with_contacts
 from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
 from telegram_bot import start_telegram_bot
@@ -310,6 +312,23 @@ def _run_scraper_pipeline():
                 logger.info("Email digest sent to %s", recipient)
             except Exception as e:
                 logger.error("Failed to send email: %s", e)
+
+        # Phase 5.5: Cleanup old jobs (>30 days)
+        with scraper_lock:
+            scraper_status["phase"] = "cleanup"
+        try:
+            removed = delete_old_jobs(days=30)
+            logger.info("Cleanup: removed %d jobs older than 30 days", removed)
+        except Exception as e:
+            logger.error("Cleanup error: %s", e)
+
+        # Phase 5.6: Custom reminders
+        with scraper_lock:
+            scraper_status["phase"] = "reminders"
+        try:
+            run_reminders(preferences)
+        except Exception as e:
+            logger.error("Reminders error: %s", e)
 
         with scraper_lock:
             scraper_status["phase"] = "done"
