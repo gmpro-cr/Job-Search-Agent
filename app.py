@@ -1304,6 +1304,40 @@ def reminders_send(reminder_id):
     return redirect(url_for("reminders"))
 
 
+@app.route("/reminders/<reminder_id>/update-cv", methods=["POST"])
+def reminders_update_cv(reminder_id):
+    """Replace the CV for an existing reminder."""
+    from reminder_runner import load_reminders, save_reminders
+    cv_file = request.files.get("cv_file")
+    if not cv_file or not cv_file.filename:
+        flash("Please select a CV file to upload.", "error")
+        return redirect(url_for("reminders"))
+    try:
+        cv_text = _extract_cv_text(cv_file)
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("reminders"))
+    cv_data = parse_cv_text(cv_text)
+
+    all_reminders = load_reminders()
+    updated = False
+    for r in all_reminders:
+        if r.get("id") == reminder_id:
+            r["cv_data"] = cv_data
+            updated = True
+            break
+    if updated:
+        try:
+            save_reminders(all_reminders)
+        except OSError as e:
+            flash(f"Failed to save reminder: {e}", "error")
+            return redirect(url_for("reminders"))
+        flash(f"CV updated — {len(cv_data['skills'])} skills detected.", "success")
+    else:
+        flash("Reminder not found.", "error")
+    return redirect(url_for("reminders"))
+
+
 # ---------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------
