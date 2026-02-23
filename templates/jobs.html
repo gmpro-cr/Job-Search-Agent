@@ -148,15 +148,6 @@
       <option value="65" {% if filters.min_score == '65' %}selected{% endif %}>Score ≥ 65</option>
       <option value="75" {% if filters.min_score == '75' %}selected{% endif %}>Score ≥ 75</option>
     </select>
-    <input type="number" name="salary_min" value="{{ filters.salary_min }}" placeholder="Min salary (L)"
-           class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-    <input type="number" name="salary_max" value="{{ filters.salary_max }}" placeholder="Max salary (L)"
-           class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-    <select name="company_type" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-      <option value="">All companies</option>
-      <option value="startup" {% if filters.company_type == 'startup' %}selected{% endif %}>Startup</option>
-      <option value="corporate" {% if filters.company_type == 'corporate' %}selected{% endif %}>Corporate</option>
-    </select>
   </div>
 </form>
 

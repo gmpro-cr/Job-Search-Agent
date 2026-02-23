@@ -1,0 +1,42 @@
+[
+  {
+    "id": "db2693c7",
+    "name": "Product Manager 1",
+    "keyword": "Product Manager, Program Manager",
+    "min_score": 65,
+    "max_jobs": 30,
+    "email": "mahalegauravk@gmail.com",
+    "enabled": true,
+    "last_sent": null
+  },
+  {
+    "id": "a3a53f44",
+    "name": "Project Manager",
+    "keyword": "Project Manager, Product Owner, Scrum Master",
+    "min_score": 65,
+    "max_jobs": 30,
+    "email": "purva.pilot57@gmail.com",
+    "enabled": true,
+    "last_sent": null,
+    "cv_data": {
+      "skills": [
+        "Stakeholder Management",
+        "Prioritization",
+        "Agile",
+        "Scrum",
+        "Kanban",
+        "Cross-functional",
+        "Leadership",
+        "Jira",
+        "Confluence",
+        "Excel",
+        "Risk Management",
+        "Compliance",
+        "Cloud",
+        "AI"
+      ],
+      "raw_text": "PURVA KALE\nMob: +919172316063 |Email : purva.pilot57@gmail.com\nSUMMARY\nProject Manager with experience leading end to end project management, project delivery and PMO\noperations. Experienced in leading global teams, managing stakeholders, process improvement and ensuring\ndelivery excellence. Focused on aligning technology with strategic business goals to drive impactful, on-time\nand scalable project outcomes.\nEDUCATION\nMaster of Engineering in E&TC (Signal Processing) 2014 - 2016\nPES Modern College of Engineering,Pune\nBachelor of Engineering in E&TC 2010 - 2014\nSinhgad Institutes SKNCOE, Pune\nSkills: Project Management, Jira, Confluence, Service Now, Stakeholder Management, SDLC, DevOps,\nDigital Transformation, Prompt Engineering, Generative AI, Agile Methodology, Scrum, Kanban\nCertifications: Project Management (IIT Delhi), Agile Project management and Project Delivery,\nScrum master, Prompt Engineering and GenAI\nLanguages: English, Marathi, Hindi\nWORK EXPERIENCE\nProject Manager, IT PMO: Worldline Global March 2023 - Present\nLed end-to-end delivery of IT projects across production services and cloud platforms, ensuring\nalignment with business goals, technical requirements, and compliance standards.\nManaged cross-functional Agile teams using Scrum and Kanban; provided Agile coaching to enhance\ndelivery efficiency and team collaboration across global locations.\nUtilized JIRA and Confluence for project planning, tracking, and documentation; oversaw project\nscope, budget, risk management (GRC), and knowledge sharing.\nCoordinated with stakeholders, developers, and infrastructure teams across the UK, Europe, and India\nto ensure effective communication and timely execution throughout the SDLC.\nOversaw incident and change management processes via ServiceNow and implemented IT process\nimprovements to reduce downtime, optimize operations, and improve system reliability.\nProject Manager,IT PMO: Bajaj Allianz Life Insurance Co. Ltd. Apr 2022 - Present\nManaged end-to-end software and application development projects using SDLC, Agile (Scrum),\nDevOps, and Waterfall methodologies, delivering scalable, high-quality solutions aligned with\nstakeholder requirements and business objectives.\nDrove digital transformation initiatives, ensuring business readiness through stakeholder engagement,\ncustomer communication plans, end-user training, and post-launch support.\nPartnered with business and technical teams to define project scope, deliverables, resource allocation,\nand task prioritization; led risk identification, impact analysis, and mitigation planning.\nEnsured timely project execution by tracking milestones through daily stand-ups and performance\nmonitoring using tools such as JIRA and SmartOne.\nLed talent development programs including Agile coaching, upskilling, and reskilling initiatives in\npartnership with Coursera, aligning with organizational learning and development strategies.\nProject Manager : Global Talent Track Sept 2021- Mar 2022\nDelivered end-to-end software development and CSR projects in collaboration with Barclays,\nmanaging scope, schedule, resources, and quality from planning to final release.\nApplied Agile, Scrum, and Waterfall methodologies to execute complex projects efficiently, ensuring\nalignment with business objectives and stakeholder expectations.\nOversaw cross-functional teams of coordinators and trainers; conducted daily stand-ups, tracked\nperformance, and resolved issues to drive smooth delivery and operational excellence.\nLed inclusive mobilization initiatives across diverse groups\u2014freelancers, underprivileged youth, lgbtq\nindividuals, and return-to-work professionals\u2014enhancing project impact and reach.\nDeveloped project plans, performance reports, and onboarding content while leading upskilling,\nreskilling, and Agile coaching programs to support organizational learning goals.\nProject Manager: NYCS India Jun 2017 - Sept 2021\nManaged high-impact CSR and software development projects under the leadership of the Director,\nNYCS India, and BJP Maharashtra\u2019s General State Secretary.\nDelivered end-to-end projects using Agile and Waterfall methodologies, ensuring timely, high-quality\nexecution in collaboration with cross-functional teams.\nManaged stakeholder engagement and operations across skill development centers in Maharashtra,\nimpacting over 3,000 students through scalable project delivery.\nCoordinated with the National Skill Development Corporation of India to implement RPL (Recognition\nof Prior Learning) programs and post-assessment certification processes.\nAchieved a 10x increase in student assessments\u2014from 300 to 3,000\u2014through strategic planning,\nmobilization efforts, and continuous monitoring of project performance.",
+      "uploaded_at": "2026-02-23T12:42:21.419787"
+    }
+  }
+]
