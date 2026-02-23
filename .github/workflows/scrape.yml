@@ -2,14 +2,17 @@ name: Daily Job Scrape
 
 on:
   schedule:
-    # Daily at 5:30 AM UTC
-    - cron: '30 5 * * *'
+    - cron: '30 1 * * *'   # 7:00 AM IST
+    - cron: '30 13 * * *'  # 7:00 PM IST
   workflow_dispatch:
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -22,9 +25,21 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run scraper and push to Render
+      - name: Run scraper
         env:
-          RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
-          IMPORT_SECRET: ${{ secrets.IMPORT_SECRET }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_MIN_SCORE: ${{ secrets.TELEGRAM_MIN_SCORE }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: python scrape_and_push.py
+
+      - name: Commit scraped jobs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/latest_scrape.json
+          git diff --staged --quiet || git commit -m "chore: update scraped jobs [skip ci]"
+          git push
