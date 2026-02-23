@@ -36,7 +36,7 @@ except ImportError:
 from main import load_config, load_preferences, DEFAULT_PREFS, apply_env_overrides
 from scrapers import scrape_all_portals
 from analyzer import analyze_jobs
-from database import generate_job_id
+from database import generate_job_id, init_db, insert_jobs_bulk
 from email_notifier import send_job_email
 from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
 
@@ -133,6 +133,12 @@ def main():
             logger.error("Failed to send email: %s", e)
     else:
         logger.warning("Email credentials not set — skipping email notification")
+
+    # --- Phase 7: Reminders ---
+    init_db()
+    insert_jobs_bulk(all_analyzed)
+    from reminder_runner import run_reminders
+    run_reminders(preferences)
 
     logger.info("Done.")
 

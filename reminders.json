@@ -3,11 +3,34 @@
     "id": "db2693c7",
     "name": "Product Manager 1",
     "keyword": "Product Manager, Program Manager",
-    "min_score": 65,
+    "min_score": 60,
     "max_jobs": 30,
     "email": "mahalegauravk@gmail.com",
     "enabled": true,
-    "last_sent": null
+    "last_sent": "2026-02-24T00:44:25.255387",
+    "cv_data": {
+      "skills": [
+        "A/B Testing",
+        "PRD",
+        "Agile",
+        "Cross-functional",
+        "Leadership",
+        "Metrics",
+        "Analytics",
+        "Figma",
+        "SQL",
+        "Python",
+        "Excel",
+        "Lending",
+        "Credit",
+        "Banking",
+        "API",
+        "GitHub",
+        "AI"
+      ],
+      "raw_text": "GAURAV MAHALE\nAI Product Manager | Credit Risk & Lending |+91 9923540336 | mahalegauravk@gmail.com| Linkedin |Pune\nEDUCATION\nPGPM -IIM Sirmaur Aug15 - Apr17\nB.E. - University of Pune Aug10 - Apr14\nSKILLS: AI lead Product/MVP Development, Product Sense, Credit Analysis, SQL, Google Analytics, Agile\nCERTIFICATIONS: IBM AI Product Management (Coursera), HelloPM , Figma Essentials (LinkedIn)\nPROJECTS\nAI Persona interaction platform Link Oct25\nDesigned & deployed an AI-driven platform enabling users (500 monthly users) to interact with AI personas\n(real or imagined), leveraging structured prompt engineering to maintain consistent tone and identity\nKey Skills/Tech: Claude, Supabase, Gemini API, GitHub, Vercel, Next.Js, Cursor, A/B Testing, MVP, PRD\nCredit Memo and FS Generation using AI Dec25\nBuilt a full-stack AI platform that generates comprehensive credit memos from annual reports, which\nincludes advanced financial data extraction, ratio calculations, and multi-format exports (Excel/PDF)\nKey Skills/Tech: Python, GitHub, Gemini/Groq API, Claude, MVP, PRD, Financial Analysis\nWORK EXPERIENCE\nAI Trainer, Pareto.AI Dec25 - Present\nTraining LLMs on financial modeling, Doc and PPT generation through evals and prompt engineering\nEvaluated and improved AI outputs for credit analysis, financial projections, and business documentation.\nApplied banking domain expertise to enhance AI model accuracy in corporate finance applications.\nRelationship Manager, Yes Bank Limited Apr22 - Present\nLed the end-to-end lifecycle of corporate lending products, aligning solutions to customer pain points\nManaged portfolio of new and existing corporate clients and generated income of ~ \u20b92.5 Cr/year\nPrepared credit appraisal memos and term sheets for new and renewal clients, enabling leadership to\nmake informed lending decisions on portfolios worth \u20b9 500 Cr\nPartnered with multiple cross-functional stakeholders using RACI to deliver lending products to clients\nDrove customer-centric discovery and onboarding, acquiring ~4 new corporate clients annually\nMonitored product adoption post-onboarding and iterated on offering based on feedback loops\nManaged corporate customers with sectors including education, steel, textile, safety equipments, G&J\nPortfolio Manager, HDFC Bank Limited Jan20 - Apr 22\nDesigned solutions to minimise delinquency risk using predictive analytics and early warning systems\nUsed tools like PowerBI and excel dashboards to track default probabilities and portfolio health metrics\nCo-created restructuring product flows tailored to stressed assets by analyzing user financial behavior\nCreated sector-specific business models (real estate, energy, hospitality) based on customer segments\nInteracted with business, credit and recovery teams for the region of Maharashtra and Goa\nOperations Manager, Suraksha Asset Reconstruction Ltd. Sep17 - Jan20\nAnalysed the financial health and recovery potential of NPA accounts offered for sale by banks\nLiaised with bank officials and legal team for acquisition and resolution process of the accounts\nAssisted on end-to-end process of acquiring an account with debt of ~\u20b99000 Cr under IBC framework\nConducted due diligence and loan documentation for cases having ticket size more than \u20b9 50 Cr.\nMonitored the operations involving labour count, construction cost, sales data of Real Estate Cases\nConsultant, Tata Trusts & Ministry of Water and Sanitation May17 - Sep17\nResponsible for catalysing the existing process to complete the work within the set deadline\nSet up a system of extension officers, BRCs & CRCs to speed up the process of MIS entries\nWithin 2 months the region had crossed 8 others shifting from the last position in number of IHHLs\nInitiated process to build Hand wash Station in 1200 schools with the help of Rotary Club",
+      "uploaded_at": "2026-02-23T14:57:00.999554"
+    }
   },
   {
     "id": "a3a53f44",
@@ -17,7 +40,7 @@
     "max_jobs": 30,
     "email": "purva.pilot57@gmail.com",
     "enabled": true,
-    "last_sent": null,
+    "last_sent": "2026-02-24T00:44:28.474686",
     "cv_data": {
       "skills": [
         "Stakeholder Management",
