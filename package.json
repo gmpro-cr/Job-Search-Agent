@@ -1,0 +1,10 @@
+{
+  "name": "job-search-agent",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i static/src/input.css -o static/css/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}
