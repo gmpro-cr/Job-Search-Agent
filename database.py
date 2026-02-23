@@ -798,22 +798,27 @@ def delete_old_jobs(days: int = 30) -> int:
 
 def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int) -> list:
     """
-    Return up to max_jobs listings whose role contains `keyword` (case-insensitive)
-    and whose relevance_score >= min_score, ordered newest first.
-    Only returns non-hidden jobs.
+    Return up to max_jobs listings whose role contains any of the comma-separated
+    terms in `keyword` (case-insensitive, OR logic) and whose relevance_score >=
+    min_score, ordered newest first. Only returns non-hidden jobs.
     """
+    terms = [t.strip().lower() for t in keyword.split(",") if t.strip()]
+    if not terms:
+        return []
+    role_clauses = " OR ".join("LOWER(role) LIKE ?" for _ in terms)
+    params = [f"%{t}%" for t in terms] + [int(min_score), int(max_jobs)]
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        """
+        f"""
         SELECT * FROM job_listings
-        WHERE LOWER(role) LIKE ?
+        WHERE ({role_clauses})
           AND relevance_score >= ?
           AND (hidden = 0 OR hidden IS NULL)
         ORDER BY date_found DESC
         LIMIT ?
         """,
-        (f"%{keyword.lower()}%", int(min_score), int(max_jobs)),
+        params,
     )
     rows = cursor.fetchall()
     conn.close()
