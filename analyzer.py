@@ -1113,7 +1113,10 @@ def cv_score(job, cv_data):
     jd_skills = extract_skills(jd_text, max_skills=20)
 
     if not jd_skills:
-        # If no specific skills extracted from JD, fall back to keyword overlap
+        # If no job description, there is nothing to score against the CV
+        if not job.get("job_description", "").strip():
+            return 0
+        # JD exists but no specific skills extracted — fall back to word overlap
         jd_words = set(re.findall(r'\b\w{4,}\b', jd_text.lower()))
         cv_words = set(re.findall(r'\b\w{4,}\b', cv_data.get("raw_text", "").lower()))
         common = jd_words & cv_words
