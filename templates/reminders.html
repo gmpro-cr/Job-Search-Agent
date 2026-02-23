@@ -95,7 +95,7 @@
         <form method="POST" action="{{ url_for('reminders_update_cv', reminder_id=r.id) }}" enctype="multipart/form-data" class="flex items-center gap-1">
           <label class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium transition-colors cursor-pointer">
             {% if r.cv_data %}Update CV{% else %}Upload CV{% endif %}
-            <input type="file" name="cv_file" accept=".pdf,.docx,.txt" class="hidden" onchange="this.form.submit()">
+            <input type="file" name="cv_file" accept=".pdf,.docx,.txt" class="hidden" aria-hidden="true" onchange="this.form.submit()">
           </label>
         </form>
         <form method="POST" action="{{ url_for('reminders_send', reminder_id=r.id) }}">
@@ -113,7 +113,7 @@
           </button>
         </form>
         <form method="POST" action="{{ url_for('reminders_delete', reminder_id=r.id) }}"
-              onsubmit="return confirm('Delete reminder \'{{ r.name }}\'?')">
+              onsubmit="return confirm({{ ('Delete reminder \'' ~ r.name ~ '\'?') | tojson }})">
           <button type="submit"
                   class="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 font-medium transition-colors">
             Delete
