@@ -1337,6 +1337,46 @@ def reminders_update_cv(reminder_id):
     return redirect(url_for("reminders"))
 
 
+@app.route("/reminders/<reminder_id>/edit", methods=["POST"])
+def reminders_edit(reminder_id):
+    """Update editable fields of an existing reminder."""
+    from reminder_runner import load_reminders, save_reminders
+    name = request.form.get("name", "").strip()
+    keyword = request.form.get("keyword", "").strip()
+    email_addr = request.form.get("email", "").strip()
+    if not name or not keyword or not email_addr:
+        flash("Name, keyword, and email are required.", "error")
+        return redirect(url_for("reminders"))
+    try:
+        min_score = max(0, min(100, int(request.form.get("min_score", 65))))
+        max_jobs = max(1, min(50, int(request.form.get("max_jobs", 20))))
+    except (ValueError, TypeError):
+        flash("Score and max jobs must be numbers.", "error")
+        return redirect(url_for("reminders"))
+
+    all_reminders = load_reminders()
+    updated = False
+    for r in all_reminders:
+        if r.get("id") == reminder_id:
+            r["name"] = name
+            r["keyword"] = keyword
+            r["email"] = email_addr
+            r["min_score"] = min_score
+            r["max_jobs"] = max_jobs
+            updated = True
+            break
+    if updated:
+        try:
+            save_reminders(all_reminders)
+        except OSError as e:
+            flash(f"Failed to save reminder: {e}", "error")
+            return redirect(url_for("reminders"))
+        flash(f"Reminder '{name}' updated.", "success")
+    else:
+        flash("Reminder not found.", "error")
+    return redirect(url_for("reminders"))
+
+
 # ---------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------
