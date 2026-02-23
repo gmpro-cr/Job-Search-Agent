@@ -72,7 +72,13 @@ def score_jobs_for_cv_reminder(reminder: dict) -> list:
         key=lambda x: -x[1],
     )[:max_jobs]
 
-    return [j for j, _ in filtered]
+    # Inject cv_score so the email can display the CV-match score instead of relevance_score
+    result = []
+    for j, s in filtered:
+        job = dict(j)
+        job["cv_score"] = s
+        result.append(job)
+    return result
 
 
 def run_reminders(preferences: dict) -> None:
