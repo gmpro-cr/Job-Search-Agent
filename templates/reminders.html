@@ -132,17 +132,17 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Alert name</label>
-            <input type="text" name="name" value="{{ r.name }}" required
+            <input type="text" name="name" value="{{ r.name | e }}" required
                    class="w-full text-sm rounded-lg border border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 py-2 px-3">
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Job title keyword</label>
-            <input type="text" name="keyword" value="{{ r.keyword }}" required
+            <input type="text" name="keyword" value="{{ r.keyword | e }}" required
                    class="w-full text-sm rounded-lg border border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 py-2 px-3">
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Recipient email</label>
-            <input type="email" name="email" value="{{ r.email }}" required
+            <input type="email" name="email" value="{{ r.email | e }}" required
                    class="w-full text-sm rounded-lg border border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 py-2 px-3">
           </div>
           <div>
