@@ -1196,6 +1196,9 @@ def reminders_create():
     if not name or not keyword or not email_addr:
         flash("Name, keyword, and email are required.", "error")
         return redirect(url_for("reminders"))
+    if "@" not in email_addr or "." not in email_addr.split("@")[-1]:
+        flash("Please enter a valid email address.", "error")
+        return redirect(url_for("reminders"))
     try:
         min_score = max(0, min(100, int(request.form.get("min_score", 65))))
         max_jobs = max(1, min(50, int(request.form.get("max_jobs", 20))))
@@ -1241,7 +1244,11 @@ def reminders_delete(reminder_id):
     from reminder_runner import load_reminders, save_reminders
     all_reminders = load_reminders()
     all_reminders = [r for r in all_reminders if r.get("id") != reminder_id]
-    save_reminders(all_reminders)
+    try:
+        save_reminders(all_reminders)
+    except OSError as e:
+        flash(f"Failed to save: {e}", "error")
+        return redirect(url_for("reminders"))
     flash("Reminder deleted.", "success")
     return redirect(url_for("reminders"))
 
@@ -1255,7 +1262,10 @@ def reminders_toggle(reminder_id):
         if r.get("id") == reminder_id:
             r["enabled"] = not r.get("enabled", True)
             break
-    save_reminders(all_reminders)
+    try:
+        save_reminders(all_reminders)
+    except OSError as e:
+        flash(f"Failed to save: {e}", "error")
     return redirect(url_for("reminders"))
 
 
@@ -1346,6 +1356,9 @@ def reminders_edit(reminder_id):
     email_addr = request.form.get("email", "").strip()
     if not name or not keyword or not email_addr:
         flash("Name, keyword, and email are required.", "error")
+        return redirect(url_for("reminders"))
+    if "@" not in email_addr or "." not in email_addr.split("@")[-1]:
+        flash("Please enter a valid email address.", "error")
         return redirect(url_for("reminders"))
     try:
         min_score = max(0, min(100, int(request.form.get("min_score", 65))))
