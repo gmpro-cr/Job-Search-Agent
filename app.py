@@ -1294,7 +1294,6 @@ def reminders_send(reminder_id):
     alert_prefs["job_titles"] = [keyword]
     success = send_job_email(recipient, jobs, alert_prefs)
     if success:
-        from datetime import datetime
         reminder["last_sent"] = datetime.now().isoformat()
         save_reminders(all_reminders)
         flash(f"Sent {len(jobs)} jobs for '{name}' to {recipient}.", "success")
