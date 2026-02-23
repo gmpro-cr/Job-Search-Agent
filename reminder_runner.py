@@ -54,12 +54,14 @@ def score_jobs_for_cv_reminder(reminder: dict) -> list:
     max_jobs = max(1, min(50, int(reminder.get("max_jobs", 20))))
     cv_data = reminder.get("cv_data")
 
+    since = reminder.get("last_sent")
+
     if not cv_data:
         # Legacy fallback: filter by AI relevance score
-        return get_jobs_for_reminder(keyword, min_score, max_jobs)
+        return get_jobs_for_reminder(keyword, min_score, max_jobs, since=since)
 
     # Fetch broad candidate set (skip score filter, use large limit)
-    candidates = get_jobs_for_reminder(keyword, min_score=0, max_jobs=200)
+    candidates = get_jobs_for_reminder(keyword, min_score=0, max_jobs=200, since=since)
     if not candidates:
         return []
 

@@ -40,6 +40,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/latest_scrape.json
-          git diff --staged --quiet || git commit -m "chore: update scraped jobs [skip ci]"
+          git add data/latest_scrape.json reminders.json
+          git diff --staged --quiet || git commit -m "chore: update scraped jobs and reminder timestamps [skip ci]"
           git push
