@@ -10,3 +10,4 @@ user_preferences.json
 .vercel/
 .vercel
 node_modules/
+data/last_import.txt
