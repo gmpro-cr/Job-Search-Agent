@@ -48,6 +48,7 @@ from database import delete_old_jobs
 from contact_scraper import enrich_jobs_with_contacts
 from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
 from telegram_bot import start_telegram_bot
+from git_sync import sync_from_scrape
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -466,6 +467,14 @@ def _should_start_background_tasks():
 
 if _should_start_background_tasks():
     setup_background_scheduler()
+
+    # Auto-import any scraped jobs committed by GitHub Actions
+    import threading as _threading
+    _threading.Thread(
+        target=sync_from_scrape,
+        args=(BASE_DIR, insert_jobs_bulk),
+        daemon=True,
+    ).start()
 
     # Start Telegram bot if token is configured
     _bot_prefs = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
