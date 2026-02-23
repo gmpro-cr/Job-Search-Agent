@@ -2,7 +2,7 @@
 module.exports = {
   content: [
     "./templates/**/*.html",
-    "./app.py",
+    "./*.py",
     "./api/**/*.py",
   ],
   theme: {
