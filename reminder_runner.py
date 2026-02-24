@@ -128,15 +128,25 @@ def run_reminders(preferences: dict) -> None:
             logger.info("Reminder '%s': no jobs found (keyword=%s, min_score=%d)", name, keyword, min_score)
             continue
 
+        # Filter out jobs already sent to this reminder
+        sent_ids = set(reminder.get("sent_job_ids", []))
+        new_jobs = [j for j in jobs if j.get("job_id") not in sent_ids]
+        if not new_jobs:
+            logger.info("Reminder '%s': all %d jobs already sent previously", name, len(jobs))
+            continue
+
         # Build a slim preferences dict for the email builder
         alert_prefs = dict(preferences)
         alert_prefs["job_titles"] = [keyword]
 
-        success = send_job_email(recipient, jobs, alert_prefs)
+        success = send_job_email(recipient, new_jobs, alert_prefs)
         if success:
             reminder["last_sent"] = datetime.now().isoformat()
+            # Track sent job IDs; keep only the last 500 to prevent unbounded growth
+            all_sent = reminder.get("sent_job_ids", []) + [j["job_id"] for j in new_jobs if j.get("job_id")]
+            reminder["sent_job_ids"] = all_sent[-500:]
             updated = True
-            logger.info("Reminder '%s': sent %d jobs to %s", name, len(jobs), recipient)
+            logger.info("Reminder '%s': sent %d new jobs to %s", name, len(new_jobs), recipient)
         else:
             logger.error("Reminder '%s': email send failed to %s", name, recipient)
 
