@@ -116,7 +116,7 @@
   </div>
 
   <!-- More filters (hidden by default) -->
-  <div id="more-filters" class="hidden mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+  <div id="more-filters" class="hidden mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
     <select name="portal" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
       <option value="">All portals</option>
       {% for p in portals %}
@@ -151,6 +151,17 @@
       <option value="50" {% if filters.min_score == '50' %}selected{% endif %}>Score ≥ 50</option>
       <option value="65" {% if filters.min_score == '65' %}selected{% endif %}>Score ≥ 65</option>
       <option value="75" {% if filters.min_score == '75' %}selected{% endif %}>Score ≥ 75</option>
+    </select>
+    <select name="company_stage" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
+      <option value="">Any stage</option>
+      <option value="Seed" {% if filters.company_stage == 'Seed' %}selected{% endif %}>Seed</option>
+      <option value="Pre-Seed" {% if filters.company_stage == 'Pre-Seed' %}selected{% endif %}>Pre-Seed</option>
+      <option value="Series A" {% if filters.company_stage == 'Series A' %}selected{% endif %}>Series A</option>
+      <option value="Series B" {% if filters.company_stage == 'Series B' %}selected{% endif %}>Series B</option>
+      <option value="Series C" {% if filters.company_stage == 'Series C' %}selected{% endif %}>Series C</option>
+      <option value="Series D+" {% if filters.company_stage == 'Series D+' %}selected{% endif %}>Series D+</option>
+      <option value="IPO/Public" {% if filters.company_stage == 'IPO/Public' %}selected{% endif %}>IPO/Public</option>
+      <option value="Bootstrapped" {% if filters.company_stage == 'Bootstrapped' %}selected{% endif %}>Bootstrapped</option>
     </select>
   </div>
 </form>
@@ -296,7 +307,7 @@ function toggleSection(id) {
 // Auto-show more-filters if any advanced filter is active
 (function() {
   const params = new URLSearchParams(window.location.search);
-  const advanced = ['portal', 'location', 'recency', 'experience', 'min_score', 'salary_min', 'salary_max', 'company_type'];
+  const advanced = ['portal', 'location', 'recency', 'experience', 'min_score', 'salary_min', 'salary_max', 'company_type', 'company_stage'];
   if (advanced.some(k => params.get(k))) {
     const el = document.getElementById('more-filters');
     if (el) el.classList.remove('hidden');
