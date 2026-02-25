@@ -45,6 +45,19 @@
   .apply-btn:hover { background:#3f3f46; }
   .filter-submit { background:#18181b; color:#fff; transition:background .12s; }
   .filter-submit:hover { background:#3f3f46; }
+  /* Split-pane layout */
+  .jobs-split { display:flex; gap:0; height:calc(100vh - 160px); min-height:400px; }
+  .jobs-list-pane { width:360px; flex-shrink:0; overflow-y:auto; border-right:1px solid #e4e4e7; }
+  .jobs-detail-pane { flex:1; overflow-y:auto; padding:1.5rem; }
+  @media (max-width:768px) {
+    .jobs-split { flex-direction:column; height:auto; }
+    .jobs-list-pane { width:100%; border-right:none; border-bottom:1px solid #e4e4e7; max-height:50vh; }
+    .jobs-detail-pane { padding:1rem; }
+  }
+  .job-card-compact { border-bottom:1px solid #f4f4f5; padding:10px 14px; cursor:pointer; transition:background .12s; border-left:3px solid transparent; }
+  .job-card-compact:hover { background:#f9f9fb; }
+  .job-card-compact.selected { background:#eef2ff; border-left-color:#6366f1; }
+  .detail-empty { display:flex; align-items:center; justify-content:center; height:100%; color:#a1a1aa; font-size:14px; }
 </style>
 {% endblock %}
 
@@ -189,121 +202,50 @@
 <!-- Job List -->
 {% if jobs %}
 {% set avatar_colors = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316'] %}
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="job-list">
-  {% for job in jobs %}
-  {% set s = job.applied_status | int %}
-  {% set cv = job.cv_score | default(0) | int %}
-  {% set score = job.relevance_score | int %}
-  {% set avatar_bg = avatar_colors[loop.index0 % 8] %}
+<div class="jobs-split bg-white rounded-xl border border-gray-200 overflow-hidden">
 
-  <div class="job-card" id="job-{{ job.job_id }}" data-role="{{ job.role | lower }}">
-
-    <div class="p-3 flex-1 flex flex-col">
-
-      <!-- Row 1: Avatar + company + score -->
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold text-white"
-               style="background:{{ avatar_bg }}">
-            {{ (job.company or '?')[0] | upper }}
-          </div>
-          <div>
-            <p class="text-xs font-medium text-gray-900 leading-tight">{{ job.company | truncate(20, true, '…') }}</p>
-            <p class="hc-mono text-[10px] text-gray-400">{{ job.portal }}</p>
-          </div>
-        </div>
-        <div class="flex flex-col items-end gap-1">
-          <span class="hc-mono text-xs font-bold tabular-nums px-1.5 py-0.5 rounded
-            {% if score >= 80 %}score-high{% elif score >= 65 %}score-mid{% else %}score-low{% endif %}">
-            {{ score }}
-          </span>
-          {% if job.date_posted %}
-          <span class="tag-date relative-date" data-date="{{ job.date_posted }}">{{ job.date_posted[:10] }}</span>
-          {% endif %}
-        </div>
+  <!-- Left: Compact job list -->
+  <div class="jobs-list-pane" id="job-list">
+    {% for job in jobs %}
+    {% set s = job.applied_status | int %}
+    {% set score = job.relevance_score | int %}
+    {% set avatar_bg = avatar_colors[loop.index0 % 8] %}
+    <div class="job-card-compact" id="card-{{ job.job_id }}"
+         data-role="{{ job.role | lower }}"
+         onclick="selectJob(this)"
+         data-job="{{ job | tojson | forceescape }}">
+      <div class="flex items-center gap-2 mb-1">
+        <div class="w-6 h-6 rounded flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
+             style="background:{{ avatar_bg }}">{{ (job.company or '?')[0] | upper }}</div>
+        <p class="text-xs font-medium text-gray-800 truncate flex-1">{{ job.company | truncate(22, true, '…') }}</p>
+        <span class="hc-mono text-[11px] font-bold px-1 py-0.5 rounded flex-shrink-0
+          {% if score >= 80 %}score-high{% elif score >= 65 %}score-mid{% else %}score-low{% endif %}">{{ score }}</span>
       </div>
-
-      <!-- Row 2: Job title -->
-      <h3 class="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 mb-2">{{ job.role }}</h3>
-
-      <!-- Row 3: Location + type + experience tags -->
-      <div class="flex flex-wrap items-center gap-1 mb-1">
-        {% if job.location %}
-        <span class="text-[11px] text-gray-400">{{ job.location | truncate(16, true, '…') }}</span>
-        {% endif %}
-        {% if job.remote_status == 'remote' %}<span class="tag-remote">Remote</span>
-        {% elif job.remote_status == 'hybrid' %}<span class="tag-hybrid">Hybrid</span>
-        {% else %}<span class="tag-pill">Onsite</span>{% endif %}
-        {% if job.experience_min is not none and job.experience_max is not none %}
-          <span class="tag-yoe">{{ job.experience_min }}–{{ job.experience_max }} yrs</span>
-        {% elif job.experience_min is not none %}
-          <span class="tag-yoe">{{ job.experience_min }}+ yrs</span>
-        {% endif %}
+      <p class="text-xs font-semibold text-gray-900 leading-tight line-clamp-1 mb-1">{{ job.role }}</p>
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <span class="text-[10px] text-gray-400">{{ job.location | truncate(14, true, '…') }}</span>
+        {% if job.remote_status == 'remote' %}<span class="tag-remote" style="font-size:9px;padding:1px 6px">Remote</span>
+        {% elif job.remote_status == 'hybrid' %}<span class="tag-hybrid" style="font-size:9px;padding:1px 6px">Hybrid</span>{% endif %}
+        {% if job.date_posted %}<span class="tag-date relative-date ml-auto" data-date="{{ job.date_posted }}">{{ job.date_posted[:10] }}</span>{% endif %}
       </div>
-
-      <!-- Row 4: Company stage + size -->
-      {% if job.company_funding_stage or job.company_size %}
-      <div class="flex flex-wrap gap-1 mb-1">
-        {% if job.company_funding_stage %}
-          {% set stage = job.company_funding_stage | lower %}
-          {% if 'seed' in stage or 'pre' in stage or 'bootstrap' in stage %}
-            <span class="tag-stage-seed">{{ job.company_funding_stage }}</span>
-          {% elif 'series' in stage %}
-            <span class="tag-stage-series">{{ job.company_funding_stage }}</span>
-          {% else %}
-            <span class="tag-stage-large">{{ job.company_funding_stage }}</span>
-          {% endif %}
-        {% endif %}
-        {% if job.company_size %}
-        <span class="tag-stage-large">{{ job.company_size }}</span>
-        {% endif %}
-      </div>
-      {% endif %}
-
-      <!-- Row 5: Salary -->
-      {% if job.salary_min is not none and job.salary_max is not none %}
-      <p class="hc-mono text-xs font-semibold text-emerald-600 mt-1">
-        ₹{{ (job.salary_min | float / 100000) | int }}L – ₹{{ (job.salary_max | float / 100000) | int }}L/yr
-      </p>
-      {% elif job.salary %}
-      <p class="hc-mono text-xs font-semibold text-emerald-600 mt-1">{{ job.salary_currency or '₹' }}{{ job.salary }}</p>
-      {% endif %}
-
-      <!-- Row 6: Inline gap preview -->
       {% if job._missing_top3 %}
-      <div class="mt-2 pt-2 border-t border-gray-50">
-        <p class="text-[10px] text-gray-400 mb-1">Missing skills:</p>
-        <div class="flex flex-wrap gap-1">
-          {% for skill in job._missing_top3 %}
-          <span class="px-1.5 py-0.5 bg-red-50 text-red-500 border border-red-100 rounded text-[10px]">{{ skill }}</span>
-          {% endfor %}
-        </div>
-      </div>
-      {% elif job._cv_score > 0 %}
-      <div class="mt-2 pt-2 border-t border-gray-50">
-        <p class="text-[10px] {% if job._cv_score >= 70 %}text-green-600{% elif job._cv_score >= 40 %}text-amber-600{% else %}text-gray-400{% endif %}">
-          CV match: {{ job._cv_score }}%
-        </p>
+      <div class="flex flex-wrap gap-1 mt-1">
+        {% for skill in job._missing_top3 %}<span style="font-size:9px" class="px-1 py-0.5 bg-red-50 text-red-400 border border-red-100 rounded">{{ skill }}</span>{% endfor %}
       </div>
       {% endif %}
-
     </div>
-
-    <!-- Card footer: apply button -->
-    <div class="px-3 pb-3 pt-2 border-t border-gray-100">
-      {% if job.apply_url %}
-      <a href="{{ job.apply_url }}" target="_blank" rel="noopener"
-         onclick="onApplyClick('{{ job.job_id }}')"
-         class="apply-btn w-full block text-center py-2 text-sm font-semibold">Apply ↗</a>
-      {% else %}
-      <div class="w-full py-2 text-center text-xs text-gray-300 border border-gray-100 rounded-lg">No link</div>
-      {% endif %}
-    </div>
-
+    {% endfor %}
   </div>
-  {% endfor %}
-</div>
 
+  <!-- Right: Job detail -->
+  <div class="jobs-detail-pane" id="job-detail">
+    <div class="detail-empty" id="detail-empty">
+      <span>← Select a job to view details</span>
+    </div>
+    <div id="detail-content" class="hidden"></div>
+  </div>
+
+</div>
 {% else %}
 <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
   <p class="text-gray-500 text-sm">No jobs found.</p>
@@ -713,6 +655,96 @@ function escapeHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function selectJob(cardEl) {
+  // Deselect previous
+  document.querySelectorAll('.job-card-compact.selected').forEach(el => el.classList.remove('selected'));
+  cardEl.classList.add('selected');
+
+  let job;
+  try { job = JSON.parse(cardEl.dataset.job); } catch(e) { return; }
+  const jobId = job.job_id || '';
+
+  document.getElementById('detail-empty').classList.add('hidden');
+  const content = document.getElementById('detail-content');
+  content.classList.remove('hidden');
+
+  const salaryHtml = (job.salary_min != null && job.salary_max != null)
+    ? `₹${Math.round(job.salary_min/100000)}L – ₹${Math.round(job.salary_max/100000)}L/yr`
+    : (job.salary ? `${job.salary_currency || '₹'}${job.salary}` : '—');
+
+  const stageHtml = job.company_funding_stage
+    ? `<span class="tag-stage-series text-xs">${escapeHtml(job.company_funding_stage)}</span>` : '';
+  const sizeHtml = job.company_size
+    ? `<span class="tag-stage-large text-xs">${escapeHtml(job.company_size)}</span>` : '';
+  const expHtml = job.experience_min != null
+    ? `<span class="tag-yoe">${job.experience_min}${job.experience_max != null ? '–'+job.experience_max : '+'} yrs</span>` : '';
+  const cvScoreHtml = job._cv_score > 0
+    ? `<span class="ml-2 text-xs font-bold ${job._cv_score >= 70 ? 'text-green-600' : job._cv_score >= 40 ? 'text-amber-600' : 'text-gray-400'}">CV ${job._cv_score}%</span>` : '';
+  const missingHtml = Array.isArray(job._missing_top3) && job._missing_top3.length
+    ? `<div class="mt-4"><p class="text-xs font-semibold text-red-500 mb-1">Missing skills:</p><div class="flex flex-wrap gap-1">${job._missing_top3.map(s=>`<span class="px-2 py-0.5 bg-red-50 text-red-500 border border-red-100 rounded text-xs">${escapeHtml(s)}</span>`).join('')}</div></div>` : '';
+
+  content.innerHTML = `
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <h2 class="text-lg font-bold text-gray-900">${escapeHtml(job.role || '')}</h2>
+        <p class="text-gray-600 mt-0.5">${escapeHtml(job.company || '')}${cvScoreHtml}</p>
+      </div>
+      ${job.apply_url ? `<a href="${escapeHtml(job.apply_url)}" target="_blank" rel="noopener"
+        onclick="onApplyClick('${escapeHtml(jobId)}')"
+        class="apply-btn flex-shrink-0 px-4 py-2 text-sm font-semibold ml-4">Apply ↗</a>` : ''}
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-4">
+      <span class="tag-pill">${escapeHtml(job.portal || '')}</span>
+      <span class="tag-pill">${escapeHtml(job.location || '—')}</span>
+      ${job.remote_status === 'remote' ? '<span class="tag-remote">Remote</span>' :
+        job.remote_status === 'hybrid' ? '<span class="tag-hybrid">Hybrid</span>' :
+        '<span class="tag-pill">Onsite</span>'}
+      ${expHtml}${stageHtml}${sizeHtml}
+    </div>
+
+    <div class="flex items-center gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
+      <div><p class="text-xs text-gray-400">Salary</p><p class="text-sm font-semibold text-emerald-600">${salaryHtml}</p></div>
+      <div><p class="text-xs text-gray-400">Match Score</p><p class="text-sm font-bold text-gray-900">${job.relevance_score || 0}</p></div>
+      <div><p class="text-xs text-gray-400">Posted</p><p class="text-sm text-gray-700">${job.date_posted ? job.date_posted.slice(0,10) : '—'}</p></div>
+    </div>
+
+    ${missingHtml}
+
+    ${job.job_description ? `
+    <div class="mt-4">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Job Description</p>
+      <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap bg-gray-50 rounded-lg p-4 max-h-72 overflow-y-auto">${escapeHtml(job.job_description)}</div>
+    </div>` : ''}
+
+    <div class="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3">
+      <select onchange="updateJobStatus('${escapeHtml(jobId)}', this.value, this)"
+              class="text-sm rounded-lg border-gray-200 border p-2 focus:border-indigo-400">
+        <option value="">Update status…</option>
+        <option value="1">Applied</option>
+        <option value="2">Saved</option>
+        <option value="3">Phone Screen</option>
+        <option value="4">Interview</option>
+        <option value="5">Offer</option>
+        <option value="6">Rejected</option>
+      </select>
+      <button onclick="toggleGapAnalysis('${escapeHtml(jobId)}', this)"
+              class="text-xs text-indigo-600 hover:text-indigo-800 underline">Full gap analysis</button>
+    </div>
+
+    <div id="gap-${escapeHtml(jobId)}" class="hidden mt-4 p-4 bg-indigo-50 rounded-lg text-xs">
+      <div id="gap-content-${escapeHtml(jobId)}">Loading…</div>
+      <span id="gap-score-${escapeHtml(jobId)}"></span>
+    </div>
+  `;
+
+  // Update relative dates
+  content.querySelectorAll('.relative-date').forEach(el => {
+    const rel = toRelativeDate(el.dataset.date);
+    if (rel) el.textContent = rel;
+  });
+}
+
 function buildFilterQueryString(filters) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters || {})) {
@@ -860,7 +892,7 @@ function switchPersona(key, btn) {
 
   const pattern = PERSONA_PATTERNS[key];
   let visible = 0;
-  document.querySelectorAll('.job-card').forEach(card => {
+  document.querySelectorAll('.job-card-compact').forEach(card => {
     const show = !pattern || pattern.test(card.dataset.role || '');
     card.style.display = show ? '' : 'none';
     if (show) visible++;
