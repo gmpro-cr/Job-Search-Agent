@@ -269,6 +269,24 @@
       <p class="hc-mono text-xs font-semibold text-emerald-600 mt-1">{{ job.salary_currency or '₹' }}{{ job.salary }}</p>
       {% endif %}
 
+      <!-- Row 6: Inline gap preview -->
+      {% if job._missing_top3 %}
+      <div class="mt-2 pt-2 border-t border-gray-50">
+        <p class="text-[10px] text-gray-400 mb-1">Missing skills:</p>
+        <div class="flex flex-wrap gap-1">
+          {% for skill in job._missing_top3 %}
+          <span class="px-1.5 py-0.5 bg-red-50 text-red-500 border border-red-100 rounded text-[10px]">{{ skill }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% elif job._cv_score > 0 %}
+      <div class="mt-2 pt-2 border-t border-gray-50">
+        <p class="text-[10px] {% if job._cv_score >= 70 %}text-green-600{% elif job._cv_score >= 40 %}text-amber-600{% else %}text-gray-400{% endif %}">
+          CV match: {{ job._cv_score }}%
+        </p>
+      </div>
+      {% endif %}
+
     </div>
 
     <!-- Card footer: apply button -->

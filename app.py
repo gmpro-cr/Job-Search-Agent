@@ -688,6 +688,18 @@ def jobs():
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
 
+    # Attach inline gap data if CV is uploaded
+    cv_data = load_cv_data()
+    if cv_data:
+        for job in rows:
+            gap = compute_gap_analysis(job, cv_data)
+            job["_missing_top3"] = gap.get("missing_skills", [])[:3]
+            job["_cv_score"] = gap.get("cv_score", 0)
+    else:
+        for job in rows:
+            job["_missing_top3"] = []
+            job["_cv_score"] = 0
+
     total = len(rows)
 
     # Get distinct portals for filter dropdown
