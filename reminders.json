@@ -7,7 +7,7 @@
     "max_jobs": 30,
     "email": "mahalegauravk@gmail.com",
     "enabled": true,
-    "last_sent": "2026-02-24T14:51:26.555836",
+    "last_sent": "2026-02-25T04:22:13.976549",
     "cv_data": {
       "skills": [
         "A/B Testing",
@@ -30,7 +30,24 @@
       ],
       "raw_text": "GAURAV MAHALE\nAI Product Manager | Credit Risk & Lending |+91 9923540336 | mahalegauravk@gmail.com| Linkedin |Pune\nEDUCATION\nPGPM -IIM Sirmaur Aug15 - Apr17\nB.E. - University of Pune Aug10 - Apr14\nSKILLS: AI lead Product/MVP Development, Product Sense, Credit Analysis, SQL, Google Analytics, Agile\nCERTIFICATIONS: IBM AI Product Management (Coursera), HelloPM , Figma Essentials (LinkedIn)\nPROJECTS\nAI Persona interaction platform Link Oct25\nDesigned & deployed an AI-driven platform enabling users (500 monthly users) to interact with AI personas\n(real or imagined), leveraging structured prompt engineering to maintain consistent tone and identity\nKey Skills/Tech: Claude, Supabase, Gemini API, GitHub, Vercel, Next.Js, Cursor, A/B Testing, MVP, PRD\nCredit Memo and FS Generation using AI Dec25\nBuilt a full-stack AI platform that generates comprehensive credit memos from annual reports, which\nincludes advanced financial data extraction, ratio calculations, and multi-format exports (Excel/PDF)\nKey Skills/Tech: Python, GitHub, Gemini/Groq API, Claude, MVP, PRD, Financial Analysis\nWORK EXPERIENCE\nAI Trainer, Pareto.AI Dec25 - Present\nTraining LLMs on financial modeling, Doc and PPT generation through evals and prompt engineering\nEvaluated and improved AI outputs for credit analysis, financial projections, and business documentation.\nApplied banking domain expertise to enhance AI model accuracy in corporate finance applications.\nRelationship Manager, Yes Bank Limited Apr22 - Present\nLed the end-to-end lifecycle of corporate lending products, aligning solutions to customer pain points\nManaged portfolio of new and existing corporate clients and generated income of ~ \u20b92.5 Cr/year\nPrepared credit appraisal memos and term sheets for new and renewal clients, enabling leadership to\nmake informed lending decisions on portfolios worth \u20b9 500 Cr\nPartnered with multiple cross-functional stakeholders using RACI to deliver lending products to clients\nDrove customer-centric discovery and onboarding, acquiring ~4 new corporate clients annually\nMonitored product adoption post-onboarding and iterated on offering based on feedback loops\nManaged corporate customers with sectors including education, steel, textile, safety equipments, G&J\nPortfolio Manager, HDFC Bank Limited Jan20 - Apr 22\nDesigned solutions to minimise delinquency risk using predictive analytics and early warning systems\nUsed tools like PowerBI and excel dashboards to track default probabilities and portfolio health metrics\nCo-created restructuring product flows tailored to stressed assets by analyzing user financial behavior\nCreated sector-specific business models (real estate, energy, hospitality) based on customer segments\nInteracted with business, credit and recovery teams for the region of Maharashtra and Goa\nOperations Manager, Suraksha Asset Reconstruction Ltd. Sep17 - Jan20\nAnalysed the financial health and recovery potential of NPA accounts offered for sale by banks\nLiaised with bank officials and legal team for acquisition and resolution process of the accounts\nAssisted on end-to-end process of acquiring an account with debt of ~\u20b99000 Cr under IBC framework\nConducted due diligence and loan documentation for cases having ticket size more than \u20b9 50 Cr.\nMonitored the operations involving labour count, construction cost, sales data of Real Estate Cases\nConsultant, Tata Trusts & Ministry of Water and Sanitation May17 - Sep17\nResponsible for catalysing the existing process to complete the work within the set deadline\nSet up a system of extension officers, BRCs & CRCs to speed up the process of MIS entries\nWithin 2 months the region had crossed 8 others shifting from the last position in number of IHHLs\nInitiated process to build Hand wash Station in 1200 schools with the help of Rotary Club",
       "uploaded_at": "2026-02-23T14:57:00.999554"
-    }
+    },
+    "sent_job_ids": [
+      "b6848e8cf2b20080",
+      "8d39e4992f2793f2",
+      "70dbd2fb3da71907",
+      "621ae32acf53ae65",
+      "3fa1b6ed7ed411ba",
+      "2dbf4a106b87a009",
+      "6f40ae42fff1b4c0",
+      "94d18b195d06d273",
+      "637102367f152d86",
+      "5354c6b8c878faff",
+      "0392fec06e32d543",
+      "ade22f8f1ad2dde0",
+      "c44b2453195f276f",
+      "66cca3ef211469b0",
+      "559d6a4d2d1d9eae"
+    ]
   },
   {
     "id": "a3a53f44",
@@ -40,7 +57,7 @@
     "max_jobs": 30,
     "email": "purva.pilot57@gmail.com",
     "enabled": true,
-    "last_sent": "2026-02-24T14:51:27.204534",
+    "last_sent": "2026-02-25T04:22:15.024373",
     "cv_data": {
       "skills": [
         "Stakeholder Management",
@@ -60,6 +77,16 @@
       ],
       "raw_text": "PURVA KALE\nMob: +919172316063 |Email : purva.pilot57@gmail.com\nSUMMARY\nProject Manager with experience leading end to end project management, project delivery and PMO\noperations. Experienced in leading global teams, managing stakeholders, process improvement and ensuring\ndelivery excellence. Focused on aligning technology with strategic business goals to drive impactful, on-time\nand scalable project outcomes.\nEDUCATION\nMaster of Engineering in E&TC (Signal Processing) 2014 - 2016\nPES Modern College of Engineering,Pune\nBachelor of Engineering in E&TC 2010 - 2014\nSinhgad Institutes SKNCOE, Pune\nSkills: Project Management, Jira, Confluence, Service Now, Stakeholder Management, SDLC, DevOps,\nDigital Transformation, Prompt Engineering, Generative AI, Agile Methodology, Scrum, Kanban\nCertifications: Project Management (IIT Delhi), Agile Project management and Project Delivery,\nScrum master, Prompt Engineering and GenAI\nLanguages: English, Marathi, Hindi\nWORK EXPERIENCE\nProject Manager, IT PMO: Worldline Global March 2023 - Present\nLed end-to-end delivery of IT projects across production services and cloud platforms, ensuring\nalignment with business goals, technical requirements, and compliance standards.\nManaged cross-functional Agile teams using Scrum and Kanban; provided Agile coaching to enhance\ndelivery efficiency and team collaboration across global locations.\nUtilized JIRA and Confluence for project planning, tracking, and documentation; oversaw project\nscope, budget, risk management (GRC), and knowledge sharing.\nCoordinated with stakeholders, developers, and infrastructure teams across the UK, Europe, and India\nto ensure effective communication and timely execution throughout the SDLC.\nOversaw incident and change management processes via ServiceNow and implemented IT process\nimprovements to reduce downtime, optimize operations, and improve system reliability.\nProject Manager,IT PMO: Bajaj Allianz Life Insurance Co. Ltd. Apr 2022 - Present\nManaged end-to-end software and application development projects using SDLC, Agile (Scrum),\nDevOps, and Waterfall methodologies, delivering scalable, high-quality solutions aligned with\nstakeholder requirements and business objectives.\nDrove digital transformation initiatives, ensuring business readiness through stakeholder engagement,\ncustomer communication plans, end-user training, and post-launch support.\nPartnered with business and technical teams to define project scope, deliverables, resource allocation,\nand task prioritization; led risk identification, impact analysis, and mitigation planning.\nEnsured timely project execution by tracking milestones through daily stand-ups and performance\nmonitoring using tools such as JIRA and SmartOne.\nLed talent development programs including Agile coaching, upskilling, and reskilling initiatives in\npartnership with Coursera, aligning with organizational learning and development strategies.\nProject Manager : Global Talent Track Sept 2021- Mar 2022\nDelivered end-to-end software development and CSR projects in collaboration with Barclays,\nmanaging scope, schedule, resources, and quality from planning to final release.\nApplied Agile, Scrum, and Waterfall methodologies to execute complex projects efficiently, ensuring\nalignment with business objectives and stakeholder expectations.\nOversaw cross-functional teams of coordinators and trainers; conducted daily stand-ups, tracked\nperformance, and resolved issues to drive smooth delivery and operational excellence.\nLed inclusive mobilization initiatives across diverse groups\u2014freelancers, underprivileged youth, lgbtq\nindividuals, and return-to-work professionals\u2014enhancing project impact and reach.\nDeveloped project plans, performance reports, and onboarding content while leading upskilling,\nreskilling, and Agile coaching programs to support organizational learning goals.\nProject Manager: NYCS India Jun 2017 - Sept 2021\nManaged high-impact CSR and software development projects under the leadership of the Director,\nNYCS India, and BJP Maharashtra\u2019s General State Secretary.\nDelivered end-to-end projects using Agile and Waterfall methodologies, ensuring timely, high-quality\nexecution in collaboration with cross-functional teams.\nManaged stakeholder engagement and operations across skill development centers in Maharashtra,\nimpacting over 3,000 students through scalable project delivery.\nCoordinated with the National Skill Development Corporation of India to implement RPL (Recognition\nof Prior Learning) programs and post-assessment certification processes.\nAchieved a 10x increase in student assessments\u2014from 300 to 3,000\u2014through strategic planning,\nmobilization efforts, and continuous monitoring of project performance.",
       "uploaded_at": "2026-02-23T12:42:21.419787"
-    }
+    },
+    "sent_job_ids": [
+      "9d1b7e4a212c2f20",
+      "bbf029b327b412b1",
+      "7e4fab09a542baef",
+      "a692ab8b68559369",
+      "bc7888f102d20b03",
+      "18bbbc7f7ec6f78c",
+      "3f811c4577250e0f",
+      "d6450aa674ed7dc0"
+    ]
   }
 ]
