@@ -532,6 +532,7 @@ def _build_jobs_query(filters):
     experience = filters.get("experience", "")
     salary_min = filters.get("salary_min", "")
     salary_max = filters.get("salary_max", "")
+    company_stage = filters.get("company_stage", "")
 
     # Always exclude hidden jobs (hidden = 1) unless explicitly requested
     if not filters.get("show_hidden"):
@@ -639,6 +640,10 @@ def _build_jobs_query(filters):
         except (ValueError, TypeError):
             pass
 
+    if company_stage:
+        conditions.append("company_funding_stage = ?")
+        params.append(company_stage)
+
     sort_map = {
         "score_desc": "relevance_score DESC",
         "score_asc": "relevance_score ASC",
@@ -667,6 +672,7 @@ def jobs():
         "experience": request.args.get("experience", ""),
         "salary_min": request.args.get("salary_min", ""),
         "salary_max": request.args.get("salary_max", ""),
+        "company_stage": request.args.get("company_stage", ""),
     }
     conditions, params, order = _build_jobs_query(filters)
     where = " WHERE " + " AND ".join(conditions) if conditions else ""
