@@ -1149,6 +1149,85 @@ def rescore_jobs():
     return jsonify({"ok": True, "updated": updated})
 
 
+@app.route("/api/cv/skills-gap")
+def cv_skills_gap():
+    """Return skill frequency across target-role jobs vs CV skills."""
+    cv_data = load_cv_data()
+    preferences = load_preferences() or DEFAULT_PREFS.copy()
+    job_titles = preferences.get("job_titles", [])
+
+    from database import get_skill_frequency
+    skill_freq = get_skill_frequency(job_titles)
+
+    cv_skills_lower = {s.lower() for s in (cv_data or {}).get("skills", [])}
+    result = []
+    for item in skill_freq:
+        result.append({
+            "skill": item["skill"],
+            "count": item["count"],
+            "pct": item["pct"],
+            "in_cv": item["skill"].lower() in cv_skills_lower,
+        })
+    return jsonify({"ok": True, "skills": result, "cv_uploaded": cv_data is not None})
+
+
+@app.route("/api/cv/keyword-heatmap")
+def cv_keyword_heatmap():
+    """Return top keywords across target-role jobs."""
+    preferences = load_preferences() or DEFAULT_PREFS.copy()
+    job_titles = preferences.get("job_titles", [])
+
+    from database import get_keyword_frequency
+    keywords = get_keyword_frequency(job_titles)
+    return jsonify({"ok": True, "keywords": keywords})
+
+
+@app.route("/api/cv/profile-score")
+def cv_profile_score():
+    """Return a simple profile completeness score 0-100."""
+    cv_data = load_cv_data()
+    preferences = load_preferences() or DEFAULT_PREFS.copy()
+
+    score = 0
+    breakdown = []
+
+    if cv_data:
+        score += 30
+        breakdown.append({"label": "CV uploaded", "points": 30, "done": True})
+    else:
+        breakdown.append({"label": "Upload your CV", "points": 30, "done": False})
+
+    skills = (cv_data or {}).get("skills", [])
+    if len(skills) >= 5:
+        score += 20
+        breakdown.append({"label": f"{len(skills)} skills detected", "points": 20, "done": True})
+    else:
+        breakdown.append({"label": "CV needs more skills (aim for 5+)", "points": 20, "done": False})
+
+    has_prefs = bool(preferences.get("job_titles") and preferences.get("locations"))
+    if has_prefs:
+        score += 20
+        breakdown.append({"label": "Preferences configured", "points": 20, "done": True})
+    else:
+        breakdown.append({"label": "Set job titles & locations in Preferences", "points": 20, "done": False})
+
+    has_salary = bool(preferences.get("salary_min") or preferences.get("salary_expectation"))
+    if has_salary:
+        score += 15
+        breakdown.append({"label": "Salary expectation set", "points": 15, "done": True})
+    else:
+        breakdown.append({"label": "Add salary expectation in Preferences", "points": 15, "done": False})
+
+    has_gmail = bool(preferences.get("gmail_address") and preferences.get("gmail_app_password"))
+    if has_gmail:
+        score += 15
+        breakdown.append({"label": "Email alerts configured", "points": 15, "done": True})
+    else:
+        breakdown.append({"label": "Configure Gmail in Preferences for email alerts", "points": 15, "done": False})
+
+    return jsonify({"ok": True, "score": score, "breakdown": breakdown})
+
+
 @app.route("/api/jobs/<job_id>/gap-analysis")
 def gap_analysis(job_id):
     """Return gap analysis for a specific job against the uploaded CV."""

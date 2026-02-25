@@ -832,3 +832,90 @@ def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: st
     rows = cursor.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def get_skill_frequency(job_titles: list, limit: int = 50) -> list:
+    """
+    Return skills appearing most frequently across jobs matching the given titles.
+    Returns list of dicts: {skill, count, pct} sorted by count desc.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    if job_titles:
+        like_clauses = " OR ".join("LOWER(role) LIKE ?" for _ in job_titles)
+        params = [f"%{t.lower()}%" for t in job_titles]
+        cursor.execute(
+            f"SELECT job_description, role FROM job_listings WHERE ({like_clauses}) AND (hidden = 0 OR hidden IS NULL)",
+            params,
+        )
+    else:
+        cursor.execute("SELECT job_description, role FROM job_listings WHERE (hidden = 0 OR hidden IS NULL)")
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    if not rows:
+        return []
+
+    total_jobs = len(rows)
+    skill_counts: dict = {}
+
+    from analyzer import extract_skills
+    for row in rows:
+        text = " ".join([row["role"] or "", row["job_description"] or ""])
+        skills = extract_skills(text, max_skills=None)
+        for skill in skills:
+            skill_counts[skill] = skill_counts.get(skill, 0) + 1
+
+    sorted_skills = sorted(skill_counts.items(), key=lambda x: -x[1])[:limit]
+    return [
+        {"skill": skill, "count": count, "pct": round(count / total_jobs * 100, 1)}
+        for skill, count in sorted_skills
+    ]
+
+
+def get_keyword_frequency(job_titles: list, top_n: int = 30) -> list:
+    """
+    Return most frequent meaningful words in job descriptions for the given titles.
+    Returns list of dicts: {word, count} sorted desc.
+    """
+    import re as _re
+    from collections import Counter
+
+    STOP_WORDS = {
+        'the','and','for','with','our','you','your','will','this','that','are',
+        'from','have','has','been','was','were','they','their','which','about',
+        'into','more','also','than','can','all','any','its','not','but','who',
+        'what','how','when','work','team','role','job','experience','skills',
+        'looking','strong','ability','must','good','years','year','working',
+        'based','across','including','company','position','candidate','knowledge',
+        'manage','ensure','provide','support','help','using','use','used',
+        'new','key','high','well','large','great','multiple','other','join',
+    }
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    if job_titles:
+        like_clauses = " OR ".join("LOWER(role) LIKE ?" for _ in job_titles)
+        params = [f"%{t.lower()}%" for t in job_titles]
+        cursor.execute(
+            f"SELECT job_description FROM job_listings WHERE ({like_clauses}) AND (hidden = 0 OR hidden IS NULL)",
+            params,
+        )
+    else:
+        cursor.execute("SELECT job_description FROM job_listings WHERE (hidden = 0 OR hidden IS NULL)")
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    counter: Counter = Counter()
+    for row in rows:
+        text = (row["job_description"] or "").lower()
+        words = _re.findall(r'\b[a-z]{4,}\b', text)
+        for w in words:
+            if w not in STOP_WORDS:
+                counter[w] += 1
+
+    return [{"word": w, "count": c} for w, c in counter.most_common(top_n)]
