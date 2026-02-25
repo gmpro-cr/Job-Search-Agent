@@ -250,9 +250,9 @@
       {% endif %}
 
       <!-- Row 5: Salary -->
-      {% if job.salary_min and job.salary_max %}
+      {% if job.salary_min is not none and job.salary_max is not none %}
       <p class="hc-mono text-xs font-semibold text-emerald-600 mt-1">
-        ₹{{ (job.salary_min / 100000) | int }}L – ₹{{ (job.salary_max / 100000) | int }}L/yr
+        ₹{{ (job.salary_min | float / 100000) | int }}L – ₹{{ (job.salary_max | float / 100000) | int }}L/yr
       </p>
       {% elif job.salary %}
       <p class="hc-mono text-xs font-semibold text-emerald-600 mt-1">{{ job.salary_currency or '₹' }}{{ job.salary }}</p>
