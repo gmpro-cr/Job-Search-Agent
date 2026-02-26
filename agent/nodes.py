@@ -165,3 +165,56 @@ def find_hiring_managers(state: AgentState) -> dict:
         results.append(job)
 
     return {"with_contacts": results}
+
+
+def draft_outreach(state: AgentState) -> dict:
+    """
+    For each job with contact info, draft a cold email (~150 words)
+    and a LinkedIn message (~50 words) using the LLM.
+    """
+    from analyzer import load_cv_data
+
+    cv_data = load_cv_data() or {}
+    cv_skills = ", ".join((cv_data.get("skills") or [])[:15])
+    cv_summary = (cv_data.get("raw_text") or "")[:500]
+
+    drafted = []
+    for job in state["with_contacts"]:
+        job = dict(job)
+        role = job.get("role", "the role")
+        company = job.get("company", "your company")
+        jd = (job.get("job_description") or "")[:600]
+        hm_name = job.get("hiring_manager") or "Hiring Manager"
+        hm_first = hm_name.split()[0] if hm_name else "there"
+        score_reason = job.get("llm_reason", "")
+
+        prompt = f"""Write a personalized cold email and LinkedIn message for this job application.
+
+ROLE: {role} at {company}
+JOB DESCRIPTION EXCERPT: {jd}
+FIT REASON: {score_reason}
+
+CANDIDATE BACKGROUND:
+Skills: {cv_skills}
+Summary: {cv_summary}
+
+Rules:
+- Cold email: 120-150 words, professional but warm, mention specific role + company
+- LinkedIn message: 40-55 words, conversational, reference the role
+- Address the person as "{hm_first}"
+- Do NOT use phrases like "I hope this email finds you well"
+- Do NOT include subject line in the email body
+
+Return ONLY valid JSON:
+{{
+  "email": "<full cold email body, no subject line>",
+  "linkedin": "<linkedin message>"
+}}"""
+
+        result = call_llm_json(prompt)
+        job["email_draft"] = result.get("email", f"Hi {hm_first},\n\nI wanted to reach out about the {role} position at {company}. My background in {cv_skills[:80]} makes me a strong fit.\n\nWould love to connect.\n\nBest regards")
+        job["linkedin_draft"] = result.get("linkedin", f"Hi {hm_first}, I noticed the {role} opening at {company} and would love to connect. My background in {cv_skills[:60]} aligns well with what you're looking for.")
+        drafted.append(job)
+        logger.info("Drafted outreach for '%s' @ %s", role, company)
+
+    return {"drafted": drafted}
