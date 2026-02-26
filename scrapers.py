@@ -1150,6 +1150,65 @@ def scrape_iimjobs(job_titles, locations, config):
     return jobs
 
 
+def scrape_cutshort(job_titles, locations, config):
+    """
+    Scrape jobs from Cutshort.io using their public search API.
+    Returns list of job dicts.
+    """
+    import requests as _req
+    import time as _time
+
+    portal_config = config.get("portals", {}).get("cutshort", {})
+    if not portal_config.get("enabled", True):
+        return []
+
+    jobs = []
+    seen_ids = set()
+    session = _req.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "Accept": "application/json",
+        "Referer": "https://cutshort.io/",
+    })
+
+    for title in job_titles:
+        for location in locations:
+            try:
+                resp = session.get(
+                    "https://cutshort.io/api/public/jobs",
+                    params={"keywords": title, "location": location, "limit": 20},
+                    timeout=portal_config.get("timeout", 20),
+                )
+                if resp.status_code != 200:
+                    continue
+                data = resp.json()
+                items = data.get("data", data.get("jobs", []))
+                for item in items:
+                    jid = str(item.get("id") or item.get("_id") or "")
+                    if jid in seen_ids:
+                        continue
+                    seen_ids.add(jid)
+                    job = {
+                        "portal": "cutshort",
+                        "company": (item.get("company") or {}).get("name") or item.get("companyName") or "",
+                        "role": item.get("title") or item.get("role") or title,
+                        "location": item.get("location") or location,
+                        "salary": item.get("salary") or "",
+                        "job_description": (item.get("description") or "")[:500],
+                        "apply_url": f"https://cutshort.io/job/{jid}" if jid else "",
+                        "remote_status": "remote" if "remote" in str(item.get("location", "")).lower() else "",
+                        "date_posted": item.get("createdAt", "")[:10] if item.get("createdAt") else "",
+                    }
+                    if job["role"] and job["company"]:
+                        jobs.append(job)
+            except Exception as e:
+                logger.warning("Cutshort scrape error (title=%s, loc=%s): %s", title, location, e)
+            _time.sleep(1)
+
+    logger.info("Cutshort: scraped %d jobs", len(jobs))
+    return jobs
+
+
 # =============================================================================
 # Orchestrator
 # =============================================================================
@@ -1161,6 +1220,7 @@ SCRAPER_MAP = {
     "hiringcafe": scrape_hiringcafe,
     "angellist": scrape_angellist,
     "iimjobs": scrape_iimjobs,
+    "cutshort": scrape_cutshort,
 }
 
 

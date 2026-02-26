@@ -40,6 +40,11 @@
       "timeout": 30,
       "use_selenium": true,
       "max_pages": 3
+    },
+    "cutshort": {
+      "enabled": true,
+      "base_url": "https://cutshort.io",
+      "timeout": 20
     }
   },
   "scraping": {
