@@ -113,6 +113,25 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
+    # outreach_queue: stores LLM-drafted outreach emails pending human approval
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS outreach_queue (
+            job_id           TEXT PRIMARY KEY,
+            company          TEXT,
+            role             TEXT,
+            hiring_manager   TEXT,
+            hm_email         TEXT,
+            email_draft      TEXT,
+            linkedin_draft   TEXT,
+            approval_token   TEXT UNIQUE,
+            status           TEXT DEFAULT 'pending',
+            llm_score        INTEGER,
+            llm_reason       TEXT,
+            created_at       TEXT,
+            sent_at          TEXT
+        )
+    """)
+
     conn.commit()
     conn.close()
     logger.info("Database initialized at %s", DB_PATH)
@@ -984,3 +1003,80 @@ def get_dashboard_insights() -> dict:
         "avg_cv_last_week": avg_cv_last_week,
         "top_missing_skill": top_missing,
     }
+
+
+# ── Outreach queue helpers ──────────────────────────────────────────────────
+
+def is_job_processed(job_id: str) -> bool:
+    """Return True if this job_id already exists in outreach_queue."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM outreach_queue WHERE job_id = ?", (job_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return result is not None
+
+
+def insert_outreach_draft(job_id: str, company: str, role: str,
+                           hiring_manager: str, hm_email: str,
+                           email_draft: str, linkedin_draft: str,
+                           approval_token: str, llm_score: int,
+                           llm_reason: str) -> None:
+    """Insert a new outreach draft into the queue."""
+    from datetime import datetime
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT OR IGNORE INTO outreach_queue
+        (job_id, company, role, hiring_manager, hm_email,
+         email_draft, linkedin_draft, approval_token,
+         status, llm_score, llm_reason, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+    """, (job_id, company, role, hiring_manager, hm_email,
+          email_draft, linkedin_draft, approval_token,
+          llm_score, llm_reason, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+
+
+def get_outreach_by_token(token: str) -> dict | None:
+    """Return outreach_queue row for the given approval_token."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM outreach_queue WHERE approval_token = ?", (token,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_outreach_status(token: str, status: str) -> None:
+    """Update status for a given approval_token. Sets sent_at if status=sent."""
+    from datetime import datetime
+    conn = get_connection()
+    cursor = conn.cursor()
+    sent_at = datetime.now().isoformat() if status == "sent" else None
+    cursor.execute(
+        "UPDATE outreach_queue SET status = ?, sent_at = ? WHERE approval_token = ?",
+        (status, sent_at, token)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_outreach_queue(status: str = None) -> list[dict]:
+    """
+    Return outreach_queue rows, optionally filtered by status.
+    Status options: 'pending', 'sent', 'skipped', or None for all.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    if status:
+        cursor.execute(
+            "SELECT * FROM outreach_queue WHERE status = ? ORDER BY created_at DESC",
+            (status,)
+        )
+    else:
+        cursor.execute("SELECT * FROM outreach_queue ORDER BY created_at DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
