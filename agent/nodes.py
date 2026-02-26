@@ -283,8 +283,8 @@ def send_approval_digest(state: AgentState) -> dict:
         approve_url = f"{host}/api/approve/{token}"
         skip_url = f"{host}/api/skip/{token}"
         hm_email = job.get("hm_email", "No email found")
-        email_draft = job.get("email_draft", "").replace("\n", "<br>")
-        linkedin_draft = job.get("linkedin_draft", "").replace("\n", "<br>")
+        email_draft = _html.escape(job.get("email_draft", "")).replace("\n", "<br>")
+        linkedin_draft = _html.escape(job.get("linkedin_draft", "")).replace("\n", "<br>")
 
         jobs_html += f"""
         <div style="border:1px solid #e4e4e7; border-radius:8px; padding:16px; margin-bottom:20px; font-family:sans-serif;">
