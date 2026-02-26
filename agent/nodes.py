@@ -105,3 +105,63 @@ def deduplicate(state: AgentState) -> dict:
     if skipped:
         logger.info("deduplicate: removed %d already-processed jobs", skipped)
     return {"shortlisted": fresh}
+
+
+def find_hiring_managers(state: AgentState) -> dict:
+    """
+    For each shortlisted job, find the hiring manager's email via Apollo API.
+    Attaches hiring_manager (name) and hm_email to each job dict.
+    Jobs without a contact are still kept — email draft will note "Dear Hiring Manager".
+    """
+    import os
+    import requests as _req
+
+    api_key = state.get("preferences", {}).get("apollo_api_key", "")
+    if not api_key:
+        api_key = os.getenv("APOLLO_API_KEY", "")
+
+    results = []
+    for job in state["shortlisted"]:
+        job = dict(job)
+        company = job.get("company", "")
+
+        if not api_key or not company:
+            job["hiring_manager"] = ""
+            job["hm_email"] = ""
+            results.append(job)
+            continue
+
+        try:
+            resp = _req.post(
+                "https://api.apollo.io/v1/people/search",
+                headers={"Content-Type": "application/json", "Cache-Control": "no-cache"},
+                json={
+                    "api_key": api_key,
+                    "q_organization_name": company,
+                    "person_titles": ["hiring manager", "talent acquisition",
+                                      "recruiter", "hr manager", "people operations"],
+                    "per_page": 1,
+                },
+                timeout=15,
+            )
+            data = resp.json()
+            people = data.get("people", [])
+            if people:
+                person = people[0]
+                name = f"{person.get('first_name','')} {person.get('last_name','')}".strip()
+                email = person.get("email", "")
+                job["hiring_manager"] = name
+                job["hm_email"] = email
+                logger.info("Apollo: found %s <%s> at %s", name, email, company)
+            else:
+                job["hiring_manager"] = ""
+                job["hm_email"] = ""
+                logger.debug("Apollo: no contact found for %s", company)
+        except Exception as e:
+            logger.warning("Apollo lookup failed for %s: %s", company, e)
+            job["hiring_manager"] = ""
+            job["hm_email"] = ""
+
+        results.append(job)
+
+    return {"with_contacts": results}
