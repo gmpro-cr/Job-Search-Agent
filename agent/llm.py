@@ -6,7 +6,6 @@ Tries Ollama first; falls back to OpenRouter on error or timeout.
 import json
 import logging
 import os
-import re
 
 import requests
 
@@ -17,6 +16,7 @@ OLLAMA_TIMEOUT = 30  # seconds
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL = "anthropic/claude-haiku-4-5-20251001"
+OPENROUTER_TIMEOUT = 60  # seconds
 
 
 def call_llm(prompt: str, system: str = "") -> str:
@@ -35,9 +35,8 @@ def _call_ollama(prompt: str, system: str) -> str:
     """Call local Ollama instance."""
     # Read model from config if available
     try:
-        import json as _json
         with open(os.path.join(os.path.dirname(__file__), "..", "config.json")) as f:
-            model = _json.load(f).get("scoring", {}).get("ollama_model", "llama3.2:3b")
+            model = json.load(f).get("scoring", {}).get("ollama_model", "llama3.2:3b")
     except Exception:
         model = "llama3.2:3b"
 
@@ -66,10 +65,14 @@ def _call_openrouter(prompt: str, system: str) -> str:
         OPENROUTER_URL,
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         json={"model": OPENROUTER_MODEL, "messages": messages},
-        timeout=60,
+        timeout=OPENROUTER_TIMEOUT,
     )
     resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"].strip()
+    data = resp.json()
+    choices = data.get("choices") or []
+    if not choices:
+        raise ValueError(f"OpenRouter returned no choices: {data}")
+    return (choices[0].get("message") or {}).get("content", "").strip()
 
 
 def call_llm_json(prompt: str, system: str = "") -> dict:
@@ -79,11 +82,14 @@ def call_llm_json(prompt: str, system: str = "") -> dict:
     Returns empty dict on parse failure.
     """
     text = call_llm(prompt, system)
-    # Try to extract JSON block from markdown code fences or raw JSON
-    match = re.search(r'\{.*\}', text, re.DOTALL)
-    if match:
+    # Find the first '{' and use raw_decode to correctly parse the first JSON object,
+    # handling nesting and stopping at the right closing brace.
+    start = text.find('{')
+    if start >= 0:
         try:
-            return json.loads(match.group())
+            result, _ = json.JSONDecoder().raw_decode(text, start)
+            if isinstance(result, dict):
+                return result
         except json.JSONDecodeError:
             pass
     logger.warning("LLM did not return valid JSON: %s", text[:200])
