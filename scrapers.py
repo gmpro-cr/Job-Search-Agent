@@ -1209,6 +1209,82 @@ def scrape_cutshort(job_titles, locations, config):
     return jobs
 
 
+def scrape_instahyre(job_titles, locations, config):
+    """
+    Scrape jobs from Instahyre using their JSON search endpoint.
+    Returns list of job dicts.
+    """
+    import requests as _req
+    import time as _time
+
+    portal_config = config.get("portals", {}).get("instahyre", {})
+    if not portal_config.get("enabled", True):
+        return []
+
+    jobs = []
+    seen_ids = set()
+    session = _req.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
+        "Accept": "application/json, text/plain, */*",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": "https://www.instahyre.com/search-jobs/",
+    })
+
+    for title in job_titles:
+        for location in locations:
+            try:
+                resp = session.get(
+                    "https://www.instahyre.com/api/v1/employer_search/",
+                    params={
+                        "designation": title,
+                        "location": location if location.lower() != "remote" else "",
+                        "page": 1,
+                    },
+                    timeout=portal_config.get("timeout", 25),
+                )
+                if resp.status_code != 200:
+                    logger.warning("Instahyre returned %d for %s/%s", resp.status_code, title, location)
+                    continue
+                data = resp.json()
+                items = data.get("results", data.get("jobs", []))
+                for item in items:
+                    jid = str(item.get("id") or item.get("job_id") or "")
+                    if jid in seen_ids:
+                        continue
+                    seen_ids.add(jid)
+                    company_info = item.get("company") or {}
+                    salary_min_lpa = item.get("min_salary") or item.get("salary_min")
+                    salary_max_lpa = item.get("max_salary") or item.get("salary_max")
+                    salary_text = ""
+                    if salary_min_lpa and salary_max_lpa:
+                        salary_text = f"₹{salary_min_lpa}–{salary_max_lpa} LPA"
+                    job = {
+                        "portal": "instahyre",
+                        "company": company_info.get("name") or item.get("company_name") or "",
+                        "role": item.get("designation") or item.get("title") or title,
+                        "location": item.get("location") or location,
+                        "salary": salary_text,
+                        "salary_min": int(float(salary_min_lpa) * 100_000) if salary_min_lpa else None,
+                        "salary_max": int(float(salary_max_lpa) * 100_000) if salary_max_lpa else None,
+                        "job_description": (item.get("description") or item.get("jd") or "")[:500],
+                        "apply_url": f"https://www.instahyre.com/job-details/{jid}/" if jid else "",
+                        "remote_status": "remote" if "remote" in str(item.get("location", "")).lower() else "",
+                        "experience_min": item.get("min_experience"),
+                        "experience_max": item.get("max_experience"),
+                        "company_size": str(company_info.get("employee_count") or ""),
+                        "date_posted": (item.get("created_at") or "")[:10],
+                    }
+                    if job["role"] and job["company"]:
+                        jobs.append(job)
+            except Exception as e:
+                logger.warning("Instahyre scrape error (title=%s, loc=%s): %s", title, location, e)
+            _time.sleep(1.5)
+
+    logger.info("Instahyre: scraped %d jobs", len(jobs))
+    return jobs
+
+
 # =============================================================================
 # Orchestrator
 # =============================================================================
@@ -1221,6 +1297,7 @@ SCRAPER_MAP = {
     "angellist": scrape_angellist,
     "iimjobs": scrape_iimjobs,
     "cutshort": scrape_cutshort,
+    "instahyre": scrape_instahyre,
 }
 
 

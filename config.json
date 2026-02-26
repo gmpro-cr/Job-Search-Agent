@@ -45,6 +45,11 @@
       "enabled": true,
       "base_url": "https://cutshort.io",
       "timeout": 20
+    },
+    "instahyre": {
+      "enabled": true,
+      "base_url": "https://www.instahyre.com",
+      "timeout": 25
     }
   },
   "scraping": {
