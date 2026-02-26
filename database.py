@@ -919,3 +919,68 @@ def get_keyword_frequency(job_titles: list, top_n: int = 30) -> list:
                 counter[w] += 1
 
     return [{"word": w, "count": c} for w, c in counter.most_common(top_n)]
+
+
+def get_dashboard_insights() -> dict:
+    """
+    Compute insight metrics for dashboard cards.
+    Returns dict with: unopened_high_score, overdue_followups,
+    avg_cv_score_this_week, avg_cv_score_last_week, top_missing_skill.
+    """
+    from datetime import datetime, timedelta
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Unopened high-score jobs (score >= 75, status = New/0)
+    cursor.execute(
+        "SELECT COUNT(*) as cnt FROM job_listings WHERE relevance_score >= 75 AND applied_status = 0 AND (hidden=0 OR hidden IS NULL)"
+    )
+    unopened = cursor.fetchone()["cnt"]
+
+    # Overdue follow-ups
+    today = datetime.now().strftime("%Y-%m-%d")
+    cursor.execute(
+        "SELECT COUNT(*) as cnt FROM job_listings WHERE follow_up_date IS NOT NULL AND follow_up_date <= ? AND applied_status NOT IN (5,6)",
+        (today,)
+    )
+    row = cursor.fetchone()
+    overdue = row["cnt"] if row else 0
+
+    # Avg CV score this week vs last week
+    week_start = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    prev_week_start = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
+    cursor.execute(
+        "SELECT ROUND(AVG(cv_score),1) as avg FROM job_listings WHERE date_found >= ? AND cv_score > 0",
+        (week_start,)
+    )
+    r = cursor.fetchone()
+    avg_cv_this_week = r["avg"] if r and r["avg"] else 0
+
+    cursor.execute(
+        "SELECT ROUND(AVG(cv_score),1) as avg FROM job_listings WHERE date_found >= ? AND date_found < ? AND cv_score > 0",
+        (prev_week_start, week_start)
+    )
+    r = cursor.fetchone()
+    avg_cv_last_week = r["avg"] if r and r["avg"] else 0
+
+    # Top missing skill: most frequent skill in top unapplied jobs
+    cursor.execute(
+        "SELECT job_description FROM job_listings WHERE applied_status = 0 AND (hidden=0 OR hidden IS NULL) ORDER BY relevance_score DESC LIMIT 100"
+    )
+    jd_rows = cursor.fetchall()
+    conn.close()
+
+    from analyzer import extract_skills
+    skill_counts: dict = {}
+    for jd_row in jd_rows:
+        for skill in extract_skills(jd_row["job_description"] or "", max_skills=None):
+            skill_counts[skill] = skill_counts.get(skill, 0) + 1
+    top_missing = max(skill_counts, key=skill_counts.get) if skill_counts else None
+
+    return {
+        "unopened_high_score": unopened,
+        "overdue_followups": overdue,
+        "avg_cv_this_week": avg_cv_this_week,
+        "avg_cv_last_week": avg_cv_last_week,
+        "top_missing_skill": top_missing,
+    }

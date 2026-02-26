@@ -499,16 +499,18 @@ def favicon():
 
 @app.route("/dashboard")
 def dashboard():
+    from database import get_dashboard_insights
     stats = get_comprehensive_stats()
     portal_quality = get_portal_quality_stats()
     pipeline = get_application_pipeline_stats()
     categories = get_best_matching_categories()
     activity = get_application_activity()
     recommendations = get_recommended_actions()
+    insights = get_dashboard_insights()
     return render_template(
         "dashboard.html", stats=stats, portal_quality=portal_quality,
         pipeline=pipeline, categories=categories, activity=activity,
-        recommendations=recommendations,
+        recommendations=recommendations, insights=insights,
     )
 
 

@@ -7,39 +7,59 @@
   <p class="text-gray-500 mt-1">Overview of your job search progress</p>
 </div>
 
-<!-- Stat Cards -->
+<!-- Insight Cards -->
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+
+  <!-- Unopened high-score jobs -->
+  <a href="/jobs?min_score=75" class="stat-card block hover:shadow-md transition-shadow">
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Unreviewed Gems</p>
+    <p class="text-3xl font-bold {% if insights.unopened_high_score > 0 %}text-indigo-600{% else %}text-gray-900{% endif %} mt-1">
+      {{ insights.unopened_high_score }}
+    </p>
+    <p class="text-xs text-gray-400 mt-1">high-score jobs not yet opened</p>
+  </a>
+
+  <!-- Follow-ups overdue -->
+  <a href="/jobs?applied=applied" class="stat-card block hover:shadow-md transition-shadow">
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Follow-ups Due</p>
+    <p class="text-3xl font-bold {% if insights.overdue_followups > 0 %}text-amber-500{% else %}text-gray-900{% endif %} mt-1">
+      {{ insights.overdue_followups }}
+    </p>
+    <p class="text-xs text-gray-400 mt-1">overdue application follow-ups</p>
+  </a>
+
+  <!-- CV match trend -->
   <div class="stat-card">
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Jobs</p>
-    <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.total_jobs }}</p>
-    <p class="text-xs text-gray-400 mt-1">all scored jobs · <a href="{{ url_for('jobs') }}" class="text-indigo-500 hover:underline">browse →</a></p>
-  </div>
-  <div class="stat-card">
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Today</p>
-    <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.jobs_today }}</p>
-    {% set yesterday = stats.jobs_yesterday | default(0) %}
-    {% if yesterday > 0 %}
-      {% set delta = stats.jobs_today - yesterday %}
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">CV Match (7d avg)</p>
+    <p class="text-3xl font-bold text-gray-900 mt-1">
+      {% if insights.avg_cv_this_week %}{{ insights.avg_cv_this_week }}%{% else %}—{% endif %}
+    </p>
+    {% if insights.avg_cv_this_week and insights.avg_cv_last_week %}
+      {% set delta = insights.avg_cv_this_week - insights.avg_cv_last_week %}
       {% if delta > 0 %}
-      <p class="text-xs mt-1 text-green-600 font-medium">↑ {{ delta }} vs yesterday ({{ yesterday }})</p>
+      <p class="text-xs mt-1 text-green-600 font-medium">↑ {{ "%.1f"|format(delta) }}% vs last week</p>
       {% elif delta < 0 %}
-      <p class="text-xs mt-1 text-red-500 font-medium">↓ {{ delta | abs }} vs yesterday ({{ yesterday }})</p>
+      <p class="text-xs mt-1 text-red-500 font-medium">↓ {{ "%.1f"|format(delta|abs) }}% vs last week</p>
       {% else %}
-      <p class="text-xs mt-1 text-gray-400">= same as yesterday</p>
+      <p class="text-xs mt-1 text-gray-400">same as last week</p>
       {% endif %}
     {% else %}
-    <p class="text-xs text-gray-400 mt-1">jobs found today</p>
+    <p class="text-xs text-gray-400 mt-1">upload CV to track</p>
     {% endif %}
   </div>
+
+  <!-- Applied / Saved + Top gap skill -->
   <div class="stat-card">
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">This Week</p>
-    <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.jobs_this_week }}</p>
-    <p class="text-xs text-gray-400 mt-1">last 7 days</p>
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Pipeline</p>
+    <p class="text-3xl font-bold text-gray-900 mt-1">
+      {{ stats.applied_count }}<span class="text-lg text-gray-400"> / {{ stats.saved_count }}</span>
+    </p>
+    <p class="text-xs text-gray-400 mt-1">applied / saved · <a href="{{ url_for('jobs') }}" class="text-indigo-500 hover:underline">browse →</a></p>
+    {% if insights.top_missing_skill %}
+    <p class="text-xs text-amber-600 mt-2">Top gap: <strong>{{ insights.top_missing_skill }}</strong></p>
+    {% endif %}
   </div>
-  <div class="stat-card">
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Applied</p>
-    <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.applied_count }}<span class="text-lg text-gray-400"> / {{ stats.saved_count }} saved</span></p>
-  </div>
+
 </div>
 
 <!-- Recommended Actions -->
