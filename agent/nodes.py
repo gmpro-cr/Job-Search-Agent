@@ -77,8 +77,15 @@ Background: {cv_summary}
 Return ONLY valid JSON in this exact format:
 {{"score": <integer 0-100>, "reason": "<one sentence why this is or isn't a good fit>"}}"""
 
-        result = call_llm_json(prompt)
-        score = int(result.get("score", 0))
+        try:
+            result = call_llm_json(prompt)
+        except Exception as e:
+            logger.warning("LLM scoring failed for '%s' @ %s: %s", role, company, e)
+            result = {}
+        try:
+            score = int(result.get("score", 0))
+        except (ValueError, TypeError):
+            score = 0
         reason = result.get("reason", "")
 
         job = dict(job)
@@ -211,7 +218,11 @@ Return ONLY valid JSON:
   "linkedin": "<linkedin message>"
 }}"""
 
-        result = call_llm_json(prompt)
+        try:
+            result = call_llm_json(prompt)
+        except Exception as e:
+            logger.warning("LLM drafting failed for '%s' @ %s: %s", role, company, e)
+            result = {}
         job["email_draft"] = result.get("email", f"Hi {hm_first},\n\nI wanted to reach out about the {role} position at {company}. My background in {cv_skills[:80]} makes me a strong fit.\n\nWould love to connect.\n\nBest regards")
         job["linkedin_draft"] = result.get("linkedin", f"Hi {hm_first}, I noticed the {role} opening at {company} and would love to connect. My background in {cv_skills[:60]} aligns well with what you're looking for.")
         drafted.append(job)
