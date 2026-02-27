@@ -1230,6 +1230,78 @@ def cv_profile_score():
     return jsonify({"ok": True, "score": score, "breakdown": breakdown})
 
 
+# ── Outreach agent routes ────────────────────────────────────────────────────
+
+@app.route("/outbox")
+def outbox():
+    """Outbox page showing all outreach drafts (pending/sent/skipped)."""
+    from database import get_outreach_queue
+    pending = get_outreach_queue("pending")
+    sent = get_outreach_queue("sent")
+    skipped = get_outreach_queue("skipped")
+    return render_template("outbox.html",
+                           pending=pending, sent=sent, skipped=skipped)
+
+
+@app.route("/api/approve/<token>")
+def approve_outreach(token):
+    """Approve and send a cold email for the given token."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from database import get_outreach_by_token, update_outreach_status
+
+    item = get_outreach_by_token(token)
+    if not item:
+        return "Invalid or expired link.", 404
+    if item["status"] != "pending":
+        return f"This outreach was already {item['status']}.", 200
+
+    prefs = load_preferences() or DEFAULT_PREFS.copy()
+    gmail_address = prefs.get("gmail_address", "")
+    gmail_password = prefs.get("gmail_app_password", "")
+
+    if not gmail_address or not gmail_password:
+        return "Gmail not configured. Please set it up in Preferences.", 500
+
+    recipient_email = item.get("hm_email", "")
+    if not recipient_email:
+        return "No hiring manager email on file for this job.", 400
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"Regarding the {item['role']} role at {item['company']}"
+        msg["From"] = gmail_address
+        msg["To"] = recipient_email
+        msg.attach(MIMEText(item["email_draft"], "plain"))
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(gmail_address, gmail_password)
+            smtp.sendmail(gmail_address, recipient_email, msg.as_string())
+
+        update_outreach_status(token, "sent")
+        return render_template("approve_result.html",
+                               success=True, item=item,
+                               message=f"Email sent to {recipient_email}!")
+    except Exception as e:
+        logger.error("approve_outreach send failed: %s", e)
+        return f"Failed to send email: {e}", 500
+
+
+@app.route("/api/skip/<token>")
+def skip_outreach(token):
+    """Mark an outreach draft as skipped."""
+    from database import get_outreach_by_token, update_outreach_status
+
+    item = get_outreach_by_token(token)
+    if not item:
+        return "Invalid or expired link.", 404
+    update_outreach_status(token, "skipped")
+    return render_template("approve_result.html",
+                           success=False, item=item,
+                           message="Skipped. This job won't appear again.")
+
+
 @app.route("/api/jobs/<job_id>/gap-analysis")
 def gap_analysis(job_id):
     """Return gap analysis for a specific job against the uploaded CV."""
