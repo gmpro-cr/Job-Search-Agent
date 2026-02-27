@@ -130,6 +130,8 @@ DEFAULT_PREFS = {
     "telegram_bot_token": "",
     "telegram_chat_id": "",
     "telegram_min_score": 65,
+    "agent_score_threshold": 60,   # min LLM score to include a job in outreach
+    "agent_host": "http://localhost:5001",  # base URL for approve/skip links in email
 }
 
 # Keys that should be stored in .env, not in user_preferences.json
