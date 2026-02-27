@@ -142,6 +142,17 @@ def _scheduled_pipeline_run():
     logger.info("Scheduled daily pipeline run starting")
     _run_scraper_pipeline()
 
+    # Run AI agent pipeline after scraping
+    try:
+        from agent.graph import run_agent_pipeline
+        import json as _json
+        prefs = load_preferences() or DEFAULT_PREFS.copy()
+        with open(os.path.join(BASE_DIR, "config.json")) as f:
+            _config = _json.load(f)
+        run_agent_pipeline(prefs, _config)
+    except Exception as e:
+        logger.error("AI agent pipeline error in scheduler: %s", e)
+
 
 def setup_background_scheduler():
     """Start APScheduler with two fixed daily pipeline runs: 07:00 and 19:00."""
