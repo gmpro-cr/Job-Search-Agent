@@ -7,7 +7,7 @@
     "max_jobs": 30,
     "email": "mahalegauravk@gmail.com",
     "enabled": true,
-    "last_sent": "2026-03-11T04:11:31.282510",
+    "last_sent": "2026-03-12T04:16:38.654045",
     "cv_data": {
       "skills": [
         "A/B Testing",
@@ -137,7 +137,10 @@
       "3f9b49e50ffe5ac2",
       "d76fc1ff36cd0148",
       "e05086e8c9de95ba",
-      "de7a58a8359877c7"
+      "de7a58a8359877c7",
+      "952572fcd725ebae",
+      "cc13d7e4bcd1a10c",
+      "bd4d3a4e350ac5d1"
     ]
   },
   {
@@ -148,7 +151,7 @@
     "max_jobs": 30,
     "email": "purva.pilot57@gmail.com",
     "enabled": true,
-    "last_sent": "2026-03-11T14:45:50.666952",
+    "last_sent": "2026-03-12T04:16:39.690314",
     "cv_data": {
       "skills": [
         "Stakeholder Management",
@@ -252,7 +255,9 @@
       "45e9b9c8ffe740e0",
       "04d465fcd58140da",
       "4853d6c30c78c69e",
-      "24c0879445cb93a8"
+      "24c0879445cb93a8",
+      "6cf01877e60ef53c",
+      "5b635cebc063b049"
     ]
   }
 ]
