@@ -42,7 +42,9 @@ _status: dict = {
 
 
 def get_status() -> dict:
-    return dict(_status)
+    s = dict(_status)
+    s["log"] = list(_status["log"])  # copy so Flask read doesn't race with loop write
+    return s
 
 
 def stop():
@@ -55,6 +57,8 @@ def _git(args: list, cwd: str = None) -> str:
         ["git"] + args, cwd=cwd,
         capture_output=True, text=True
     )
+    if result.returncode != 0:
+        logger.warning("git %s failed: %s", " ".join(args), result.stderr.strip())
     return result.stdout.strip()
 
 
@@ -166,7 +170,7 @@ def run_loop(
     _status["baseline_spearman"] = baseline_spearman
     _status["best_spearman"]     = best_spearman
     consecutive_failures = 0
-    experiment_num = len(_load_results())
+    experiment_num = len(_load_results(n=9999))
 
     try:
         for _ in range(max_experiments):
@@ -197,6 +201,8 @@ def run_loop(
                 )
             except Exception as e:
                 logger.error("Hypothesis generation failed: %s", e)
+                consecutive_failures += 1
+                _status["consecutive_failures"] = consecutive_failures
                 continue
 
             hypothesis = proposal.get("hypothesis", "")
@@ -204,6 +210,8 @@ def run_loop(
 
             if not new_prompt or new_prompt == current_prompt:
                 logger.warning("LLM returned empty or unchanged prompt, skipping.")
+                consecutive_failures += 1
+                _status["consecutive_failures"] = consecutive_failures
                 continue
 
             _status["last_hypothesis"] = hypothesis
@@ -222,6 +230,16 @@ def run_loop(
                 logger.error("Evaluation failed: %s", e)
                 if not dry_run:
                     _git(["checkout", "autoresearch/scoring_prompt.md"])
+                consecutive_failures += 1
+                _status["consecutive_failures"] = consecutive_failures
+                continue
+
+            if new_spearman is None:
+                logger.error("evaluate() returned None spearman, skipping.")
+                if not dry_run:
+                    _git(["checkout", "autoresearch/scoring_prompt.md"])
+                consecutive_failures += 1
+                _status["consecutive_failures"] = consecutive_failures
                 continue
 
             delta     = new_spearman - best_spearman
