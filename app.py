@@ -46,6 +46,7 @@ from email_notifier import send_job_email
 from reminder_runner import run_reminders
 from database import delete_old_jobs
 from contact_scraper import enrich_jobs_with_contacts
+from database import update_job_description
 from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
 from telegram_bot import start_telegram_bot
 from git_sync import sync_from_scrape
@@ -88,6 +89,12 @@ scraper_status = {
     "finished_at": None,
 }
 scraper_lock = threading.Lock()
+
+# ---------------------------------------------------------------------------
+# AI agent run state
+# ---------------------------------------------------------------------------
+agent_status = {"running": False, "queued": 0, "error": None, "finished_at": None}
+agent_lock = threading.Lock()
 
 # ---------------------------------------------------------------------------
 # Live search state
@@ -201,7 +208,15 @@ def _run_apollo_enrichment(job_ids):
     if not rows:
         return
 
-    contacts = enrich_jobs_with_contacts(rows)
+    prefs = load_preferences() or {}
+    linkedin_email = prefs.get("linkedin_email", "").strip()
+    linkedin_password = prefs.get("linkedin_password", "").strip()
+
+    contacts = enrich_jobs_with_contacts(
+        rows,
+        linkedin_email=linkedin_email or None,
+        linkedin_password=linkedin_password or None,
+    )
     for jid, info in contacts.items():
         update_job_contacts(
             jid,
@@ -210,6 +225,10 @@ def _run_apollo_enrichment(job_ids):
             info.get("poster_phone", ""),
             info.get("poster_linkedin", ""),
         )
+        # Also update the job description if LinkedIn JSON-LD returned one
+        jd = info.get("jd_text", "")
+        if jd:
+            update_job_description(jid, jd)
 
 
 def _run_scraper_pipeline():
@@ -476,16 +495,57 @@ def _should_start_background_tasks():
     return True
 
 
+def _git_pull_and_sync():
+    """
+    Periodically git pull and import any new scrape committed by GitHub Actions.
+    Runs every 30 minutes in a background thread.
+    """
+    import subprocess
+    import time as _time
+
+    while True:
+        _time.sleep(1800)  # wait 30 minutes between checks
+        try:
+            result = subprocess.run(
+                ["git", "pull", "--ff-only"],
+                cwd=BASE_DIR,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if result.returncode == 0 and "Already up to date." not in result.stdout:
+                logger.info("git pull: %s", result.stdout.strip())
+                sync_from_scrape(BASE_DIR, insert_jobs_bulk)
+                # Auto-run agent pipeline so new jobs get scored and drafted immediately
+                try:
+                    import json as _json
+                    from agent.graph import run_agent_pipeline
+                    _prefs = load_preferences() or DEFAULT_PREFS.copy()
+                    with open(os.path.join(BASE_DIR, "config.json")) as _f:
+                        _cfg = _json.load(_f)
+                    run_agent_pipeline(_prefs, _cfg)
+                    logger.info("git sync: agent pipeline completed")
+                except Exception as _ae:
+                    logger.warning("git sync: agent pipeline error: %s", _ae)
+            else:
+                logger.debug("git pull: no new commits")
+        except Exception as e:
+            logger.warning("git pull sync failed: %s", e)
+
+
 if _should_start_background_tasks():
     setup_background_scheduler()
 
-    # Auto-import any scraped jobs committed by GitHub Actions
+    # Auto-import any scraped jobs committed by GitHub Actions (on startup)
     import threading as _threading
     _threading.Thread(
         target=sync_from_scrape,
         args=(BASE_DIR, insert_jobs_bulk),
         daemon=True,
     ).start()
+
+    # Periodically pull latest scrape from GitHub Actions and import
+    _threading.Thread(target=_git_pull_and_sync, daemon=True).start()
 
     # Start Telegram bot if token is configured
     _bot_prefs = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
@@ -569,7 +629,7 @@ def _build_jobs_query(filters):
     try:
         min_score_val = int(min_score)
     except (ValueError, TypeError):
-        min_score_val = 60
+        min_score_val = 0
     if min_score_val > 0:
         conditions.append("relevance_score >= ?")
         params.append(min_score_val)
@@ -703,11 +763,15 @@ def jobs():
 
     # Attach inline gap data if CV is uploaded
     cv_data = load_cv_data()
-    if cv_data:
+    cv_uploaded = cv_data is not None
+    if cv_uploaded:
         for job in rows:
             gap = compute_gap_analysis(job, cv_data)
             job["_missing_top3"] = gap.get("missing_skills", [])[:3]
             job["_cv_score"] = gap.get("cv_score", 0)
+        # Re-sort by CV match score if requested (can't do in SQL)
+        if filters.get("sort") == "cv_score_desc":
+            rows.sort(key=lambda j: j.get("_cv_score", 0), reverse=True)
     else:
         for job in rows:
             job["_missing_top3"] = []
@@ -732,6 +796,7 @@ def jobs():
         jobs=rows, total=total,
         portals=portals, locations=normalized_locs,
         filters=filters, clean_filters=clean_filters,
+        cv_uploaded=cv_uploaded,
     )
 
 
@@ -867,6 +932,11 @@ def preferences():
             "telegram_bot_token": request.form.get("telegram_bot_token", "").strip(),
             "telegram_chat_id": request.form.get("telegram_chat_id", "").strip(),
             "telegram_min_score": max(0, min(100, int(request.form.get("telegram_min_score", "65")))),
+            "linkedin_email": request.form.get("linkedin_email", "").strip(),
+            "linkedin_password": request.form.get("linkedin_password", "").strip(),
+            "agent_score_threshold": max(0, min(100, int(request.form.get("agent_score_threshold", "50")))),
+            "agent_job_cap": max(10, min(500, int(request.form.get("agent_job_cap", "200")))),
+            "agent_host": request.form.get("agent_host", "http://localhost:5001").strip(),
         }
         save_preferences(prefs)
         flash("Preferences saved successfully!", "success")
@@ -881,6 +951,7 @@ def preferences():
         "gmail_app_password": bool(os.environ.get("GMAIL_APP_PASSWORD")),
         "telegram_bot_token": bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
         "apollo_api_key": bool(os.environ.get("APOLLO_API_KEY")),
+        "linkedin_password": bool(os.environ.get("LINKEDIN_PASSWORD")),
     }
     return render_template("preferences.html", prefs=prefs, config=config, env_credentials=env_credentials)
 
@@ -1268,7 +1339,7 @@ def approve_outreach(token):
     if item["status"] != "pending":
         return f"This outreach was already {item['status']}.", 200
 
-    prefs = load_preferences() or DEFAULT_PREFS.copy()
+    prefs = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
     gmail_address = prefs.get("gmail_address", "")
     gmail_password = prefs.get("gmail_app_password", "")
 
@@ -1280,17 +1351,24 @@ def approve_outreach(token):
         return "No hiring manager email on file for this job.", 400
 
     try:
+        apply_url = (item.get("apply_url") or "").strip()
+        email_body = item["email_draft"]
+        if apply_url:
+            email_body += f"\n\nJob posting: {apply_url}"
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = f"Regarding the {item['role']} role at {item['company']}"
         msg["From"] = gmail_address
         msg["To"] = recipient_email
-        msg.attach(MIMEText(item["email_draft"], "plain"))
+        msg.attach(MIMEText(email_body, "plain"))
 
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
             smtp.login(gmail_address, gmail_password)
             smtp.sendmail(gmail_address, recipient_email, msg.as_string())
 
         update_outreach_status(token, "sent")
+        # Also mark the job as Applied in job_listings
+        update_applied_status(item["job_id"], 1)
         return render_template("approve_result.html",
                                success=True, item=item,
                                message=f"Email sent to {recipient_email}!")
@@ -1311,6 +1389,81 @@ def skip_outreach(token):
     return render_template("approve_result.html",
                            success=False, item=item,
                            message="Skipped. This job won't appear again.")
+
+
+@app.route("/api/outreach/map")
+def outreach_map():
+    """Return {job_id: outreach_data} for all outreach queue entries. Used by jobs page."""
+    from database import get_outreach_map
+    return jsonify(get_outreach_map())
+
+
+@app.route("/api/outreach/<token>/save", methods=["POST"])
+def save_outreach_draft(token):
+    """Save edited draft text for an outreach item."""
+    from database import update_outreach_draft, get_outreach_by_token
+    item = get_outreach_by_token(token)
+    if not item:
+        return jsonify({"ok": False, "error": "Not found"}), 404
+    data = request.get_json(silent=True) or {}
+    email_draft = data.get("email_draft")
+    linkedin_draft = data.get("linkedin_draft")
+    update_outreach_draft(token, email_draft=email_draft, linkedin_draft=linkedin_draft)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/outreach/<token>/mark-applied", methods=["POST"])
+def mark_outreach_applied(token):
+    """Mark the job associated with this outreach token as Applied."""
+    from database import get_outreach_by_token
+    item = get_outreach_by_token(token)
+    if not item:
+        return jsonify({"ok": False, "error": "Not found"}), 404
+    update_applied_status(item["job_id"], 1)
+    return jsonify({"ok": True})
+
+
+def _run_agent_background():
+    """Run the AI agent pipeline in a background thread."""
+    global agent_status
+    try:
+        import json as _json
+        from agent.graph import run_agent_pipeline
+        prefs = load_preferences() or DEFAULT_PREFS.copy()
+        with open(os.path.join(BASE_DIR, "config.json")) as f:
+            _config = _json.load(f)
+        result = run_agent_pipeline(prefs, _config)
+        with agent_lock:
+            agent_status["queued"] = result.get("queued_count", 0)
+            agent_status["error"] = result.get("errors", [None])[0] if result.get("errors") else None
+    except Exception as e:
+        logger.error("Agent background run error: %s", e)
+        with agent_lock:
+            agent_status["error"] = str(e)
+    finally:
+        with agent_lock:
+            agent_status["running"] = False
+            agent_status["finished_at"] = datetime.now().isoformat()
+
+
+@app.route("/api/agent/run", methods=["POST"])
+def run_agent_now():
+    """Manually trigger the AI agent pipeline."""
+    global agent_status
+    with agent_lock:
+        if agent_status["running"]:
+            return jsonify({"ok": False, "error": "Agent is already running"}), 409
+        agent_status = {"running": True, "queued": 0, "error": None, "finished_at": None}
+    t = threading.Thread(target=_run_agent_background, daemon=True)
+    t.start()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/agent/status")
+def agent_run_status():
+    """Return current agent run state."""
+    with agent_lock:
+        return jsonify(dict(agent_status))
 
 
 @app.route("/api/jobs/<job_id>/gap-analysis")
@@ -1579,6 +1732,82 @@ def reminders_edit(reminder_id):
     else:
         flash("Reminder not found.", "error")
     return redirect(url_for("reminders"))
+
+
+# ── Autoresearch routes ──────────────────────────────────────────────────────
+
+@app.route("/autoresearch")
+def autoresearch_page():
+    """Autoresearch dashboard page."""
+    from autoresearch.loop import get_status
+    import json, os
+    results_path = os.path.join(BASE_DIR, "autoresearch", "results.json")
+    results = []
+    if os.path.exists(results_path):
+        with open(results_path) as f:
+            results = json.load(f)
+    baseline_path = os.path.join(BASE_DIR, "autoresearch", "baseline.json")
+    baseline = None
+    if os.path.exists(baseline_path):
+        with open(baseline_path) as f:
+            baseline = json.load(f)
+    prompt_path = os.path.join(BASE_DIR, "autoresearch", "scoring_prompt.md")
+    current_prompt = ""
+    if os.path.exists(prompt_path):
+        with open(prompt_path) as f:
+            current_prompt = f.read()
+    return render_template(
+        "autoresearch.html",
+        status=get_status(),
+        results=list(reversed(results[-50:])),
+        baseline=baseline,
+        current_prompt=current_prompt,
+    )
+
+
+@app.route("/api/autoresearch/start", methods=["POST"])
+def autoresearch_start():
+    """Start the autoresearch loop in a background thread."""
+    import threading
+    from autoresearch.loop import run_loop, get_status
+    status = get_status()
+    if status["running"]:
+        return jsonify({"ok": False, "error": "Already running"}), 400
+    data = request.get_json(silent=True) or {}
+    max_exp = int(data.get("max_experiments", 10))
+    t = threading.Thread(target=run_loop, kwargs={"max_experiments": max_exp}, daemon=True)
+    t.start()
+    return jsonify({"ok": True, "max_experiments": max_exp})
+
+
+@app.route("/api/autoresearch/stop", methods=["POST"])
+def autoresearch_stop():
+    """Stop the running loop."""
+    from autoresearch.loop import stop
+    stop()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/autoresearch/status")
+def autoresearch_status():
+    """Poll current loop status (used by UI)."""
+    from autoresearch.loop import get_status
+    return jsonify(get_status())
+
+
+@app.route("/api/autoresearch/seed", methods=["POST"])
+def autoresearch_seed():
+    """Run seed.py to create testset.json (one-time setup)."""
+    import threading, os
+    testset_path = os.path.join(BASE_DIR, "autoresearch", "testset.json")
+    force = (request.get_json(silent=True) or {}).get("force", False)
+    if os.path.exists(testset_path) and not force:
+        return jsonify({"ok": False, "error": "testset.json already exists. Pass force=true to reseed."})
+    def _do_seed():
+        from autoresearch.seed import seed
+        seed(n=30, force=force)
+    threading.Thread(target=_do_seed, daemon=True).start()
+    return jsonify({"ok": True, "message": "Seeding started in background (takes ~2 min)"})
 
 
 # ---------------------------------------------------------------------------

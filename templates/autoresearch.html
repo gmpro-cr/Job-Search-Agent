@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Autoresearch — Job Agent{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex items-start justify-between gap-4 flex-wrap">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#1e1b4b;">Autoresearch</h1>
+    <p class="mt-1 text-sm font-medium" style="color:#6b7280;">
+      Self-improving CV scoring — Karpathy-style autonomous prompt optimization.
+    </p>
+  </div>
+
+  <!-- Controls -->
+  <div class="flex items-center gap-3 flex-shrink-0 flex-wrap">
+    <button onclick="seedTestset()"
+      class="px-4 py-2 text-sm font-semibold rounded-xl border transition-all"
+      style="background:rgba(255,255,255,0.6); border-color:rgba(255,255,255,0.5); color:#374151;"
+      id="seed-btn">Seed Test Set</button>
+
+    <button onclick="startLoop(10)"
+      class="px-4 py-2 text-white text-sm font-bold rounded-xl transition-all"
+      style="background:linear-gradient(135deg,#6366f1,#8b5cf6); box-shadow:0 2px 10px rgba(99,102,241,0.32);"
+      id="run-btn">Run 10 Experiments</button>
+
+    <button onclick="startLoop(100)"
+      class="px-4 py-2 text-white text-sm font-bold rounded-xl transition-all"
+      style="background:linear-gradient(135deg,#059669,#10b981); box-shadow:0 2px 10px rgba(16,185,129,0.30);"
+      id="overnight-btn">Run Overnight (100)</button>
+
+    <button onclick="stopLoop()" id="stop-btn"
+      class="hidden px-4 py-2 text-sm font-semibold rounded-xl border"
+      style="background:rgba(254,226,226,0.7); border-color:rgba(239,68,68,0.3); color:#dc2626;">Stop</button>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div id="status-bar" class="hidden mb-6 px-5 py-3.5 rounded-xl text-sm font-medium"
+  style="background:rgba(99,102,241,0.10); border:1px solid rgba(99,102,241,0.20); color:#4338ca; backdrop-filter:blur(12px);">
+</div>
+
+<!-- Metric cards -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+  <div class="stat-card">
+    <p class="text-xs font-semibold uppercase tracking-wider" style="color:#9ca3af;">Baseline Spearman</p>
+    <p class="text-3xl font-bold mt-2" style="color:#1e1b4b;" id="metric-baseline">
+      {% if baseline %}{{ "%.4f"|format(baseline.spearman) }}{% else %}—{% endif %}
+    </p>
+    <p class="text-xs mt-2" style="color:#9ca3af;">initial score before experiments</p>
+  </div>
+  <div class="stat-card">
+    <p class="text-xs font-semibold uppercase tracking-wider" style="color:#9ca3af;">Best Spearman</p>
+    <p class="text-3xl font-bold mt-2" style="color:#6366f1;" id="metric-best">
+      {% if status.best_spearman %}{{ "%.4f"|format(status.best_spearman) }}{% else %}—{% endif %}
+    </p>
+    <p class="text-xs mt-2" style="color:#9ca3af;">best achieved so far</p>
+  </div>
+  <div class="stat-card">
+    <p class="text-xs font-semibold uppercase tracking-wider" style="color:#9ca3af;">Experiments</p>
+    <p class="text-3xl font-bold mt-2" style="color:#1e1b4b;" id="metric-experiments">{{ results|length }}</p>
+    <p class="text-xs mt-2" style="color:#9ca3af;">total iterations run</p>
+  </div>
+  <div class="stat-card">
+    <p class="text-xs font-semibold uppercase tracking-wider" style="color:#9ca3af;">Improvements</p>
+    <p class="text-3xl font-bold mt-2" style="color:#059669;" id="metric-improvements">
+      {{ results | selectattr("committed") | list | length }}
+    </p>
+    <p class="text-xs mt-2" style="color:#9ca3af;">commits that beat the baseline</p>
+  </div>
+</div>
+
+<!-- Experiment log -->
+{% if results %}
+<div class="glass-panel mb-8">
+  <div class="glass-panel-header flex items-center justify-between">
+    <h2 class="text-sm font-bold uppercase tracking-wider" style="color:#374151;">Experiment Log</h2>
+    <span class="text-xs" style="color:#9ca3af;">newest first</span>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr style="background:rgba(243,244,246,0.5);">
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style="color:#6b7280;">#</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style="color:#6b7280;">Hypothesis</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider" style="color:#6b7280;">Δ Spearman</th>
+          <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider" style="color:#6b7280;">Outcome</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in results %}
+        <tr style="border-top:1px solid rgba(255,255,255,0.4);" class="hover:bg-white/20 transition-colors">
+          <td class="px-4 py-3 font-mono text-xs" style="color:#9ca3af;">{{ r.experiment }}</td>
+          <td class="px-4 py-3 text-sm max-w-md" style="color:#374151;">{{ r.hypothesis }}</td>
+          <td class="px-4 py-3 text-right font-bold font-mono text-sm
+            {% if r.delta > 0 %}text-emerald-600{% elif r.delta < 0 %}text-rose-500{% else %}text-gray-400{% endif %}">
+            {{ "%+.4f"|format(r.delta) }}
+          </td>
+          <td class="px-4 py-3 text-center">
+            {% if r.committed %}
+            <span class="px-2 py-1 rounded-md text-xs font-bold" style="background:rgba(16,185,129,0.1); color:#059669;">✓ committed</span>
+            {% else %}
+            <span class="px-2 py-1 rounded-md text-xs font-bold" style="background:rgba(243,244,246,0.7); color:#9ca3af;">✗ reset</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Current prompt viewer -->
+{% if current_prompt %}
+<div class="glass-panel">
+  <div class="glass-panel-header">
+    <h2 class="text-sm font-bold uppercase tracking-wider" style="color:#374151;">Current Scoring Prompt</h2>
+  </div>
+  <div class="p-6">
+    <pre class="text-xs leading-relaxed whitespace-pre-wrap rounded-xl p-4"
+      style="background:rgba(248,248,255,0.6); color:#374151; font-family:ui-monospace,monospace;">{{ current_prompt }}</pre>
+  </div>
+</div>
+{% else %}
+<div class="glass-panel p-8 text-center">
+  <p class="text-sm font-medium mb-4" style="color:#6b7280;">No test set yet. Click <strong>Seed Test Set</strong> to get started.</p>
+</div>
+{% endif %}
+
+<script>
+let pollInterval = null;
+
+function showStatus(msg, color) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.style.display = 'block';
+  bar.style.color = color || '#4338ca';
+}
+
+function seedTestset() {
+  document.getElementById('seed-btn').textContent = 'Seeding…';
+  fetch('/api/autoresearch/seed', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+    .then(r => r.json()).then(d => {
+      showStatus(d.ok ? '✓ Seeding started — takes ~2 min. Refresh when done.' : ('Error: ' + d.error));
+      document.getElementById('seed-btn').textContent = 'Seed Test Set';
+    });
+}
+
+function startLoop(n) {
+  fetch('/api/autoresearch/start', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({max_experiments: n})
+  }).then(r => r.json()).then(d => {
+    if (!d.ok) { showStatus('Error: ' + d.error, '#dc2626'); return; }
+    document.getElementById('stop-btn').classList.remove('hidden');
+    showStatus('Running experiment loop (' + n + ' experiments)…');
+    pollInterval = setInterval(pollStatus, 3000);
+  });
+}
+
+function stopLoop() {
+  fetch('/api/autoresearch/stop', {method:'POST'})
+    .then(() => { clearInterval(pollInterval); showStatus('Stopped.'); });
+}
+
+function pollStatus() {
+  fetch('/api/autoresearch/status').then(r => r.json()).then(s => {
+    if (s.best_spearman) document.getElementById('metric-best').textContent = s.best_spearman.toFixed(4);
+    document.getElementById('metric-experiments').textContent = s.experiment;
+    if (s.last_hypothesis) {
+      const outcome = s.last_outcome === 'committed' ? '✓' : '✗';
+      const delta   = s.last_delta >= 0 ? '+' + s.last_delta.toFixed(4) : s.last_delta.toFixed(4);
+      showStatus(`Exp #${s.experiment} ${outcome} ${delta} — ${s.last_hypothesis}`);
+    }
+    if (!s.running) {
+      clearInterval(pollInterval);
+      document.getElementById('stop-btn').classList.add('hidden');
+      showStatus('Loop finished. Best Spearman: ' + (s.best_spearman || '—'));
+      setTimeout(() => location.reload(), 2000);
+    }
+  });
+}
+</script>
+{% endblock %}
