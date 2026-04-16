@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+{% block title %}Agent Pipeline — Job Search Agent{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Status pill ── */
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.03em;
+  }
+  .pill-queue    { background:#E0FAFB; color:#00CED1; border:1px solid #80EAEC; }
+  .pill-applied  { background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; }
+  .pill-eval     { background:#fef9c3; color:#854d0e; border:1px solid #fde68a; }
+  .pill-rejected { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; }
+
+  /* ── Queue card ── */
+  .queue-card {
+    background:#ffffff; border:1.5px solid #B2F0F2;
+    border-radius:14px; padding:18px 20px;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  .queue-card:hover { box-shadow:0 4px 20px rgba(0,206,209,0.12); border-color:#00CED1; }
+
+  /* ── Launch box ── */
+  .launch-box {
+    background: linear-gradient(135deg, #002D2F 0%, #003F42 100%);
+    border-radius:16px; padding:28px 32px;
+    border:1px solid rgba(0,206,209,0.20);
+    box-shadow: 0 8px 32px rgba(0,206,209,0.14);
+  }
+
+  /* ── Terminal code block ── */
+  .terminal {
+    background:#001618; border-radius:10px;
+    padding:14px 18px; font-family:ui-monospace,'Cascadia Code','SF Mono',monospace;
+    font-size:12.5px; line-height:1.7; border:1px solid rgba(0,206,209,0.18);
+    position:relative;
+  }
+  .terminal .prompt { color:#00CED1; user-select:none; }
+  .terminal .cmd    { color:#ffffff; }
+  .terminal .comment{ color:rgba(0,206,209,0.50); }
+
+  .copy-btn {
+    position:absolute; top:10px; right:10px;
+    background:rgba(0,206,209,0.15); border:1px solid rgba(0,206,209,0.30);
+    color:#00CED1; border-radius:6px; padding:4px 10px;
+    font-size:11px; font-weight:600; cursor:pointer;
+    transition:background 0.15s;
+  }
+  .copy-btn:hover { background:rgba(0,206,209,0.28); }
+
+  /* ── Step indicator ── */
+  .step-indicator {
+    display:flex; align-items:center; gap:0;
+    margin-bottom:28px; overflow-x:auto;
+  }
+  .step-item {
+    display:flex; flex-direction:column; align-items:center; min-width:100px;
+  }
+  .step-circle {
+    width:36px; height:36px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:13px;
+    border:2px solid #B2F0F2; color:#80ABAE; background:#fff;
+    transition: all 0.2s;
+  }
+  .step-circle.done  { background:linear-gradient(135deg,#00CED1,#00A8AB); border-color:#00CED1; color:#fff; box-shadow:0 3px 10px rgba(0,206,209,0.35); }
+  .step-circle.active{ border-color:#00CED1; color:#00CED1; box-shadow:0 0 0 4px rgba(0,206,209,0.15); }
+  .step-label { font-size:10px; font-weight:600; margin-top:6px; color:#80ABAE; text-align:center; }
+  .step-label.done   { color:#00CED1; }
+  .step-label.active { color:#002D2F; }
+  .step-connector {
+    flex:1; height:2px; background:#E0FAFB; min-width:20px; margin-bottom:20px;
+  }
+  .step-connector.done { background:linear-gradient(90deg,#00CED1,#00A8AB); }
+
+  /* ── Score bar ── */
+  .score-bar {
+    height:4px; border-radius:2px;
+    background: linear-gradient(90deg, #00CED1, #00A8AB);
+  }
+
+  /* ── App tracker table ── */
+  .tracker-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .tracker-table th {
+    text-align:left; padding:10px 14px;
+    font-size:10px; font-weight:700; letter-spacing:0.08em;
+    text-transform:uppercase; color:#00CED1;
+    border-bottom:2px solid #B2F0F2;
+  }
+  .tracker-table td { padding:12px 14px; border-bottom:1px solid #E0FAFB; color:#002D2F; }
+  .tracker-table tr:hover td { background:#E0FAFB; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="mb-6 flex items-center justify-between flex-wrap gap-4">
+  <div class="flex items-center gap-3">
+    <div style="background:linear-gradient(135deg,#00CED1,#00A8AB);border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,206,209,0.35);">
+      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="text-xl font-semibold" style="color:#002D2F;">Agent Pipeline</h1>
+      <p class="text-sm" style="color:#00CED1;">Scrape → Score → Evaluate → Apply</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <span class="pill pill-queue">{{ queue_count }} queued</span>
+    <span style="font-size:12px;color:#80ABAE;">{{ applied_count }} applied</span>
+  </div>
+</div>
+
+<!-- ══ WORKFLOW STEPS ══ -->
+<div class="step-indicator">
+  <div class="step-item">
+    <div class="step-circle {{ 'done' if profile_ready else 'active' }}">
+      {% if profile_ready %}
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+      {% else %}1{% endif %}
+    </div>
+    <div class="step-label {{ 'done' if profile_ready else 'active' }}">Setup Profile</div>
+  </div>
+  <div class="step-connector {{ 'done' if profile_ready }}"></div>
+
+  <div class="step-item">
+    <div class="step-circle {{ 'done' if queue_count > 0 else ('active' if profile_ready else '') }}">
+      {% if queue_count > 0 %}
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+      {% else %}2{% endif %}
+    </div>
+    <div class="step-label {{ 'done' if queue_count > 0 else ('active' if profile_ready else '') }}">Run Scraper</div>
+  </div>
+  <div class="step-connector {{ 'done' if queue_count > 0 }}"></div>
+
+  <div class="step-item">
+    <div class="step-circle {{ 'done' if applied_count > 0 else ('active' if queue_count > 0 else '') }}">
+      {% if applied_count > 0 %}
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+      {% else %}3{% endif %}
+    </div>
+    <div class="step-label {{ 'done' if applied_count > 0 else ('active' if queue_count > 0 else '') }}">Launch Agent</div>
+  </div>
+  <div class="step-connector {{ 'done' if applied_count > 0 }}"></div>
+
+  <div class="step-item">
+    <div class="step-circle {{ 'done' if applied_count > 0 else '' }}">
+      {% if applied_count > 0 %}
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+      {% else %}4{% endif %}
+    </div>
+    <div class="step-label {{ 'done' if applied_count > 0 else '' }}">Review &amp; Apply</div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- ══ LEFT: Queue + Launch ══ -->
+  <div class="lg:col-span-2 space-y-6">
+
+    <!-- Step 1: Run Scraper -->
+    {% if not profile_ready %}
+    <div class="stat-card" style="border-color:rgba(0,206,209,0.40);">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="pill pill-queue">Step 1</span>
+        <span class="font-semibold text-sm" style="color:#002D2F;">Complete your profile first</span>
+      </div>
+      <p class="text-xs mb-4" style="color:#80ABAE;">Claude needs your CV and role preferences to tailor applications.</p>
+      <a href="{{ url_for('setup_profile') }}" class="btn-teal text-sm">Go to My Profile →</a>
+    </div>
+    {% endif %}
+
+    <!-- Step 2: Queue -->
+    <div class="stat-card">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <span class="pill pill-queue">Step 2</span>
+          <span class="font-semibold text-sm" style="color:#002D2F;">Jobs in queue</span>
+        </div>
+        <a href="{{ url_for('scraper') }}" class="btn-teal text-xs" style="padding:6px 14px;">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Run Scraper
+        </a>
+      </div>
+
+      {% if queued_jobs %}
+      <div class="space-y-3">
+        {% for job in queued_jobs %}
+        <div class="queue-card">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <div class="font-semibold text-sm" style="color:#002D2F;">{{ job.company }} — {{ job.role }}</div>
+              <div class="text-xs mt-0.5" style="color:#80ABAE;">{{ job.location }} · {{ job.portal }} · {{ job.date }}</div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <div class="font-bold text-sm" style="color:#00CED1;">{{ job.score }}<span style="font-weight:400;color:#80ABAE;">/100</span></div>
+              <div class="score-bar mt-1" style="width:60px;opacity:{{ (job.score / 100) }};"></div>
+            </div>
+          </div>
+          {% if job.salary and job.salary != 'Not disclosed' %}
+          <div class="text-xs mb-2" style="color:#4A7275;">💰 {{ job.salary }}</div>
+          {% endif %}
+          {% if job.skills %}
+          <div class="flex flex-wrap gap-1">
+            {% for skill in job.skills[:5] %}
+            <span style="background:#E0FAFB;color:#00CED1;border:1px solid #B2F0F2;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:600;">{{ skill }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% if job.url %}
+          <a href="{{ job.url }}" target="_blank" class="text-xs mt-2 inline-block" style="color:#00CED1;">View job →</a>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center py-10" style="color:#80ABAE;">
+        <svg class="w-10 h-10 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <p class="text-sm font-medium">Queue is empty</p>
+        <p class="text-xs mt-1">Run the scraper to populate it with today's jobs</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Step 3: Launch Agent -->
+    <div class="launch-box">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="pill" style="background:rgba(0,206,209,0.15);color:#00CED1;border:1px solid rgba(0,206,209,0.30);">Step 3</span>
+        <span class="font-semibold text-sm text-white">Launch the evaluation agent</span>
+      </div>
+      <p class="text-xs mb-5" style="color:rgba(255,255,255,0.50);">
+        Open a terminal and run these two commands. Claude Code will read your CV, evaluate every queued job,
+        tailor your resume, and update the tracker — all within your Claude Pro subscription.
+      </p>
+
+      <div class="terminal mb-3" id="cmd1">
+        <button class="copy-btn" onclick="copyCmd('cmd1')">Copy</button>
+        <div><span class="prompt">$ </span><span class="cmd">cd {{ career_ops_path }}</span></div>
+      </div>
+      <div class="terminal mb-4" id="cmd2">
+        <button class="copy-btn" onclick="copyCmd('cmd2')">Copy</button>
+        <div><span class="prompt">$ </span><span class="cmd">claude</span></div>
+        <div class="mt-2"><span class="comment"># Once Claude Code opens, type:</span></div>
+        <div><span class="prompt">&gt; </span><span class="cmd">/career-ops pipeline</span></div>
+        <div><span class="comment"># Claude evaluates all {{ queue_count }} queued job(s),</span></div>
+        <div><span class="comment"># tailors your CV for each, updates the tracker below.</span></div>
+      </div>
+
+      <div class="flex flex-wrap gap-3">
+        <button onclick="openTerminal()" class="btn-teal" style="background:rgba(0,206,209,0.22);border:1px solid rgba(0,206,209,0.40);">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          Open Terminal Here
+        </button>
+        <a href="{{ url_for('how_it_works') }}" class="btn-teal" style="background:transparent;border:1px solid rgba(0,206,209,0.30);color:rgba(255,255,255,0.70);">
+          How it works
+        </a>
+      </div>
+
+      {% if queue_count == 0 %}
+      <div class="mt-4 text-xs" style="color:rgba(0,206,209,0.50);">
+        ⚠ Queue is empty. Run the scraper first to populate it.
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- ══ RIGHT: Stats + Tracker ══ -->
+  <div class="space-y-5">
+
+    <!-- Stats -->
+    <div class="stat-card">
+      <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:#00CED1;">Activity</h3>
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <span class="text-xs" style="color:#4A7275;">Queued for evaluation</span>
+          <span class="font-bold text-sm" style="color:#002D2F;">{{ queue_count }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-xs" style="color:#4A7275;">Total applied</span>
+          <span class="font-bold text-sm" style="color:#002D2F;">{{ applied_count }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-xs" style="color:#4A7275;">CV ready</span>
+          <span class="font-bold text-sm" style="color:{% if cv_ready %}#00CED1{% else %}#80ABAE{% endif %};">
+            {% if cv_ready %}Yes{% else %}No{% endif %}
+          </span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-xs" style="color:#4A7275;">Profile complete</span>
+          <span class="font-bold text-sm" style="color:{% if profile_ready %}#00CED1{% else %}#80ABAE{% endif %};">
+            {% if profile_ready %}Yes{% else %}No{% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick commands -->
+    <div class="stat-card">
+      <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:#00CED1;">Claude Code Commands</h3>
+      <div class="space-y-2">
+        {% for label, cmd in [
+          ('Evaluate one job', '/career-ops oferta [url]'),
+          ('Process all queued', '/career-ops pipeline'),
+          ('Scan company portals', '/career-ops scan'),
+          ('View tracker', '/career-ops tracker'),
+          ('Deep company research', '/career-ops deep [company]'),
+        ] %}
+        <div class="flex items-start gap-2">
+          <code style="background:#E0FAFB;color:#00CED1;padding:2px 7px;border-radius:5px;font-size:10px;white-space:nowrap;border:1px solid #B2F0F2;flex-shrink:0;">{{ cmd }}</code>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ APPLICATIONS TRACKER ══ -->
+{% if applications %}
+<div class="mt-8">
+  <h2 class="text-sm font-semibold mb-4" style="color:#002D2F;">Applications Tracker</h2>
+  <div class="glass-panel">
+    <div class="glass-panel-header flex items-center justify-between">
+      <span class="text-xs font-semibold" style="color:#002D2F;">{{ applications|length }} application(s) tracked</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="tracker-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Date</th><th>Company</th><th>Role</th><th>Score</th><th>Status</th><th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for app in applications %}
+          <tr>
+            <td style="color:#80ABAE;">{{ app.num }}</td>
+            <td style="color:#80ABAE;white-space:nowrap;">{{ app.date }}</td>
+            <td class="font-semibold">{{ app.company }}</td>
+            <td>{{ app.role }}</td>
+            <td>
+              {% if app.score %}
+              <span style="color:#00CED1;font-weight:700;">{{ app.score }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% set s = app.status | lower %}
+              {% if 'applied' in s %}
+              <span class="pill pill-applied">{{ app.status }}</span>
+              {% elif 'interview' in s %}
+              <span class="pill pill-eval">{{ app.status }}</span>
+              {% elif 'reject' in s %}
+              <span class="pill pill-rejected">{{ app.status }}</span>
+              {% else %}
+              <span class="pill pill-queue">{{ app.status }}</span>
+              {% endif %}
+            </td>
+            <td style="color:#80ABAE;font-size:12px;">{{ app.notes }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyCmd(id) {
+  const el = document.getElementById(id);
+  const lines = [...el.querySelectorAll('.cmd')].map(e => e.textContent).join('\n');
+  navigator.clipboard.writeText(lines).then(() => {
+    const btn = el.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+function openTerminal() {
+  fetch('/api/pipeline/open-terminal', {method:'POST'})
+    .then(r => r.json())
+    .then(d => { if (!d.ok) alert(d.error || 'Could not open terminal'); });
+}
+</script>
+{% endblock %}

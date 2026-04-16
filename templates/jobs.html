@@ -4,947 +4,1948 @@
 {% block head %}
 <style>
   .jobs-page {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
-    background: #f4f4f5;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: transparent;
     margin: -1.5rem;
     padding: 1.5rem;
     min-height: calc(100vh - 4rem);
   }
-  .hc-mono { font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace; }
-  /* Cards */
+
+  .hc-mono {
+    font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  /* ── Cards ── */
   .job-card {
-    background: #fff;
-    border: 1px solid #e4e4e7;
-    border-radius: 16px;
-    transition: box-shadow .18s, border-color .18s, transform .18s;
-    overflow: hidden;
+    background: rgba(255, 255, 255, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 18px;
+    transition: all 0.22s ease;
+    overflow: visible;
     display: flex;
     flex-direction: column;
+    position: relative;
+    box-shadow: 0 4px 24px -4px rgba(99,88,220,0.09), 0 1px 4px rgba(0,0,0,0.04);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
   }
-  .job-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); border-color: #d4d4d8; transform: translateY(-2px); }
-  /* Score badges */
-  .score-high { background:#18181b; color:#fff; }
-  .score-mid  { background:#fef3c7; color:#92400e; }
-  .score-low  { background:#f4f4f5; color:#71717a; }
-  /* Tag pills */
-  .tag-pill   { background:#f4f4f5; border:1px solid #e4e4e7; border-radius:999px; padding:2px 9px; font-size:11px; color:#52525b; display:inline-block; }
-  .tag-remote { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:999px; padding:2px 9px; font-size:11px; color:#15803d; display:inline-block; }
-  .tag-hybrid { background:#fff7ed; border:1px solid #fed7aa; border-radius:999px; padding:2px 9px; font-size:11px; color:#c2410c; display:inline-block; }
-  .tag-yoe    { background:#eef2ff; border:1px solid #c7d2fe; border-radius:999px; padding:2px 9px; font-size:11px; color:#4338ca; display:inline-block; }
-  .tag-stage-seed    { background:#fef9c3; border:1px solid #fde047; border-radius:999px; padding:2px 9px; font-size:11px; color:#854d0e; display:inline-block; }
-  .tag-stage-series  { background:#dbeafe; border:1px solid #93c5fd; border-radius:999px; padding:2px 9px; font-size:11px; color:#1d4ed8; display:inline-block; }
-  .tag-stage-large   { background:#f1f5f9; border:1px solid #cbd5e1; border-radius:999px; padding:2px 9px; font-size:11px; color:#475569; display:inline-block; }
-  .tag-date          { font-size:10px; color:#a1a1aa; }
+
+  .job-card:hover {
+    box-shadow: 0 12px 36px -6px rgba(99,88,220,0.15), 0 4px 12px rgba(0,0,0,0.05);
+    border-color: rgba(255,255,255,0.75);
+    transform: translateY(-3px);
+  }
+
+  /* Status Dots (instead of border stripes) */
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px currentColor;
+    opacity: 0.8;
+  }
+
+  .job-card[data-status="1"] .status-dot {
+    color: #10b981;
+    background: #10b981;
+  }
+
+  /* Applied */
+  .job-card[data-status="2"] .status-dot {
+    color: #3b82f6;
+    background: #3b82f6;
+  }
+
+  /* Saved */
+  .job-card[data-status="3"] .status-dot {
+    color: #06b6d4;
+    background: #06b6d4;
+  }
+
+  /* Phone Screen */
+  .job-card[data-status="4"] .status-dot {
+    color: #8b5cf6;
+    background: #8b5cf6;
+  }
+
+  /* Interview */
+  .job-card[data-status="5"] .status-dot {
+    color: #10b981;
+    background: #10b981;
+  }
+
+  /* Offer */
+  .job-card[data-status="6"] .status-dot {
+    color: #f43f5e;
+    background: #f43f5e;
+  }
+
+  /* Rejected */
+  .job-card[data-status=""] .status-dot {
+    display: none;
+  }
+
+  /* Score badge */
+  .score-badge {
+    font-family: 'Outfit', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 20px;
+    flex-shrink: 0;
+    line-height: 1;
+    letter-spacing: 0.02em;
+  }
+
+  .score-high {
+    background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.10));
+    color: #059669;
+    border: 1px solid rgba(16,185,129,0.25);
+    box-shadow: 0 0 10px rgba(16,185,129,0.15);
+  }
+
+  .score-mid {
+    background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(217,119,6,0.10));
+    color: #d97706;
+    border: 1px solid rgba(245,158,11,0.25);
+  }
+
+  .score-low {
+    background: rgba(243,244,246,0.70);
+    color: #6b7280;
+    border: 1px solid rgba(209,213,219,0.50);
+  }
+
+  /* More menu */
+  .card-more-menu {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    width: 160px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(255,255,255,0.70);
+    border-radius: 14px;
+    box-shadow: 0 16px 40px -8px rgba(99,88,220,0.18), 0 4px 12px rgba(0,0,0,0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 6px;
+    z-index: 30;
+  }
+
+  .card-more-menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #4b5563;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+  }
+
+  .card-more-menu button:hover {
+    background: #f3f4f6;
+    color: #111827;
+  }
+
+  .card-more-menu .menu-danger {
+    color: #e11d48;
+  }
+
+  .card-more-menu .menu-danger:hover {
+    background: #fff1f2;
+    color: #be123c;
+  }
+
+  .card-more-menu .menu-divider {
+    border-top: 1px solid #f3f4f6;
+    margin: 4px 0;
+  }
+
   /* Persona underline tabs */
-  .persona-tab { transition: color .12s, border-color .12s; border-bottom: 2px solid transparent; padding-bottom: 10px; }
-  .persona-tab.active { color: #111827; border-bottom-color: #111827; }
-  .persona-tab:not(.active) { color: #9ca3af; }
-  .persona-tab:not(.active):hover { color: #4b5563; }
-  /* Buttons */
-  .apply-btn { background:#18181b; color:#fff; transition:background .12s; border-radius:8px; }
-  .apply-btn:hover { background:#3f3f46; }
-  .filter-submit { background:#18181b; color:#fff; transition:background .12s; }
-  .filter-submit:hover { background:#3f3f46; }
-  /* Split-pane layout */
-  .jobs-split { display:flex; gap:0; height:calc(100vh - 160px); min-height:400px; }
-  .jobs-list-pane { width:360px; flex-shrink:0; overflow-y:auto; border-right:1px solid #e4e4e7; }
-  .jobs-detail-pane { flex:1; overflow-y:auto; padding:1.5rem; }
-  @media (max-width:768px) {
-    .jobs-split { flex-direction:column; height:auto; }
-    .jobs-list-pane { width:100%; border-right:none; border-bottom:1px solid #e4e4e7; max-height:50vh; }
-    .jobs-detail-pane { padding:1rem; }
+  .persona-tab {
+    transition: color 0.2s ease, border-color 0.2s ease;
+    border-bottom: 2px solid transparent;
+    padding-bottom: 12px;
   }
-  .job-card-compact { border-bottom:1px solid #f4f4f5; padding:10px 14px; cursor:pointer; transition:background .12s; border-left:3px solid transparent; }
-  .job-card-compact:hover { background:#f9f9fb; }
-  .job-card-compact.selected { background:#eef2ff; border-left-color:#6366f1; }
-  .detail-empty { display:flex; align-items:center; justify-content:center; height:100%; color:#a1a1aa; font-size:14px; }
+
+  .persona-tab.active {
+    color: #6366f1;
+    border-bottom-color: #6366f1;
+  }
+
+  .persona-tab:not(.active) {
+    color: #9ca3af;
+  }
+
+  .persona-tab:not(.active):hover {
+    color: #6b7280;
+  }
+
+  /* Buttons */
+  .apply-btn {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #ffffff;
+    transition: all 0.22s ease;
+    border-radius: 9px;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.30);
+  }
+
+  .apply-btn:hover {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(99,102,241,0.38);
+  }
+
+  .filter-submit {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #ffffff;
+    transition: all 0.22s ease;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.28);
+  }
+
+  .filter-submit:hover {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    box-shadow: 0 4px 14px rgba(99,102,241,0.38);
+  }
+
+  /* Card grid layout */
+  .job-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+  }
+
+  @media (max-width:640px) {
+    .job-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* ── Search & Toolbar ── */
+  .search-toolbar {
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.50);
+    border-radius: 20px;
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    box-shadow: 0 4px 24px -4px rgba(99,88,220,0.09), 0 1px 4px rgba(0,0,0,0.04);
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: all 0.22s ease;
+  }
+  .search-toolbar:focus-within {
+    border-color: rgba(99,102,241,0.35);
+    box-shadow: 0 8px 32px -6px rgba(99,88,220,0.14), 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .search-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .search-input-wrap input {
+    flex: 1;
+    background: rgba(255,255,255,0.70);
+    border: 1px solid rgba(209,213,219,0.50);
+    border-radius: 14px;
+    padding: 12px 16px 12px 44px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #111827;
+    outline: none;
+    transition: all 0.2s ease;
+    font-family: 'Outfit', sans-serif;
+  }
+  .search-input-wrap input::placeholder {
+    color: #9ca3af;
+    font-weight: 400;
+  }
+  .search-input-wrap input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    background: rgba(255,255,255,0.90);
+  }
+  .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    pointer-events: none;
+    transition: color 0.2s;
+  }
+  .search-input-wrap input:focus ~ .search-icon,
+  .search-input-wrap:focus-within .search-icon {
+    color: #6366f1;
+  }
+  .search-submit-btn {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.30);
+    flex-shrink: 0;
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: 0.02em;
+  }
+  .search-submit-btn:hover {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(99,102,241,0.38);
+  }
+  .search-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* NLP hint badge */
+  .nlp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.10), rgba(139,92,246,0.08));
+    border: 1px solid rgba(99,102,241,0.20);
+    border-radius: 8px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6366f1;
+    letter-spacing: 0.02em;
+  }
+
+  /* Sort/Filter toolbar row */
+  .toolbar-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .toolbar-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    border: 1px solid transparent;
+    background: rgba(255,255,255,0.55);
+    color: #6b7280;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .toolbar-toggle-btn:hover {
+    background: rgba(255,255,255,0.80);
+    color: #374151;
+  }
+  .toolbar-toggle-btn.active {
+    background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08));
+    border-color: rgba(99,102,241,0.25);
+    color: #6366f1;
+  }
+  .toolbar-toggle-btn svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.60;
+    transition: opacity 0.2s;
+  }
+  .toolbar-toggle-btn.active svg,
+  .toolbar-toggle-btn:hover svg {
+    opacity: 1;
+  }
+
+  /* Option pills */
+  .option-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    border: 1px solid rgba(209,213,219,0.45);
+    background: rgba(255,255,255,0.50);
+    color: #6b7280;
+    white-space: nowrap;
+  }
+  .option-pill:hover {
+    background: rgba(255,255,255,0.85);
+    border-color: rgba(99,102,241,0.30);
+    color: #4f46e5;
+  }
+  .option-pill.active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.30);
+  }
+  .option-pill.active:hover {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  }
+
+  /* Filter options panel */
+  .filter-options-panel {
+    display: none;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    animation: slideDown 0.2s ease;
+  }
+  .filter-options-panel.visible {
+    display: flex;
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Filter section label */
+  .filter-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #9ca3af;
+    margin-right: 4px;
+    flex-shrink: 0;
+  }
+  .filter-section-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(209,213,219,0.50);
+    margin: 0 6px;
+    flex-shrink: 0;
+  }
+
+  /* NLP loading spinner */
+  .nlp-spinner {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #6366f1;
+    font-weight: 500;
+  }
+  .nlp-spinner.visible { display: flex; }
+  .nlp-spinner .dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #6366f1;
+    animation: nlpBounce 1.2s infinite ease-in-out;
+  }
+  .nlp-spinner .dot:nth-child(2) { animation-delay: 0.2s; }
+  .nlp-spinner .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes nlpBounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  /* NLP hint strip */
+  .nlp-hint-strip {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 8px 14px;
+    background: rgba(99,102,241,0.06);
+    border: 1px solid rgba(99,102,241,0.12);
+    border-radius: 12px;
+    font-size: 12px;
+    color: #4f46e5;
+    font-weight: 500;
+  }
+  .nlp-hint-strip.visible { display: flex; }
+  .nlp-hint-strip .clear-btn {
+    margin-left: auto;
+    cursor: pointer;
+    color: #9ca3af;
+    font-size: 11px;
+    font-weight: 600;
+    transition: color 0.15s;
+  }
+  .nlp-hint-strip .clear-btn:hover { color: #ef4444; }
+
+  /* Active filter count badge */
+  .filter-count-badge {
+    display: none;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #6366f1;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    padding: 0 4px;
+  }
+  .filter-count-badge.visible { display: inline-block; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="jobs-page">
-<!-- Page Header -->
-<div class="mb-4 flex items-center justify-between">
-  <div>
-    <h1 class="text-xl font-semibold text-gray-900 tracking-tight">Jobs</h1>
-    <p class="hc-mono text-xs text-gray-400 mt-0.5">{{ total }} results</p>
+  <!-- Page Header -->
+  <div class="mb-2 flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Jobs</h1>
+      <p class="text-sm font-medium text-gray-400 mt-1" id="results-count">{{ total }} results found</p>
+    </div>
+    <span class="nlp-badge">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+      NLP Search
+    </span>
   </div>
-</div>
 
-<!-- Filter Bar -->
-<form method="GET" action="{{ url_for('jobs') }}" class="bg-white rounded-xl border border-gray-200 p-3 mb-4" id="filter-form">
-  <!-- NLP hint strip -->
-  <div id="nlp-hint" class="hidden mb-2 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
-    <svg class="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-    <span id="nlp-hint-text"></span>
-    <button type="button" onclick="clearNlpHint()" class="ml-auto text-gray-400 hover:text-gray-600">✕ clear</button>
-  </div>
-  <!-- Primary row (always visible) -->
-  <div class="flex flex-wrap gap-2 items-center">
-    <div class="flex-1 min-w-[200px] relative">
-      <span class="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-        <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+  <!-- Search & Toolbar -->
+  <form id="filter-form" class="search-toolbar" onsubmit="return false;">
+    <!-- Search Input -->
+    <div class="search-input-wrap">
+      <input type="text" id="nlp-search-input" name="search" autocomplete="off"
+        placeholder="Try: &quot;remote PM jobs in Bangalore above 20L&quot; or just type keywords…"
+        value="{{ filters.search if filters else '' }}" />
+      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <div class="nlp-spinner" id="nlp-loading">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        Thinking…
+      </div>
+      <button type="submit" class="search-submit-btn" id="search-submit-btn" onclick="handleSearchSubmit()">Search</button>
+    </div>
+
+    <!-- NLP Hint Strip -->
+    <div class="nlp-hint-strip" id="nlp-hint">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+      <span id="nlp-hint-text"></span>
+      <span class="clear-btn" onclick="clearNlpHint()">✕ Clear</span>
+    </div>
+
+    <!-- Sort & Filter Row -->
+    <div class="toolbar-row">
+      <!-- Sort Toggle + Options -->
+      <div class="toolbar-group" id="sort-group">
+        <button type="button" class="toolbar-toggle-btn" id="sort-toggle-btn" onclick="toggleToolbarSection('sort')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M3 4h13M3 8h9M3 12h5m7-4v12m0 0l-3-3m3 3l3-3"/>
+          </svg>
+          Sort
+        </button>
+        <div class="filter-options-panel" id="sort-options">
+          <button type="button" class="option-pill {{ 'active' if (filters and filters.sort == 'date_desc') or (not filters) else '' }}" onclick="applySort('date_desc')">Newest</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.sort == 'date_asc' else '' }}" onclick="applySort('date_asc')">Oldest</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.sort == 'score_desc' else '' }}" onclick="applySort('score_desc')">Score ↓</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.sort == 'score_asc' else '' }}" onclick="applySort('score_asc')">Score ↑</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.sort == 'cv_score_desc' else '' }}" onclick="applySort('cv_score_desc')">CV Match</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.sort == 'company_asc' else '' }}" onclick="applySort('company_asc')">Company A→Z</button>
+        </div>
+      </div>
+
+      <!-- Filter Toggle + Options -->
+      <div class="toolbar-group" id="filter-group" style="flex:1; flex-wrap:wrap;">
+        <button type="button" class="toolbar-toggle-btn" id="filter-toggle-btn" onclick="toggleToolbarSection('filter')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+          </svg>
+          Filter
+          <span class="filter-count-badge" id="filter-count"></span>
+        </button>
+        <div class="filter-options-panel" id="filter-options" style="width:100%; margin-top:6px;">
+          <!-- Remote -->
+          <span class="filter-section-label">Remote</span>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.remote == 'remote' else '' }}" onclick="applyFilter('remote','remote')">🏠 Remote</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.remote == 'hybrid' else '' }}" onclick="applyFilter('remote','hybrid')">🔄 Hybrid</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.remote == 'onsite' else '' }}" onclick="applyFilter('remote','onsite')">🏢 Onsite</button>
+
+          <span class="filter-section-divider"></span>
+
+          <!-- Recency -->
+          <span class="filter-section-label">Posted</span>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '24h' else '' }}" onclick="applyFilter('recency','24h')">24h</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '3d' else '' }}" onclick="applyFilter('recency','3d')">3 days</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '1w' else '' }}" onclick="applyFilter('recency','1w')">1 week</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '1m' else '' }}" onclick="applyFilter('recency','1m')">1 month</button>
+
+          <span class="filter-section-divider"></span>
+
+          <!-- Experience -->
+          <span class="filter-section-label">Exp</span>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.experience == '0-3' else '' }}" onclick="applyFilter('experience','0-3')">0–3 yr</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.experience == '3-7' else '' }}" onclick="applyFilter('experience','3-7')">3–7 yr</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.experience == '7-12' else '' }}" onclick="applyFilter('experience','7-12')">7–12 yr</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.experience == '12+' else '' }}" onclick="applyFilter('experience','12+')">12+ yr</button>
+
+          <span class="filter-section-divider"></span>
+
+          <!-- Score -->
+          <span class="filter-section-label">Min Score</span>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.min_score == '40' else '' }}" onclick="applyFilter('min_score','40')">40+</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.min_score == '60' else '' }}" onclick="applyFilter('min_score','60')">60+</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.min_score == '80' else '' }}" onclick="applyFilter('min_score','80')">80+</button>
+
+          <span class="filter-section-divider"></span>
+
+          <!-- Status -->
+          <span class="filter-section-label">Status</span>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'none' else '' }}" onclick="applyFilter('applied','none')">New</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'applied' else '' }}" onclick="applyFilter('applied','applied')">✓ Applied</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'saved' else '' }}" onclick="applyFilter('applied','saved')">🔖 Saved</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'interview' else '' }}" onclick="applyFilter('applied','interview')">🎙 Interview</button>
+          <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'rejected' else '' }}" onclick="applyFilter('applied','rejected')">✗ Rejected</button>
+
+          {% if locations %}
+          <span class="filter-section-divider"></span>
+          <span class="filter-section-label">Location</span>
+          {% for loc in locations[:8] %}
+          <button type="button" class="option-pill {{ 'active' if filters and filters.location == loc.name else '' }}" onclick="applyFilter('location','{{ loc.name }}')">{{ loc.name }}</button>
+          {% endfor %}
+          {% endif %}
+
+          {% if portals %}
+          <span class="filter-section-divider"></span>
+          <span class="filter-section-label">Portal</span>
+          {% for p in portals %}
+          <button type="button" class="option-pill {{ 'active' if filters and filters.portal == p else '' }}" onclick="applyFilter('portal','{{ p }}')">{{ p }}</button>
+          {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Active filters summary (clear all) -->
+    {% if clean_filters %}
+    <div style="display:flex; align-items:center; gap:6px; margin-top:10px; flex-wrap:wrap;">
+      <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.06em;">Active:</span>
+      {% for k, v in clean_filters.items() %}
+      {% if k != 'sort' %}
+      <span style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; background:rgba(99,102,241,0.08); color:#6366f1; border:1px solid rgba(99,102,241,0.15);">
+        {{ k }}:{{ v }}
+        <span style="cursor:pointer; margin-left:2px; font-size:10px; opacity:0.6;" onclick="removeFilter('{{ k }}')" title="Remove">✕</span>
       </span>
-      <input type="text" name="search" id="nlp-search-input" value="{{ filters.search }}"
-             placeholder='Try "remote PM in Bangalore above 20L"'
-             class="w-full text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border py-2 pr-2 pl-7"
-             autocomplete="off">
-      <div id="nlp-loading" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2">
-        <svg class="animate-spin h-3.5 w-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
-      </div>
-    </div>
-    <select name="sort" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-      <option value="score_desc" {% if filters.sort == 'score_desc' %}selected{% endif %}>Best match</option>
-      <option value="date_desc" {% if filters.sort == 'date_desc' or not filters.sort %}selected{% endif %}>Newest</option>
-      <option value="date_asc" {% if filters.sort == 'date_asc' %}selected{% endif %}>Oldest</option>
-      <option value="company_asc" {% if filters.sort == 'company_asc' %}selected{% endif %}>Company A–Z</option>
-    </select>
-    <select name="remote" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-      <option value="">All work types</option>
-      <option value="remote" {% if filters.remote == 'remote' %}selected{% endif %}>Remote</option>
-      <option value="hybrid" {% if filters.remote == 'hybrid' %}selected{% endif %}>Hybrid</option>
-      <option value="on-site" {% if filters.remote == 'on-site' %}selected{% endif %}>On-site</option>
-    </select>
-    <select name="applied" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-      <option value="">All status</option>
-      <option value="none" {% if filters.applied == 'none' %}selected{% endif %}>New</option>
-      <option value="saved" {% if filters.applied == 'saved' %}selected{% endif %}>Saved</option>
-      <option value="applied" {% if filters.applied == 'applied' %}selected{% endif %}>Applied</option>
-      <option value="phone_screen" {% if filters.applied == 'phone_screen' %}selected{% endif %}>Phone Screen</option>
-      <option value="interview" {% if filters.applied == 'interview' %}selected{% endif %}>Interview</option>
-      <option value="offer" {% if filters.applied == 'offer' %}selected{% endif %}>Offer</option>
-      <option value="rejected" {% if filters.applied == 'rejected' %}selected{% endif %}>Rejected</option>
-    </select>
-    <button type="button" onclick="toggleSection('more-filters')"
-            class="text-sm text-gray-500 hover:text-gray-800 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 flex items-center gap-1">
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
-      More
-    </button>
-    <button type="submit" class="filter-submit px-4 py-2 text-sm font-semibold rounded-lg">
-      Filter
-    </button>
-    {% if filters.search or filters.portal or filters.remote or filters.location or filters.recency or filters.applied or filters.experience or filters.salary_min or filters.salary_max or (filters.min_score and filters.min_score != '40') %}
-    <a href="{{ url_for('jobs') }}" class="text-xs text-gray-400 hover:text-gray-600 px-2 py-2">Clear</a>
-    {% endif %}
-  </div>
-
-  <!-- More filters (hidden by default) -->
-  <div id="more-filters" class="hidden mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-    <select name="portal" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-      <option value="">All portals</option>
-      {% for p in portals %}
-      <option value="{{ p }}" {% if filters.portal == p %}selected{% endif %}>{{ p }}</option>
-      {% endfor %}
-    </select>
-    <select name="location" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-      <option value="">All locations</option>
-      {% for loc_name, loc_count in locations %}
-      <option value="{{ loc_name }}" {% if filters.location == loc_name %}selected{% endif %}>{{ loc_name }} ({{ loc_count }})</option>
-      {% endfor %}
-    </select>
-    <select name="recency" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-      <option value="">Any time</option>
-      <option value="24h" {% if filters.recency == '24h' %}selected{% endif %}>Last 24h</option>
-      <option value="3d" {% if filters.recency == '3d' %}selected{% endif %}>Last 3 days</option>
-      <option value="1w" {% if filters.recency == '1w' %}selected{% endif %}>Last week</option>
-      <option value="1m" {% if filters.recency == '1m' %}selected{% endif %}>Last month</option>
-    </select>
-    <select name="experience" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-      <option value="">All exp levels</option>
-      <option value="0-3" {% if filters.experience == '0-3' %}selected{% endif %}>0–3 yrs</option>
-      <option value="3-7" {% if filters.experience == '3-7' %}selected{% endif %}>3–7 yrs</option>
-      <option value="7-12" {% if filters.experience == '7-12' %}selected{% endif %}>7–12 yrs</option>
-      <option value="12+" {% if filters.experience == '12+' %}selected{% endif %}>12+ yrs</option>
-    </select>
-    <select name="min_score" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-      <option value="0" {% if filters.min_score == '0' or not filters.min_score %}selected{% endif %}>Any score</option>
-      <option value="30" {% if filters.min_score == '30' %}selected{% endif %}>Score ≥ 30</option>
-      <option value="40" {% if filters.min_score == '40' %}selected{% endif %}>Score ≥ 40</option>
-      <option value="60" {% if filters.min_score == '60' %}selected{% endif %}>Score ≥ 60</option>
-      <option value="50" {% if filters.min_score == '50' %}selected{% endif %}>Score ≥ 50</option>
-      <option value="65" {% if filters.min_score == '65' %}selected{% endif %}>Score ≥ 65</option>
-      <option value="75" {% if filters.min_score == '75' %}selected{% endif %}>Score ≥ 75</option>
-    </select>
-    <select name="company_stage" class="text-sm rounded-lg border-gray-200 focus:border-indigo-400 focus:ring-indigo-400 border p-2">
-      <option value="">Any stage</option>
-      <option value="Seed" {% if filters.company_stage == 'Seed' %}selected{% endif %}>Seed</option>
-      <option value="Pre-Seed" {% if filters.company_stage == 'Pre-Seed' %}selected{% endif %}>Pre-Seed</option>
-      <option value="Series A" {% if filters.company_stage == 'Series A' %}selected{% endif %}>Series A</option>
-      <option value="Series B" {% if filters.company_stage == 'Series B' %}selected{% endif %}>Series B</option>
-      <option value="Series C" {% if filters.company_stage == 'Series C' %}selected{% endif %}>Series C</option>
-      <option value="Series D+" {% if filters.company_stage == 'Series D+' %}selected{% endif %}>Series D+</option>
-      <option value="IPO/Public" {% if filters.company_stage == 'IPO/Public' %}selected{% endif %}>IPO/Public</option>
-      <option value="Bootstrapped" {% if filters.company_stage == 'Bootstrapped' %}selected{% endif %}>Bootstrapped</option>
-    </select>
-  </div>
-</form>
-
-<!-- Persona Tabs -->
-<div class="flex gap-6 mb-4 border-b border-gray-200">
-  <button data-persona="all" onclick="switchPersona('all', this)"
-          class="persona-tab active text-sm font-medium -mb-px">
-    All <span class="hc-mono text-xs ml-1" id="ptab-count-all">{{ total }}</span>
-  </button>
-  <button data-persona="pm" onclick="switchPersona('pm', this)"
-          class="persona-tab text-sm font-medium -mb-px">
-    Product Manager <span class="hc-mono text-xs ml-1" id="ptab-count-pm">…</span>
-  </button>
-  <button data-persona="analyst" onclick="switchPersona('analyst', this)"
-          class="persona-tab text-sm font-medium -mb-px">
-    Analyst <span class="hc-mono text-xs ml-1" id="ptab-count-analyst">…</span>
-  </button>
-  <button data-persona="ai" onclick="switchPersona('ai', this)"
-          class="persona-tab text-sm font-medium -mb-px">
-    AI / ML <span class="hc-mono text-xs ml-1" id="ptab-count-ai">…</span>
-  </button>
-</div>
-
-<!-- Job List -->
-{% if jobs %}
-{% set avatar_colors = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316'] %}
-<div class="jobs-split bg-white rounded-xl border border-gray-200 overflow-hidden">
-
-  <!-- Left: Compact job list -->
-  <div class="jobs-list-pane" id="job-list">
-    {% for job in jobs %}
-    {% set s = job.applied_status | int %}
-    {% set score = job.relevance_score | int %}
-    {% set avatar_bg = avatar_colors[loop.index0 % 8] %}
-    <div class="job-card-compact" id="card-{{ job.job_id }}"
-         data-role="{{ job.role | lower }}"
-         onclick="selectJob(this)"
-         data-job="{{ job | tojson | forceescape }}">
-      <div class="flex items-center gap-2 mb-1">
-        <div class="w-6 h-6 rounded flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
-             style="background:{{ avatar_bg }}">{{ (job.company or '?')[0] | upper }}</div>
-        <p class="text-xs font-medium text-gray-800 truncate flex-1">{{ job.company | truncate(22, true, '…') }}</p>
-        <span class="hc-mono text-[11px] font-bold px-1 py-0.5 rounded flex-shrink-0
-          {% if score >= 80 %}score-high{% elif score >= 65 %}score-mid{% else %}score-low{% endif %}">{{ score }}</span>
-      </div>
-      <p class="text-xs font-semibold text-gray-900 leading-tight line-clamp-1 mb-1">{{ job.role }}</p>
-      <div class="flex items-center gap-1.5 flex-wrap">
-        <span class="text-[10px] text-gray-400">{{ job.location | truncate(14, true, '…') }}</span>
-        {% if job.remote_status == 'remote' %}<span class="tag-remote" style="font-size:9px;padding:1px 6px">Remote</span>
-        {% elif job.remote_status == 'hybrid' %}<span class="tag-hybrid" style="font-size:9px;padding:1px 6px">Hybrid</span>{% endif %}
-        {% if job.date_posted %}<span class="tag-date relative-date ml-auto" data-date="{{ job.date_posted }}">{{ job.date_posted[:10] }}</span>{% endif %}
-      </div>
-      {% if job._missing_top3 %}
-      <div class="flex flex-wrap gap-1 mt-1">
-        {% for skill in job._missing_top3 %}<span style="font-size:9px" class="px-1 py-0.5 bg-red-50 text-red-400 border border-red-100 rounded">{{ skill }}</span>{% endfor %}
-      </div>
       {% endif %}
+      {% endfor %}
+      <span style="font-size:11px; font-weight:600; color:#ef4444; cursor:pointer; margin-left:4px;" onclick="clearAllFilters()">Clear all</span>
     </div>
-    {% endfor %}
-  </div>
+    {% endif %}
+  </form>
 
-  <!-- Right: Job detail -->
-  <div class="jobs-detail-pane" id="job-detail">
-    <div class="detail-empty" id="detail-empty">
-      <span>← Select a job to view details</span>
+
+  <!-- Job List -->
+  {% if not cv_uploaded %}
+  <div class="mb-4 px-4 py-3 rounded-xl flex items-center justify-between gap-3"
+    style="background:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.50); backdrop-filter:blur(12px);">
+    <div class="flex items-center gap-2.5">
+      <svg class="w-4 h-4 text-zinc-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+      <p class="text-sm text-zinc-600">Upload your CV to see how well you match each job</p>
     </div>
-    <div id="detail-content" class="hidden"></div>
+    <a href="{{ url_for('cv') }}"
+      class="flex-shrink-0 text-xs font-semibold text-zinc-700 hover:text-zinc-900 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors">Upload
+      CV →</a>
   </div>
+  {% endif %}
 
-</div>
-{% else %}
-<div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
-  <p class="text-gray-500 text-sm">No jobs found.</p>
-  <p class="hc-mono text-xs text-gray-400 mt-1">Try broadening your filters or run a live search.</p>
-</div>
-{% endif %}
+  {% if jobs %}
+  {% set avatar_colors = ['#3b82f6','#0ea5e9','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316'] %}
+  <div class="job-grid" id="job-list">
+    {% include "_job_card_list.html" %}
+  </div>
+  
+  {% if total > jobs|length %}
+  <!-- Load More Trigger -->
+  <div id="load-more-trigger" class="flex justify-center py-8">
+    <button id="load-more-btn" onclick="loadMoreJobs()" class="px-6 py-2 bg-white border border-gray-200 rounded-full text-sm font-semibold text-teal-600 hover:bg-gray-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
+      Load More Jobs
+    </button>
+  </div>
+  {% endif %}
+  </div>
+  {% else %}
+  <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+    <p class="text-gray-500 text-sm">No jobs found.</p>
+    <p class="hc-mono text-xs text-gray-400 mt-1">Try broadening your filters or run a live search.</p>
+  </div>
+  {% endif %}
 </div>{# close .jobs-page #}
+
+<!-- ── Quick Apply Panel ──────────────────────────────────────────────────── -->
+<div id="qap-overlay" onclick="closeApplyPanel()"
+  class="hidden fixed inset-0 bg-black/30 z-40 backdrop-blur-[2px] transition-opacity"></div>
+
+<div id="qap-panel" class="hidden fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 flex flex-col"
+  style="transform: translateX(100%); transition: transform 0.28s cubic-bezier(.4,0,.2,1);">
+
+  <!-- Panel header -->
+  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+    <div class="min-w-0">
+      <p id="qap-company" class="text-xs text-gray-400 truncate"></p>
+      <h2 id="qap-role" class="text-base font-semibold text-gray-900 truncate"></h2>
+    </div>
+    <button onclick="closeApplyPanel()"
+      class="text-gray-400 hover:text-gray-700 ml-3 flex-shrink-0 p-1 rounded hover:bg-gray-100">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="flex border-b border-gray-100 px-5">
+    <button onclick="qapTab('apply')" id="qap-tab-apply"
+      class="qap-tab text-sm font-medium py-3 mr-5 border-b-2 border-gray-900 text-gray-900">Apply</button>
+    <button onclick="qapTab('message')" id="qap-tab-message"
+      class="qap-tab text-sm font-medium py-3 mr-5 border-b-2 border-transparent text-gray-400 hover:text-gray-700">Message</button>
+    <button onclick="qapTab('email')" id="qap-tab-email"
+      class="qap-tab text-sm font-medium py-3 border-b-2 border-transparent text-gray-400 hover:text-gray-700">Email</button>
+  </div>
+
+  <!-- Scrollable body -->
+  <div class="flex-1 overflow-y-auto">
+
+    <!-- Apply tab -->
+    <div id="qap-pane-apply" class="p-5 space-y-4">
+      <a id="qap-apply-link" href="#" target="_blank" rel="noopener"
+        class="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+        Open Application
+      </a>
+
+      <!-- Status -->
+      <div>
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Track Status</p>
+        <select id="qap-status-select" onchange="qapUpdateStatus()"
+          class="w-full text-sm rounded-lg border-gray-200 border px-3 py-2 focus:border-zinc-400 focus:ring-0">
+          <option value="">Not tracked</option>
+          <option value="1">✅ Applied</option>
+          <option value="2">🔖 Saved</option>
+          <option value="3">📞 Phone Screen</option>
+          <option value="4">🎙 Interview</option>
+          <option value="5">🎉 Offer</option>
+          <option value="6">❌ Rejected</option>
+        </select>
+      </div>
+
+      <!-- Contact info -->
+      <div id="qap-contact-section" class="hidden">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Hiring Contact</p>
+        <div id="qap-contact-info" class="space-y-2"></div>
+      </div>
+
+      <!-- Outreach status -->
+      <div id="qap-outreach-status" class="hidden rounded-xl border p-3 text-sm"></div>
+
+      <!-- No apply URL fallback -->
+      <div id="qap-no-url" class="hidden text-sm text-gray-400 text-center py-4">
+        No direct apply link found.<br>
+        <span class="text-xs">Search for the role on the company's careers page.</span>
+      </div>
+    </div>
+
+    <!-- Message tab (LinkedIn) -->
+    <div id="qap-pane-message" class="hidden p-5 space-y-4">
+      <div id="qap-msg-loading" class="text-sm text-gray-400 py-8 text-center">Loading draft…</div>
+      <div id="qap-msg-content" class="hidden space-y-3">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">LinkedIn Message Draft</p>
+          <button onclick="qapEditMsg()" id="qap-edit-msg-btn"
+            class="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Edit
+          </button>
+        </div>
+
+        <!-- Read-only view -->
+        <div id="qap-msg-view"
+          class="bg-blue-50/60 border border-blue-100 rounded-xl p-4 text-sm text-gray-700 whitespace-pre-wrap min-h-[120px]">
+        </div>
+
+        <!-- Edit mode -->
+        <textarea id="qap-msg-edit" rows="8"
+          class="hidden w-full bg-white border border-blue-300 rounded-xl p-4 text-sm text-gray-700 resize-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"></textarea>
+        <div id="qap-msg-edit-actions" class="hidden flex gap-2">
+          <button onclick="qapSaveDraft('linkedin')"
+            class="flex-1 text-sm font-semibold bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-700">Save</button>
+          <button onclick="qapCancelEdit('linkedin')"
+            class="text-sm text-gray-500 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200">Cancel</button>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex gap-2">
+          <button onclick="qapCopyMsg()"
+            class="flex-1 flex items-center justify-center gap-1.5 text-sm font-medium bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl hover:bg-gray-200 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Copy
+          </button>
+          <a id="qap-li-link" href="#" target="_blank" rel="noopener"
+            class="flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold bg-[#0a66c2] text-white px-4 py-2.5 rounded-xl hover:bg-[#004182] transition-colors">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+            </svg>
+            Send on LinkedIn
+          </a>
+        </div>
+      </div>
+
+      <!-- No draft state -->
+      <div id="qap-msg-empty" class="hidden text-center py-8 space-y-3">
+        <div class="text-3xl">💬</div>
+        <p class="text-sm font-medium text-gray-700">No draft yet for this job</p>
+        <p class="text-xs text-gray-400 max-w-xs mx-auto">Run the agent to auto-draft a personalized LinkedIn message
+          for this role.</p>
+        <a href="/outbox" class="inline-block text-sm font-medium text-gray-700 underline">Go to Outbox →</a>
+      </div>
+    </div>
+
+    <!-- Email tab -->
+    <div id="qap-pane-email" class="hidden p-5 space-y-4">
+      <div id="qap-email-loading" class="text-sm text-gray-400 py-8 text-center">Loading draft…</div>
+      <div id="qap-email-content" class="hidden space-y-3">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Cold Email Draft</p>
+          <button onclick="qapEditEmail()" id="qap-edit-email-btn"
+            class="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Edit
+          </button>
+        </div>
+        <div id="qap-email-to" class="text-xs text-gray-400"></div>
+        <div id="qap-email-view"
+          class="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700 whitespace-pre-wrap min-h-[120px] max-h-64 overflow-y-auto">
+        </div>
+        <textarea id="qap-email-edit" rows="10"
+          class="hidden w-full bg-white border border-gray-300 rounded-xl p-4 text-sm text-gray-700 resize-none focus:ring-2 focus:ring-gray-200"></textarea>
+        <div id="qap-email-edit-actions" class="hidden flex gap-2">
+          <button onclick="qapSaveDraft('email')"
+            class="flex-1 text-sm font-semibold bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-700">Save</button>
+          <button onclick="qapCancelEdit('email')"
+            class="text-sm text-gray-500 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200">Cancel</button>
+        </div>
+        <div id="qap-email-actions" class="flex gap-2">
+          <a id="qap-approve-link" href="#"
+            class="flex-1 text-center text-sm font-semibold bg-gray-900 text-white px-4 py-2.5 rounded-xl hover:bg-gray-700">
+            ✅ Approve &amp; Send
+          </a>
+        </div>
+      </div>
+      <div id="qap-email-empty" class="hidden text-center py-8 space-y-3">
+        <div class="text-3xl">✉️</div>
+        <p class="text-sm font-medium text-gray-700">No email found for hiring manager</p>
+        <p class="text-xs text-gray-400">Use the LinkedIn message instead, or run the agent with an Apollo API key
+          configured.</p>
+      </div>
+    </div>
+
+  </div><!-- end scrollable body -->
+
+  <!-- Panel footer -->
+  <div class="border-t border-gray-100 px-5 py-3 flex gap-2">
+    <button onclick="qapMarkApplied()"
+      class="flex-1 text-sm font-semibold border border-gray-900 text-gray-900 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors">
+      ✅ Mark as Applied
+    </button>
+    <button onclick="closeApplyPanel()"
+      class="text-sm text-gray-500 px-4 py-2 rounded-xl hover:bg-gray-100">Done</button>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-let searchPollInterval = null;
+  // ── Search/Sort/Filter Toolbar ────────────────────────────────────────────────
+  function toggleToolbarSection(section) {
+    const panel = document.getElementById(section + '-options');
+    const btn = document.getElementById(section + '-toggle-btn');
+    const isVisible = panel.classList.contains('visible');
 
-function toggleSection(id) {
-  const el = document.getElementById(id);
-  if (el) el.classList.toggle('hidden');
-}
-
-// Auto-show more-filters if any advanced filter is active
-(function() {
-  const params = new URLSearchParams(window.location.search);
-  const advanced = ['portal', 'location', 'recency', 'experience', 'min_score', 'salary_min', 'salary_max', 'company_type', 'company_stage'];
-  if (advanced.some(k => params.get(k))) {
-    const el = document.getElementById('more-filters');
-    if (el) el.classList.remove('hidden');
-  }
-})();
-
-const searchPhaseLabels = {
-  starting: 'Starting search...',
-  scraping: 'Scraping job portals...',
-  analyzing: 'Analyzing and scoring jobs...',
-  storing: 'Storing jobs...',
-  enriching_contacts: 'Looking up contacts...',
-  done: 'Complete!',
-  error: 'Error occurred',
-  idle: 'Idle',
-};
-
-function startLiveSearch() {
-  const query = document.getElementById('search-query').value.trim();
-  const location = document.getElementById('search-location').value.trim();
-  if (!query && !location) { alert('Please enter a job title or location.'); return; }
-
-  const btn = document.getElementById('search-btn');
-  btn.disabled = true;
-  btn.textContent = 'Starting...';
-  btn.classList.add('opacity-50');
-
-  fetch('/api/search/start', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({query, location}),
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.ok) {
-      document.getElementById('search-progress').classList.remove('hidden');
-      document.getElementById('search-error').classList.add('hidden');
-      searchPollInterval = setInterval(pollSearchStatus, 2000);
-      pollSearchStatus();
-    } else {
-      btn.disabled = false;
-      btn.textContent = 'Search Jobs';
-      btn.classList.remove('opacity-50');
-      alert(data.error || 'Failed to start search');
-    }
-  })
-  .catch(err => {
-    btn.disabled = false;
-    btn.textContent = 'Search Jobs';
-    btn.classList.remove('opacity-50');
-    alert('Network error: ' + err.message);
-  });
-}
-
-function pollSearchStatus() {
-  fetch('/api/search/status')
-    .then(r => r.json())
-    .then(s => {
-      document.getElementById('search-phase-text').textContent = searchPhaseLabels[s.phase] || s.phase;
-
-      const portalList = document.getElementById('search-portal-list');
-      const portals = Object.entries(s.portal_progress || {});
-      if (portals.length > 0) {
-        portalList.innerHTML = portals.map(([name, info]) => {
-          const icon = info.status === 'success' ? '✓' : '✗';
-          const color = info.status === 'success' ? 'text-green-600' : 'text-red-500';
-          return `<div class="flex justify-between text-xs py-0.5">
-            <span class="${color} flex items-center gap-1">${icon} <span class="text-gray-700">${name}</span></span>
-            <span class="text-gray-400">${info.count} jobs</span>
-          </div>`;
-        }).join('');
-      }
-
-      if (s.total_jobs > 0 || s.phase === 'done') {
-        document.getElementById('search-summary').classList.remove('hidden');
-        document.getElementById('search-stat-total').textContent = s.total_jobs;
-        document.getElementById('search-stat-qualified').textContent = s.qualified_jobs;
-        document.getElementById('search-stat-inserted').textContent = s.inserted;
-      }
-
-      if (s.phase === 'done') {
-        clearInterval(searchPollInterval);
-        document.getElementById('search-spinner').classList.add('hidden');
-        document.getElementById('search-phase-text').textContent = 'Done! Refreshing...';
-        setTimeout(() => { window.location.href = '/jobs?sort=score_desc&min_score=40'; }, 1000);
-      }
-
-      if (s.phase === 'error') {
-        clearInterval(searchPollInterval);
-        document.getElementById('search-spinner').classList.add('hidden');
-        const errDiv = document.getElementById('search-error');
-        errDiv.classList.remove('hidden');
-        errDiv.textContent = s.error || 'Unknown error';
-        const btn = document.getElementById('search-btn');
-        btn.disabled = false;
-        btn.textContent = 'Search Jobs';
-        btn.classList.remove('opacity-50');
-      }
-    })
-    .catch(err => console.error('Search poll error:', err));
-}
-
-fetch('/api/search/status')
-  .then(r => r.json())
-  .then(s => {
-    if (s.running) {
-      document.getElementById('search-tools-panel').classList.remove('hidden');
-      document.getElementById('search-progress').classList.remove('hidden');
-      const btn = document.getElementById('search-btn');
-      btn.disabled = true;
-      btn.textContent = 'Searching...';
-      btn.classList.add('opacity-50');
-      searchPollInterval = setInterval(pollSearchStatus, 2000);
-      pollSearchStatus();
-    }
-  });
-
-// Status metadata for in-place card updates
-const STATUS_META = {
-  0: {label: 'New',          badge: 'bg-gray-100 text-gray-500',       border: 'border-l-gray-300'},
-  1: {label: 'Applied',      badge: 'bg-green-100 text-green-700',     border: 'border-l-green-400'},
-  2: {label: 'Saved',        badge: 'bg-blue-100 text-blue-700',       border: 'border-l-blue-400'},
-  3: {label: 'Phone Screen', badge: 'bg-cyan-100 text-cyan-700',       border: 'border-l-cyan-400'},
-  4: {label: 'Interview',    badge: 'bg-orange-100 text-orange-700',   border: 'border-l-orange-400'},
-  5: {label: 'Offer',        badge: 'bg-emerald-100 text-emerald-700', border: 'border-l-emerald-500'},
-  6: {label: 'Rejected',     badge: 'bg-red-100 text-red-600',         border: 'border-l-red-400'},
-};
-
-function updateJobStatus(jobId, statusVal, selectEl) {
-  if (!statusVal) return;
-  const status = parseInt(statusVal);
-  fetch(`/api/jobs/${jobId}/status`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({status}),
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (!data.ok) return;
-    const meta = STATUS_META[status] || STATUS_META[0];
-    showToast(`Marked as ${meta.label}`);
-  })
-  .catch(err => console.error('Error updating status:', err));
-}
-
-function onApplyClick(jobId) {
-  // After a brief delay, nudge user to mark as Applied
-  setTimeout(() => {
-    showToastWithAction('Did you apply? Mark it →', 'Mark Applied', () => {
-      updateJobStatus(jobId, '1');
-      // Update the select element to show "Applied"
-      const card = document.getElementById('job-' + jobId);
-      if (card) {
-        const sel = card.querySelector('select');
-        if (sel) sel.value = '1';
-      }
+    // Close both panels first
+    ['sort', 'filter'].forEach(s => {
+      document.getElementById(s + '-options').classList.remove('visible');
+      document.getElementById(s + '-toggle-btn').classList.remove('active');
     });
-  }, 1200);
-}
 
-let _toastTimer = null;
-function showToast(msg, duration) {
-  duration = duration || 2500;
-  let toast = document.getElementById('_toast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = '_toast';
-    toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50 pointer-events-none';
-    toast.style.transition = 'opacity 0.3s';
-    document.body.appendChild(toast);
+    // Toggle the clicked one
+    if (!isVisible) {
+      panel.classList.add('visible');
+      btn.classList.add('active');
+    }
   }
-  toast.textContent = msg;
-  toast.style.opacity = '1';
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, duration);
-}
 
-function showToastWithAction(msg, actionLabel, onAction) {
-  let toast = document.getElementById('_toast_action');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = '_toast_action';
-    toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-3';
-    toast.style.transition = 'opacity 0.3s';
-    document.body.appendChild(toast);
+  function applySort(value) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('sort', value);
+    // Preserve search input
+    const searchInput = document.getElementById('nlp-search-input');
+    if (searchInput && searchInput.value.trim()) {
+      params.set('search', searchInput.value.trim());
+    }
+    window.location.href = '/jobs?' + params.toString();
   }
-  toast.innerHTML = `<span>${escapeHtml(msg)}</span>
-    <button class="text-indigo-300 hover:text-white font-semibold underline" id="_toast_action_btn">${escapeHtml(actionLabel)}</button>
-    <button class="text-gray-400 hover:text-white ml-1" id="_toast_action_close">✕</button>`;
-  toast.style.opacity = '1';
 
-  document.getElementById('_toast_action_btn').addEventListener('click', () => {
-    onAction();
-    toast.style.opacity = '0';
-  });
-  document.getElementById('_toast_action_close').addEventListener('click', () => {
-    toast.style.opacity = '0';
-  });
-
-  clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 6000);
-}
-
-// Convert ISO dates to relative ("3 days ago")
-function toRelativeDate(isoStr) {
-  if (!isoStr) return '';
-  const d = new Date(isoStr);
-  if (isNaN(d)) return isoStr;
-  const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
-  if (diffDays <= 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 14) return '1 week ago';
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  if (diffDays < 60) return '1 month ago';
-  return `${Math.floor(diffDays / 30)} months ago`;
-}
-
-// Run relative date conversion on page load
-document.querySelectorAll('.relative-date').forEach(el => {
-  const rel = toRelativeDate(el.dataset.date);
-  if (rel) el.textContent = rel;
-});
-
-// Show NLP hint strip if active filters look NLP-derived
-(function showNlpHint() {
-  const p = new URLSearchParams(window.location.search);
-  const nlpKeys = ['remote','location','salary_min','salary_max','experience','recency'];
-  const hasNlp = nlpKeys.some(k => p.get(k));
-  if (!hasNlp) return;
-  const parts = [];
-  const search = p.get('search');
-  if (search) parts.push(`"${search}"`);
-  if (p.get('remote')) parts.push(p.get('remote'));
-  if (p.get('location')) parts.push(p.get('location'));
-  if (p.get('salary_min')) parts.push(`₹${p.get('salary_min')}L+`);
-  if (p.get('experience')) parts.push(`${p.get('experience')} yrs exp`);
-  if (p.get('recency')) parts.push(p.get('recency'));
-  if (parts.length) {
-    document.getElementById('nlp-hint-text').textContent = 'Filtered by: ' + parts.join(' · ');
-    document.getElementById('nlp-hint').classList.remove('hidden');
+  function applyFilter(key, value) {
+    const params = new URLSearchParams(window.location.search);
+    // Toggle: if already set to this value, remove it
+    if (params.get(key) === value) {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    // Preserve search input
+    const searchInput = document.getElementById('nlp-search-input');
+    if (searchInput && searchInput.value.trim()) {
+      params.set('search', searchInput.value.trim());
+    }
+    window.location.href = '/jobs?' + params.toString();
   }
-})();
 
-// Filter form: NLP-aware submit
-const filterForm = document.getElementById('filter-form');
-if (filterForm) {
-  filterForm.addEventListener('submit', function(e) {
-    e.preventDefault();
+  function removeFilter(key) {
+    const params = new URLSearchParams(window.location.search);
+    params.delete(key);
+    window.location.href = '/jobs?' + params.toString();
+  }
+
+  function clearAllFilters() {
+    window.location.href = '/jobs';
+  }
+
+  function handleSearchSubmit() {
     const query = (document.getElementById('nlp-search-input').value || '').trim();
-    const isNlp = query.length > 0 && /\d|remote|hybrid|lakh|₹|salary|above|below|senior|junior|fresher|startup|years?|bangalore|mumbai|delhi|hyderabad|pune|chennai|kolkata|noida|gurugram|gurgaon|work from home|wfh/i.test(query);
-
+    if (!query) {
+      // No query — just apply current filters
+      submitFilterForm();
+      return;
+    }
+    // Detect NLP-style query
+    const isNlp = /\d|remote|hybrid|onsite|lakh|₹|salary|above|below|senior|junior|fresher|startup|years?|bangalore|mumbai|delhi|hyderabad|pune|chennai|kolkata|noida|gurugram|gurgaon|work from home|wfh/i.test(query);
     if (isNlp) {
       runNlpSearch(query);
     } else {
       submitFilterForm();
     }
-  });
-}
-
-function submitFilterForm(extraParams) {
-  const data = new FormData(document.getElementById('filter-form'));
-  const params = new URLSearchParams();
-  for (const [key, value] of data.entries()) {
-    if (value && value !== '0') params.set(key, value);
-  }
-  if (extraParams) {
-    for (const [key, value] of Object.entries(extraParams)) {
-      if (value) params.set(key, value); else params.delete(key);
-    }
-  }
-  window.location.href = '/jobs?' + params.toString();
-}
-
-function runNlpSearch(query) {
-  const loading = document.getElementById('nlp-loading');
-  const input = document.getElementById('nlp-search-input');
-  loading.classList.remove('hidden');
-  input.disabled = true;
-
-  fetch('/api/nlp-search', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({query}),
-  })
-  .then(r => r.json())
-  .then(data => {
-    loading.classList.add('hidden');
-    input.disabled = false;
-    if (!data.ok || !data.filters) {
-      // Fall back to plain keyword search
-      submitFilterForm();
-      return;
-    }
-    // Build URL from NLP filters, preserve sort/remote/applied from dropdowns
-    const form = new FormData(document.getElementById('filter-form'));
-    const params = new URLSearchParams();
-    // NLP filters take precedence
-    for (const [key, value] of Object.entries(data.filters || {})) {
-      if (value) params.set(key, value);
-    }
-    // Keep non-search form values that weren't overridden by NLP
-    ['sort','applied'].forEach(k => {
-      const v = form.get(k);
-      if (v && !params.has(k)) params.set(k, v);
-    });
-    window.location.href = '/jobs?' + params.toString();
-  })
-  .catch(() => {
-    loading.classList.add('hidden');
-    input.disabled = false;
-    submitFilterForm();
-  });
-}
-
-function clearNlpHint() {
-  document.getElementById('nlp-hint').classList.add('hidden');
-  document.getElementById('nlp-search-input').value = '';
-  window.location.href = '/jobs';
-}
-
-function toggleGapAnalysis(jobId, btn) {
-  const panel = document.getElementById('gap-' + jobId);
-  const content = document.getElementById('gap-content-' + jobId);
-  const scoreEl = document.getElementById('gap-score-' + jobId);
-
-  if (!panel.classList.contains('hidden')) {
-    panel.classList.add('hidden');
-    return;
   }
 
-  panel.classList.remove('hidden');
-  if (content.dataset.loaded) return;
-
-  fetch(`/api/jobs/${jobId}/gap-analysis`)
-    .then(r => r.json())
-    .then(data => {
-      content.dataset.loaded = '1';
-      if (!data.ok) {
-        content.innerHTML = `<span class="text-red-500">${escapeHtml(data.error || 'Failed to load')}</span>`;
-        return;
+  // Auto-open filter panel if any filter is active
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    const filterKeys = ['remote', 'recency', 'experience', 'min_score', 'applied', 'location', 'portal', 'salary_min', 'salary_max', 'company_type', 'company_stage'];
+    const activeFilters = filterKeys.filter(k => params.get(k) && params.get(k) !== '0');
+    if (activeFilters.length > 0) {
+      const panel = document.getElementById('filter-options');
+      const btn = document.getElementById('filter-toggle-btn');
+      if (panel) panel.classList.add('visible');
+      if (btn) btn.classList.add('active');
+      // Show count badge
+      const badge = document.getElementById('filter-count');
+      if (badge) {
+        badge.textContent = activeFilters.length;
+        badge.classList.add('visible');
       }
+    }
+    // Auto-open sort if non-default sort is active
+    const sort = params.get('sort');
+    if (sort && sort !== 'date_desc') {
+      const panel = document.getElementById('sort-options');
+      const btn = document.getElementById('sort-toggle-btn');
+      if (panel) panel.classList.add('visible');
+      if (btn) btn.classList.add('active');
+    }
+  })();
 
-      const cvPct = data.cv_score || 0;
-      scoreEl.textContent = `${cvPct}% match`;
-      scoreEl.className = `text-xs font-bold ${cvPct >= 70 ? 'text-green-600' : cvPct >= 40 ? 'text-amber-600' : 'text-gray-400'}`;
+  // Enter key on search input
+  document.getElementById('nlp-search-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearchSubmit();
+    }
+  });
 
-      const matchedHtml = (data.matched_skills || []).length > 0
-        ? `<div class="mb-2">
-            <p class="font-semibold text-green-700 mb-1">✓ Matched (${data.matched_skills.length})</p>
-            <div class="flex flex-wrap gap-1">${data.matched_skills.map(s =>
-              `<span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">${escapeHtml(s)}</span>`
-            ).join('')}</div>
-           </div>`
-        : '';
 
-      const missingHtml = (data.missing_skills || []).length > 0
-        ? `<div class="mb-2">
-            <p class="font-semibold text-red-600 mb-1">✗ Missing (${data.missing_skills.length})</p>
-            <div class="flex flex-wrap gap-1">${data.missing_skills.map(s =>
-              `<span class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded border border-red-100">${escapeHtml(s)}</span>`
-            ).join('')}</div>
-           </div>`
-        : '';
 
-      const tipsHtml = (data.action_steps || []).length > 0
-        ? `<div>
-            <p class="font-semibold text-slate-600 mb-1">→ Action Steps</p>
-            <ul class="space-y-1">${data.action_steps.map(t =>
-              `<li class="text-slate-500">${t.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-700">$1</strong>')}</li>`
-            ).join('')}</ul>
-           </div>`
-        : '';
+  let currentJobsPage = 1;
+  let isJobsLoading = false;
 
-      content.innerHTML = matchedHtml + missingHtml + tipsHtml ||
-        '<span class="text-slate-400">Upload your CV to see gap analysis.</span>';
+  function loadMoreJobs() {
+    if (isJobsLoading) return;
+    isJobsLoading = true;
+    const btn = document.getElementById('load-more-btn');
+    if (!btn) return;
+
+    const originalText = btn.textContent;
+    btn.textContent = 'Loading...';
+    btn.disabled = true;
+
+    currentJobsPage++;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('page', currentJobsPage);
+    urlParams.set('ajax', '1');
+
+    fetch('/jobs?' + urlParams.toString(), {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .catch(err => {
-      content.innerHTML = `<span class="text-red-500">Error: ${escapeHtml(err.message)}</span>`;
+      .then(r => r.text())
+      .then(html => {
+        if (!html.trim()) {
+          btn.parentElement.style.display = 'none';
+          return;
+        }
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        const jobList = document.getElementById('job-list');
+        while (temp.firstChild) {
+          jobList.appendChild(temp.firstChild);
+        }
+        btn.textContent = 'Load More Jobs';
+        btn.disabled = false;
+        isJobsLoading = false;
+      })
+      .catch(err => {
+        console.error(err);
+        btn.textContent = 'Error. Try Again';
+        btn.disabled = false;
+        isJobsLoading = false;
+      });
+  }
+
+  let searchPollInterval = null;
+
+  function toggleSection(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden');
+  }
+
+  // Auto-show more-filters if any advanced filter is active
+  (function () {
+    const params = new URLSearchParams(window.location.search);
+    const advanced = ['portal', 'location', 'recency', 'experience', 'min_score', 'salary_min', 'salary_max', 'company_type', 'company_stage'];
+    if (advanced.some(k => params.get(k))) {
+      const el = document.getElementById('more-filters');
+      if (el) el.classList.remove('hidden');
+    }
+  })();
+
+  const searchPhaseLabels = {
+    starting: 'Starting search...',
+    scraping: 'Scraping job portals...',
+    analyzing: 'Analyzing and scoring jobs...',
+    storing: 'Storing jobs...',
+    enriching_contacts: 'Looking up contacts...',
+    done: 'Complete!',
+    error: 'Error occurred',
+    idle: 'Idle',
+  };
+
+  function startLiveSearch() {
+    const query = document.getElementById('search-query').value.trim();
+    const location = document.getElementById('search-location').value.trim();
+    if (!query && !location) { alert('Please enter a job title or location.'); return; }
+
+    const btn = document.getElementById('search-btn');
+    btn.disabled = true;
+    btn.textContent = 'Starting...';
+    btn.classList.add('opacity-50');
+
+    fetch('/api/search/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, location }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) {
+          document.getElementById('search-progress').classList.remove('hidden');
+          document.getElementById('search-error').classList.add('hidden');
+          searchPollInterval = setInterval(pollSearchStatus, 2000);
+          pollSearchStatus();
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'Search Jobs';
+          btn.classList.remove('opacity-50');
+          alert(data.error || 'Failed to start search');
+        }
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.textContent = 'Search Jobs';
+        btn.classList.remove('opacity-50');
+        alert('Network error: ' + err.message);
+      });
+  }
+
+  function pollSearchStatus() {
+    fetch('/api/search/status')
+      .then(r => r.json())
+      .then(s => {
+        document.getElementById('search-phase-text').textContent = searchPhaseLabels[s.phase] || s.phase;
+
+        const portalList = document.getElementById('search-portal-list');
+        const portals = Object.entries(s.portal_progress || {});
+        if (portals.length > 0) {
+          portalList.innerHTML = portals.map(([name, info]) => {
+            const icon = info.status === 'success' ? '✓' : '✗';
+            const color = info.status === 'success' ? 'text-green-600' : 'text-red-500';
+            return `<div class="flex justify-between text-xs py-0.5">
+            <span class="${color} flex items-center gap-1">${icon} <span class="text-gray-700">${name}</span></span>
+            <span class="text-gray-400">${info.count} jobs</span>
+          </div>`;
+          }).join('');
+        }
+
+        if (s.total_jobs > 0 || s.phase === 'done') {
+          document.getElementById('search-summary').classList.remove('hidden');
+          document.getElementById('search-stat-total').textContent = s.total_jobs;
+          document.getElementById('search-stat-qualified').textContent = s.qualified_jobs;
+          document.getElementById('search-stat-inserted').textContent = s.inserted;
+        }
+
+        if (s.phase === 'done') {
+          clearInterval(searchPollInterval);
+          document.getElementById('search-spinner').classList.add('hidden');
+          document.getElementById('search-phase-text').textContent = 'Done! Refreshing...';
+          setTimeout(() => { window.location.href = '/jobs?sort=score_desc&min_score=40'; }, 1000);
+        }
+
+        if (s.phase === 'error') {
+          clearInterval(searchPollInterval);
+          document.getElementById('search-spinner').classList.add('hidden');
+          const errDiv = document.getElementById('search-error');
+          errDiv.classList.remove('hidden');
+          errDiv.textContent = s.error || 'Unknown error';
+          const btn = document.getElementById('search-btn');
+          btn.disabled = false;
+          btn.textContent = 'Search Jobs';
+          btn.classList.remove('opacity-50');
+        }
+      })
+      .catch(err => console.error('Search poll error:', err));
+  }
+
+  fetch('/api/search/status')
+    .then(r => r.json())
+    .then(s => {
+      if (s.running) {
+        document.getElementById('search-tools-panel').classList.remove('hidden');
+        document.getElementById('search-progress').classList.remove('hidden');
+        const btn = document.getElementById('search-btn');
+        btn.disabled = true;
+        btn.textContent = 'Searching...';
+        btn.classList.add('opacity-50');
+        searchPollInterval = setInterval(pollSearchStatus, 2000);
+        pollSearchStatus();
+      }
     });
-}
 
+  // Status metadata for in-place card updates
+  const STATUS_META = {
+    0: { label: 'New', badge: 'bg-gray-100 text-gray-500', border: 'border-l-gray-300' },
+    1: { label: 'Applied', badge: 'bg-green-100 text-green-700', border: 'border-l-green-400' },
+    2: { label: 'Saved', badge: 'bg-blue-100 text-blue-700', border: 'border-l-blue-400' },
+    3: { label: 'Phone Screen', badge: 'bg-cyan-100 text-cyan-700', border: 'border-l-cyan-400' },
+    4: { label: 'Interview', badge: 'bg-orange-100 text-orange-700', border: 'border-l-orange-400' },
+    5: { label: 'Offer', badge: 'bg-emerald-100 text-emerald-700', border: 'border-l-emerald-500' },
+    6: { label: 'Rejected', badge: 'bg-red-100 text-red-600', border: 'border-l-red-400' },
+  };
 
-function escapeHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+  function updateJobStatus(jobId, statusVal, selectEl) {
+    if (!statusVal) return;
+    const status = parseInt(statusVal);
+    fetch(`/api/jobs/${jobId}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) return;
+        const meta = STATUS_META[status] || STATUS_META[0];
+        showToast(`Marked as ${meta.label}`);
+      })
+      .catch(err => console.error('Error updating status:', err));
+  }
 
-function selectJob(cardEl) {
-  // Deselect previous
-  document.querySelectorAll('.job-card-compact.selected').forEach(el => el.classList.remove('selected'));
-  cardEl.classList.add('selected');
+  function onApplyClick(jobId) {
+    // After a brief delay, nudge user to mark as Applied
+    setTimeout(() => {
+      showToastWithAction('Did you apply? Mark it →', 'Mark Applied', () => {
+        updateJobStatus(jobId, '1');
+        // Update the select element to show "Applied"
+        const card = document.getElementById('job-' + jobId);
+        if (card) {
+          const sel = card.querySelector('select');
+          if (sel) sel.value = '1';
+        }
+      });
+    }, 1200);
+  }
 
-  let job;
-  try { job = JSON.parse(cardEl.dataset.job); } catch(e) { return; }
-  const jobId = job.job_id || '';
+  let _toastTimer = null;
+  function showToast(msg, duration) {
+    duration = duration || 2500;
+    let toast = document.getElementById('_toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = '_toast';
+      toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50 pointer-events-none';
+      toast.style.transition = 'opacity 0.3s';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, duration);
+  }
 
-  document.getElementById('detail-empty').classList.add('hidden');
-  const content = document.getElementById('detail-content');
-  content.classList.remove('hidden');
+  function showToastWithAction(msg, actionLabel, onAction) {
+    let toast = document.getElementById('_toast_action');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = '_toast_action';
+      toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-3';
+      toast.style.transition = 'opacity 0.3s';
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<span>${escapeHtml(msg)}</span>
+    <button class="text-zinc-300 hover:text-white font-semibold underline" id="_toast_action_btn">${escapeHtml(actionLabel)}</button>
+    <button class="text-gray-400 hover:text-white ml-1" id="_toast_action_close">✕</button>`;
+    toast.style.opacity = '1';
 
-  const salaryHtml = (job.salary_min != null && job.salary_max != null)
-    ? `₹${Math.round(job.salary_min/100000)}L – ₹${Math.round(job.salary_max/100000)}L/yr`
-    : (job.salary ? `${job.salary_currency || '₹'}${job.salary}` : '—');
+    document.getElementById('_toast_action_btn').addEventListener('click', () => {
+      onAction();
+      toast.style.opacity = '0';
+    });
+    document.getElementById('_toast_action_close').addEventListener('click', () => {
+      toast.style.opacity = '0';
+    });
 
-  const stageHtml = job.company_funding_stage
-    ? `<span class="tag-stage-series text-xs">${escapeHtml(job.company_funding_stage)}</span>` : '';
-  const sizeHtml = job.company_size
-    ? `<span class="tag-stage-large text-xs">${escapeHtml(job.company_size)}</span>` : '';
-  const expHtml = job.experience_min != null
-    ? `<span class="tag-yoe">${job.experience_min}${job.experience_max != null ? '–'+job.experience_max : '+'} yrs</span>` : '';
-  const cvScoreHtml = job._cv_score > 0
-    ? `<span class="ml-2 text-xs font-bold ${job._cv_score >= 70 ? 'text-green-600' : job._cv_score >= 40 ? 'text-amber-600' : 'text-gray-400'}">CV ${job._cv_score}%</span>` : '';
-  const missingHtml = Array.isArray(job._missing_top3) && job._missing_top3.length
-    ? `<div class="mt-4"><p class="text-xs font-semibold text-red-500 mb-1">Missing skills:</p><div class="flex flex-wrap gap-1">${job._missing_top3.map(s=>`<span class="px-2 py-0.5 bg-red-50 text-red-500 border border-red-100 rounded text-xs">${escapeHtml(s)}</span>`).join('')}</div></div>` : '';
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 6000);
+  }
 
-  content.innerHTML = `
-    <div class="flex items-start justify-between mb-4">
-      <div>
-        <h2 class="text-lg font-bold text-gray-900">${escapeHtml(job.role || '')}</h2>
-        <p class="text-gray-600 mt-0.5">${escapeHtml(job.company || '')}${cvScoreHtml}</p>
-      </div>
-      ${job.apply_url ? `<a href="${escapeHtml(job.apply_url)}" target="_blank" rel="noopener"
-        onclick="onApplyClick('${escapeHtml(jobId)}')"
-        class="apply-btn flex-shrink-0 px-4 py-2 text-sm font-semibold ml-4">Apply ↗</a>` : ''}
-    </div>
+  // Convert ISO dates to relative ("3 days ago")
+  function toRelativeDate(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    if (isNaN(d)) return isoStr;
+    const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
+    if (diffDays <= 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 14) return '1 week ago';
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays < 60) return '1 month ago';
+    return `${Math.floor(diffDays / 30)} months ago`;
+  }
 
-    <div class="flex flex-wrap gap-2 mb-4">
-      <span class="tag-pill">${escapeHtml(job.portal || '')}</span>
-      <span class="tag-pill">${escapeHtml(job.location || '—')}</span>
-      ${job.remote_status === 'remote' ? '<span class="tag-remote">Remote</span>' :
-        job.remote_status === 'hybrid' ? '<span class="tag-hybrid">Hybrid</span>' :
-        '<span class="tag-pill">Onsite</span>'}
-      ${expHtml}${stageHtml}${sizeHtml}
-    </div>
-
-    <div class="flex items-center gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
-      <div><p class="text-xs text-gray-400">Salary</p><p class="text-sm font-semibold text-emerald-600">${salaryHtml}</p></div>
-      <div><p class="text-xs text-gray-400">Match Score</p><p class="text-sm font-bold text-gray-900">${job.relevance_score || 0}</p></div>
-      <div><p class="text-xs text-gray-400">Posted</p><p class="text-sm text-gray-700">${job.date_posted ? job.date_posted.slice(0,10) : '—'}</p></div>
-    </div>
-
-    ${missingHtml}
-
-    ${job.job_description ? `
-    <div class="mt-4">
-      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Job Description</p>
-      <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap bg-gray-50 rounded-lg p-4 max-h-72 overflow-y-auto">${escapeHtml(job.job_description)}</div>
-    </div>` : ''}
-
-    <div class="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3">
-      <select onchange="updateJobStatus('${escapeHtml(jobId)}', this.value, this)"
-              class="text-sm rounded-lg border-gray-200 border p-2 focus:border-indigo-400">
-        <option value="">Update status…</option>
-        <option value="1">Applied</option>
-        <option value="2">Saved</option>
-        <option value="3">Phone Screen</option>
-        <option value="4">Interview</option>
-        <option value="5">Offer</option>
-        <option value="6">Rejected</option>
-      </select>
-      <button onclick="toggleGapAnalysis('${escapeHtml(jobId)}', this)"
-              class="text-xs text-indigo-600 hover:text-indigo-800 underline">Full gap analysis</button>
-    </div>
-
-    <div id="gap-${escapeHtml(jobId)}" class="hidden mt-4 p-4 bg-indigo-50 rounded-lg text-xs">
-      <div id="gap-content-${escapeHtml(jobId)}">Loading…</div>
-      <span id="gap-score-${escapeHtml(jobId)}"></span>
-    </div>
-  `;
-
-  // Update relative dates
-  content.querySelectorAll('.relative-date').forEach(el => {
+  // Run relative date conversion on page load
+  document.querySelectorAll('.relative-date').forEach(el => {
     const rel = toRelativeDate(el.dataset.date);
     if (rel) el.textContent = rel;
   });
-}
 
-function buildFilterQueryString(filters) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters || {})) {
-    if (value) params.set(key, value);
-  }
-  return params.toString();
-}
-
-function applyNlpFilter(el) {
-  const text = el.textContent.trim();
-  const current = new URLSearchParams(window.location.search);
-  const match = text.match(/^(\w[\w\s]*?):\s*(.+)$/);
-  if (match) {
-    const key = match[1].toLowerCase().trim();
-    const val = match[2].trim().replace(/"/g, '');
-    const keyMap = {search:'search', location:'location', remote:'remote', company:'company_type', experience:'experience', status:'applied'};
-    if (key === 'salary') {
-      if (val.startsWith('>')) current.set('salary_min', val.replace(/[^0-9]/g, ''));
-      else if (val.startsWith('<')) current.set('salary_max', val.replace(/[^0-9]/g, ''));
-    } else if (keyMap[key]) {
-      current.set(keyMap[key], val.toLowerCase());
+  // Show NLP hint strip if active filters look NLP-derived
+  (function showNlpHint() {
+    const p = new URLSearchParams(window.location.search);
+    const nlpKeys = ['remote', 'location', 'salary_min', 'salary_max', 'experience', 'recency'];
+    const hasNlp = nlpKeys.some(k => p.get(k));
+    if (!hasNlp) return;
+    const parts = [];
+    const search = p.get('search');
+    if (search) parts.push(`"${search}"`);
+    if (p.get('remote')) parts.push(p.get('remote'));
+    if (p.get('location')) parts.push(p.get('location'));
+    if (p.get('salary_min')) parts.push(`₹${p.get('salary_min')}L+`);
+    if (p.get('experience')) parts.push(`${p.get('experience')} yrs exp`);
+    if (p.get('recency')) parts.push(p.get('recency'));
+    if (parts.length) {
+      document.getElementById('nlp-hint-text').textContent = 'Filtered by: ' + parts.join(' · ');
+      document.getElementById('nlp-hint').classList.remove('hidden');
     }
-  }
-  window.location.href = '/jobs?' + current.toString();
-}
+  })();
 
-// ── Hide job ──────────────────────────────────────────────────────────────────
-function hideJob(jobId) {
-  fetch(`/api/jobs/${jobId}/hide`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({hidden: true}),
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (!data.ok) return;
-    const card = document.getElementById('job-' + jobId);
-    if (card) {
-      card.style.transition = 'opacity 0.25s';
-      card.style.opacity = '0';
-      setTimeout(() => card.remove(), 280);
+
+  // Filter form: Legacy fallback in case something still calls submitFilterForm directly
+  function submitFilterForm(extraParams) {
+    const data = new FormData(document.getElementById('filter-form'));
+    const params = new URLSearchParams();
+    for (const [key, value] of data.entries()) {
+      if (value && value !== '0') params.set(key, value);
     }
-    showToast('Job hidden · it won\'t show again');
-  })
-  .catch(err => console.error('Error hiding job:', err));
-}
-
-// ── Notes ─────────────────────────────────────────────────────────────────────
-function toggleNotes(jobId) {
-  const panel = document.getElementById('notes-' + jobId);
-  if (!panel.classList.contains('hidden')) {
-    panel.classList.add('hidden');
-    return;
-  }
-  panel.classList.remove('hidden');
-  panel.querySelector('textarea').focus();
-}
-
-function saveNote(jobId) {
-  const textarea = document.getElementById('notes-text-' + jobId);
-  const notes = textarea ? textarea.value : '';
-  const btn = document.getElementById('notes-save-' + jobId);
-  if (btn) { btn.textContent = '...'; btn.disabled = true; }
-
-  fetch(`/api/jobs/${jobId}/notes`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({notes}),
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (btn) { btn.textContent = 'Saved ✓'; btn.disabled = false; }
-    setTimeout(() => { if (btn) btn.textContent = 'Save'; }, 2000);
-
-    // Show/hide the yellow dot indicator on the Notes button
-    const notesBtn = document.getElementById('notes-btn-' + jobId);
-    if (notesBtn) {
-      const dot = notesBtn.querySelector('span');
-      if (notes.trim()) {
-        if (!dot) {
-          const d = document.createElement('span');
-          d.className = 'w-1.5 h-1.5 rounded-full bg-yellow-400';
-          notesBtn.appendChild(d);
-        }
-      } else if (dot) {
-        dot.remove();
+    if (extraParams) {
+      for (const [key, value] of Object.entries(extraParams)) {
+        if (value) params.set(key, value); else params.delete(key);
       }
     }
-    showToast('Note saved');
-  })
-  .catch(err => {
-    if (btn) { btn.textContent = 'Save'; btn.disabled = false; }
-    console.error('Error saving note:', err);
-  });
-}
-
-// ── Junk apply URL detection ──────────────────────────────────────────────────
-function isJunkApplyUrl(url) {
-  if (!url) return false;
-  const u = url.toLowerCase();
-  return (
-    /naukri\.com\/[a-z][a-z-]+-jobs(\/|$|\?)/.test(u) ||        // naukri category pages
-    /linkedin\.com\/jobs\/search/.test(u) ||                      // LinkedIn search
-    /indeed\.com\/(jobs|viewjob)\?/.test(u) ||                    // Indeed search
-    /glassdoor\.com\/job-listing\/[a-z]/.test(u) ||               // Glassdoor generic
-    /\/jobs\/search/.test(u) ||                                    // generic /jobs/search paths
-    /[?&](q|query|keyword|jobType)=/.test(u) && !/apply/.test(u)  // search params without apply
-  );
-}
-
-// Flag generic search-page Apply buttons on page load
-document.querySelectorAll('[data-apply-url]').forEach(el => {
-  if (isJunkApplyUrl(el.getAttribute('data-apply-url'))) {
-    // Replace button content text only, keep the SVG
-    const svgEl = el.querySelector('svg');
-    el.textContent = 'View Listing';
-    if (svgEl) el.appendChild(svgEl);
-    el.title = 'Links to a search page — you may need to find the specific listing manually';
-    el.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
-    el.classList.add('bg-gray-500', 'hover:bg-gray-600');
-  }
-});
-
-// ── Card menu (••• toggle) ────────────────────────────────────────────────────
-function toggleCardMenu(jobId) {
-  const menu = document.getElementById('card-menu-' + jobId);
-  const btn = document.getElementById('more-btn-' + jobId);
-  if (!menu) return;
-  const isOpen = !menu.classList.contains('hidden');
-  menu.classList.toggle('hidden', isOpen);
-  if (btn) btn.classList.toggle('bg-gray-100', !isOpen);
-}
-
-// ── Persona Tabs ──────────────────────────────────────────────────────────────
-const PERSONA_PATTERNS = {
-  all:      null,
-  pm:       /product\s*(manager|owner|lead|head|strategy|management)|associate\s*pm|\bapm\b/i,
-  analyst:  /analyst/i,
-  ai:       /\bai\b|machine\s*learning|\bml\b|artificial\s*intelligence|deep\s*learning|\bllm\b|generative/i,
-};
-
-function switchPersona(key, btn) {
-  document.querySelectorAll('.persona-tab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
-
-  const pattern = PERSONA_PATTERNS[key];
-  let visible = 0;
-  document.querySelectorAll('.job-card-compact').forEach(card => {
-    const show = !pattern || pattern.test(card.dataset.role || '');
-    card.style.display = show ? '' : 'none';
-    if (show) visible++;
-  });
-  const countEl = document.querySelector('p.text-sm.text-gray-400');
-  if (countEl) countEl.textContent = visible + ' results';
-}
-
-(function initPersonaCounts() {
-  const cards = document.querySelectorAll('.job-card');
-  const counts = { all: 0, pm: 0, analyst: 0, ai: 0 };
-  cards.forEach(card => {
-    const role = card.dataset.role || '';
-    counts.all++;
-    if (PERSONA_PATTERNS.pm.test(role))      counts.pm++;
-    if (PERSONA_PATTERNS.analyst.test(role)) counts.analyst++;
-    if (PERSONA_PATTERNS.ai.test(role))      counts.ai++;
-  });
-  ['all', 'pm', 'analyst', 'ai'].forEach(key => {
-    const el = document.getElementById('ptab-count-' + key);
-    if (el) el.textContent = counts[key];
-  });
-})();
-
-function fetchTailoredPoints(jobId, btn) {
-  const panel = document.getElementById('tailored-' + jobId);
-  const list = document.getElementById('tailored-list-' + jobId);
-
-  if (!panel.classList.contains('hidden')) {
-    panel.classList.add('hidden');
-    return;
+    window.location.href = '/jobs?' + params.toString();
   }
 
-  btn.textContent = '...';
-  btn.disabled = true;
+  function runNlpSearch(query) {
+    const loading = document.getElementById('nlp-loading');
+    const input = document.getElementById('nlp-search-input');
+    const searchIcon = document.querySelector('.search-icon');
+    
+    if (loading) loading.classList.add('visible');
+    if (searchIcon) searchIcon.style.display = 'none';
+    if (input) input.disabled = true;
 
-  fetch(`/api/jobs/${jobId}/tailored-points`)
-    .then(r => r.json())
-    .then(data => {
-      btn.textContent = 'Resume Tips';
-      btn.disabled = false;
-      if (data.ok && data.points) {
-        list.innerHTML = data.points.map(p => `<li class="flex items-start"><span class="text-amber-600 mr-2">•</span><span>${p}</span></li>`).join('');
-        panel.classList.remove('hidden');
-      }
+    fetch('/api/nlp-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
     })
-    .catch(err => {
-      btn.textContent = 'Resume Tips';
-      btn.disabled = false;
-      console.error('Error fetching tailored points:', err);
+      .then(r => r.json())
+      .then(data => {
+        if (loading) loading.classList.remove('visible');
+        if (searchIcon) searchIcon.style.display = '';
+        if (input) input.disabled = false;
+        
+        if (!data.ok || !data.filters) {
+          // Fall back to plain keyword search
+          submitFilterForm();
+          return;
+        }
+        
+        // Build URL from NLP filters, preserve sort/remote/applied
+        const form = new FormData(document.getElementById('filter-form'));
+        const params = new URLSearchParams();
+        // NLP filters take precedence
+        for (const [key, value] of Object.entries(data.filters || {})) {
+          if (value) params.set(key, value);
+        }
+        // Keep non-search form values that weren't overridden by NLP
+        ['sort', 'applied'].forEach(k => {
+          const v = form.get(k);
+          if (v && !params.has(k)) params.set(k, v);
+        });
+        window.location.href = '/jobs?' + params.toString();
+      })
+      .catch(() => {
+        if (loading) loading.classList.remove('visible');
+        if (searchIcon) searchIcon.style.display = '';
+        if (input) input.disabled = false;
+        submitFilterForm();
+      });
+  }
+
+  function clearNlpHint() {
+    const hint = document.getElementById('nlp-hint');
+    if (hint) hint.classList.remove('visible');
+    const input = document.getElementById('nlp-search-input');
+    if (input) input.value = '';
+    window.location.href = '/jobs';
+  }
+
+  function toggleGapAnalysis(jobId, btn) {
+    const panel = document.getElementById('gap-' + jobId);
+    const content = document.getElementById('gap-content-' + jobId);
+    const scoreEl = document.getElementById('gap-score-' + jobId);
+
+    if (!panel.classList.contains('hidden')) {
+      panel.classList.add('hidden');
+      return;
+    }
+
+    panel.classList.remove('hidden');
+    if (content.dataset.loaded) return;
+
+    fetch(`/api/jobs/${jobId}/gap-analysis`)
+      .then(r => r.json())
+      .then(data => {
+        content.dataset.loaded = '1';
+        if (!data.ok) {
+          content.innerHTML = `<span class="text-red-500">${escapeHtml(data.error || 'Failed to load')}</span>`;
+          return;
+        }
+
+        const cvPct = data.cv_score || 0;
+        scoreEl.textContent = `${cvPct}% match`;
+        scoreEl.className = `text-xs font-bold ${cvPct >= 70 ? 'text-green-600' : cvPct >= 40 ? 'text-amber-600' : 'text-gray-400'}`;
+
+        const matchedHtml = (data.matched_skills || []).length > 0
+          ? `<div class="mb-2">
+            <p class="font-semibold text-green-700 mb-1">✓ Matched (${data.matched_skills.length})</p>
+            <div class="flex flex-wrap gap-1">${data.matched_skills.map(s =>
+            `<span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">${escapeHtml(s)}</span>`
+          ).join('')}</div>
+           </div>`
+          : '';
+
+        const missingHtml = (data.missing_skills || []).length > 0
+          ? `<div class="mb-2">
+            <p class="font-semibold text-red-600 mb-1">✗ Missing (${data.missing_skills.length})</p>
+            <div class="flex flex-wrap gap-1">${data.missing_skills.map(s =>
+            `<span class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded border border-red-100">${escapeHtml(s)}</span>`
+          ).join('')}</div>
+           </div>`
+          : '';
+
+        const tipsHtml = (data.action_steps || []).length > 0
+          ? `<div>
+            <p class="font-semibold text-slate-600 mb-1">→ Action Steps</p>
+            <ul class="space-y-1">${data.action_steps.map(t =>
+            `<li class="text-slate-500">${t.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-700">$1</strong>')}</li>`
+          ).join('')}</ul>
+           </div>`
+          : '';
+
+        content.innerHTML = matchedHtml + missingHtml + tipsHtml ||
+          '<span class="text-slate-400">Upload your CV to see gap analysis.</span>';
+      })
+      .catch(err => {
+        content.innerHTML = `<span class="text-red-500">Error: ${escapeHtml(err.message)}</span>`;
+      });
+  }
+
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+
+  function buildFilterQueryString(filters) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters || {})) {
+      if (value) params.set(key, value);
+    }
+    return params.toString();
+  }
+
+  function applyNlpFilter(el) {
+    const text = el.textContent.trim();
+    const current = new URLSearchParams(window.location.search);
+    const match = text.match(/^(\w[\w\s]*?):\s*(.+)$/);
+    if (match) {
+      const key = match[1].toLowerCase().trim();
+      const val = match[2].trim().replace(/"/g, '');
+      const keyMap = { search: 'search', location: 'location', remote: 'remote', company: 'company_type', experience: 'experience', status: 'applied' };
+      if (key === 'salary') {
+        if (val.startsWith('>')) current.set('salary_min', val.replace(/[^0-9]/g, ''));
+        else if (val.startsWith('<')) current.set('salary_max', val.replace(/[^0-9]/g, ''));
+      } else if (keyMap[key]) {
+        current.set(keyMap[key], val.toLowerCase());
+      }
+    }
+    window.location.href = '/jobs?' + current.toString();
+  }
+
+  // ── Hide job ──────────────────────────────────────────────────────────────────
+  function hideJob(jobId) {
+    fetch(`/api/jobs/${jobId}/hide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hidden: true }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) return;
+        const card = document.getElementById('job-' + jobId);
+        if (card) {
+          card.style.transition = 'opacity 0.25s';
+          card.style.opacity = '0';
+          setTimeout(() => card.remove(), 280);
+        }
+        showToast('Job hidden · it won\'t show again');
+      })
+      .catch(err => console.error('Error hiding job:', err));
+  }
+
+  // ── Notes ─────────────────────────────────────────────────────────────────────
+  function toggleNotes(jobId) {
+    const panel = document.getElementById('notes-' + jobId);
+    if (!panel.classList.contains('hidden')) {
+      panel.classList.add('hidden');
+      return;
+    }
+    panel.classList.remove('hidden');
+    panel.querySelector('textarea').focus();
+  }
+
+  function saveNote(jobId) {
+    const textarea = document.getElementById('notes-text-' + jobId);
+    const notes = textarea ? textarea.value : '';
+    const btn = document.getElementById('notes-save-' + jobId);
+    if (btn) { btn.textContent = '...'; btn.disabled = true; }
+
+    fetch(`/api/jobs/${jobId}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (btn) { btn.textContent = 'Saved ✓'; btn.disabled = false; }
+        setTimeout(() => { if (btn) btn.textContent = 'Save'; }, 2000);
+
+        // Show/hide the yellow dot indicator on the Notes button
+        const notesBtn = document.getElementById('notes-btn-' + jobId);
+        if (notesBtn) {
+          const dot = notesBtn.querySelector('span');
+          if (notes.trim()) {
+            if (!dot) {
+              const d = document.createElement('span');
+              d.className = 'w-1.5 h-1.5 rounded-full bg-yellow-400';
+              notesBtn.appendChild(d);
+            }
+          } else if (dot) {
+            dot.remove();
+          }
+        }
+        showToast('Note saved');
+      })
+      .catch(err => {
+        if (btn) { btn.textContent = 'Save'; btn.disabled = false; }
+        console.error('Error saving note:', err);
+      });
+  }
+
+  // ── Junk apply URL detection ──────────────────────────────────────────────────
+  function isJunkApplyUrl(url) {
+    if (!url) return false;
+    const u = url.toLowerCase();
+    return (
+      /naukri\.com\/[a-z][a-z-]+-jobs(\/|$|\?)/.test(u) ||        // naukri category pages
+      /linkedin\.com\/jobs\/search/.test(u) ||                      // LinkedIn search
+      /indeed\.com\/(jobs|viewjob)\?/.test(u) ||                    // Indeed search
+      /glassdoor\.com\/job-listing\/[a-z]/.test(u) ||               // Glassdoor generic
+      /\/jobs\/search/.test(u) ||                                    // generic /jobs/search paths
+      /[?&](q|query|keyword|jobType)=/.test(u) && !/apply/.test(u)  // search params without apply
+    );
+  }
+
+  // Flag generic search-page Apply links on page load
+  document.querySelectorAll('a.apply-btn[data-apply-url]').forEach(el => {
+    const url = el.getAttribute('data-apply-url');
+    if (isJunkApplyUrl(url)) {
+      el.textContent = 'View Listing';
+      el.title = 'Links to a search page — you may need to find the specific listing manually';
+      el.classList.add('opacity-60');
+    }
+  });
+
+  // ── Card menu (••• toggle) ────────────────────────────────────────────────────
+  function toggleCardMenu(jobId) {
+    const menu = document.getElementById('card-menu-' + jobId);
+    const btn = document.getElementById('more-btn-' + jobId);
+    if (!menu) return;
+    const isOpen = !menu.classList.contains('hidden');
+    menu.classList.toggle('hidden', isOpen);
+    if (btn) btn.classList.toggle('bg-gray-100', !isOpen);
+  }
+
+  // ── Persona Tabs ──────────────────────────────────────────────────────────────
+  const PERSONA_PATTERNS = {
+    all: null,
+    pm: /product\s*(manager|owner|lead|head|strategy|management)|associate\s*pm|\bapm\b/i,
+    analyst: /analyst/i,
+    ai: /\bai\b|machine\s*learning|\bml\b|artificial\s*intelligence|deep\s*learning|\bllm\b|generative/i,
+  };
+
+  function switchPersona(key, btn) {
+    document.querySelectorAll('.persona-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+
+    const pattern = PERSONA_PATTERNS[key];
+    let visible = 0;
+    document.querySelectorAll('.job-card').forEach(card => {
+      const show = !pattern || pattern.test(card.dataset.role || '');
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
     });
-}
+    const countEl = document.querySelector('p.text-sm.text-gray-400');
+    if (countEl) countEl.textContent = visible + ' results';
+  }
+
+  (function initPersonaCounts() {
+    const cards = document.querySelectorAll('.job-card');
+    const counts = { all: 0, pm: 0, analyst: 0, ai: 0 };
+    cards.forEach(card => {
+      const role = card.dataset.role || '';
+      counts.all++;
+      if (PERSONA_PATTERNS.pm.test(role)) counts.pm++;
+      if (PERSONA_PATTERNS.analyst.test(role)) counts.analyst++;
+      if (PERSONA_PATTERNS.ai.test(role)) counts.ai++;
+    });
+    ['all', 'pm', 'analyst', 'ai'].forEach(key => {
+      const el = document.getElementById('ptab-count-' + key);
+      if (el) el.textContent = counts[key];
+    });
+  })();
+
+  function fetchTailoredPoints(jobId, btn) {
+    const panel = document.getElementById('tailored-' + jobId);
+    const list = document.getElementById('tailored-list-' + jobId);
+
+    if (!panel.classList.contains('hidden')) {
+      panel.classList.add('hidden');
+      return;
+    }
+
+    btn.textContent = '...';
+    btn.disabled = true;
+
+    fetch(`/api/jobs/${jobId}/tailored-points`)
+      .then(r => r.json())
+      .then(data => {
+        btn.textContent = 'Resume Tips';
+        btn.disabled = false;
+        if (data.ok && data.points) {
+          list.innerHTML = data.points.map(p => `<li class="flex items-start"><span class="text-amber-600 mr-2">•</span><span>${p}</span></li>`).join('');
+          panel.classList.remove('hidden');
+        }
+      })
+      .catch(err => {
+        btn.textContent = 'Resume Tips';
+        btn.disabled = false;
+        console.error('Error fetching tailored points:', err);
+      });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Quick Apply Panel
+  // ─────────────────────────────────────────────────────────────────────────────
+  let _qapJobId = null;
+  let _qapToken = null;
+  let _outreachMap = {};
+
+  // Load outreach map once, then badge cards
+  fetch('/api/outreach/map')
+    .then(r => r.json())
+    .then(map => {
+      _outreachMap = map;
+      Object.entries(map).forEach(([jobId, info]) => {
+        const badge = document.getElementById('outreach-badge-' + jobId);
+        if (!badge) return;
+        badge.classList.remove('hidden');
+        if (info.status === 'sent') {
+          badge.innerHTML = `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">✓ Sent</span>`;
+        } else if (info.status === 'pending') {
+          badge.innerHTML = `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 cursor-pointer">💬 Draft</span>`;
+        }
+        // Also update the Apply button tooltip
+        const card = document.getElementById('job-' + jobId);
+        if (card && info.linkedin_draft) {
+          const applyBtn = card.querySelector('.apply-btn');
+          if (applyBtn) applyBtn.title = 'Open application + view message draft';
+        }
+      });
+    })
+    .catch(() => { }); // Silently fail — badges are enhancement only
+
+  function openApplyPanel(jobId, applyUrl, role, company) {
+    _qapJobId = jobId;
+    _qapToken = null;
+    document.getElementById('qap-role').textContent = role || 'Role';
+    document.getElementById('qap-company').textContent = company || '';
+
+    // Apply link
+    const link = document.getElementById('qap-apply-link');
+    const noUrl = document.getElementById('qap-no-url');
+    if (applyUrl && !isJunkApplyUrl(applyUrl)) {
+      link.href = applyUrl;
+      link.classList.remove('hidden');
+      noUrl.classList.add('hidden');
+    } else if (applyUrl) {
+      link.href = applyUrl;
+      link.textContent = 'View Job Listing ↗';
+      link.classList.remove('hidden');
+      noUrl.classList.add('hidden');
+    } else {
+      link.classList.add('hidden');
+      noUrl.classList.remove('hidden');
+    }
+
+    // Status select - sync with current card state
+    const card = document.getElementById('job-' + jobId);
+    const cardSel = card ? card.querySelector('select') : null;
+    const statusSel = document.getElementById('qap-status-select');
+    if (statusSel && cardSel) statusSel.value = cardSel.value || '';
+
+    // Contact + outreach data
+    const outreach = _outreachMap[jobId];
+    _qapToken = outreach ? outreach.approval_token : null;
+    _populateQapContact(outreach);
+    _populateQapOutreachStatus(outreach);
+
+    // Load message/email panes lazily when tabs selected
+    qapTab('apply');
+    _showPanel();
+  }
+
+  function _populateQapContact(outreach) {
+    const section = document.getElementById('qap-contact-section');
+    const info = document.getElementById('qap-contact-info');
+    if (!outreach || (!outreach.hm_email && !outreach.hm_linkedin && !outreach.hiring_manager)) {
+      section.classList.add('hidden');
+      return;
+    }
+    section.classList.remove('hidden');
+    const parts = [];
+    if (outreach.hiring_manager) {
+      parts.push(`<div class="flex items-center gap-2 text-sm text-gray-700"><svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>${escapeHtml(outreach.hiring_manager)}</div>`);
+    }
+    if (outreach.hm_email) {
+      parts.push(`<div class="flex items-center gap-2 text-sm text-gray-500"><svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>${escapeHtml(outreach.hm_email)}</div>`);
+    }
+    if (outreach.hm_linkedin) {
+      parts.push(`<a href="${escapeHtml(outreach.hm_linkedin)}" target="_blank" rel="noopener" class="flex items-center gap-2 text-sm text-[#0a66c2] hover:underline"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>LinkedIn Profile ↗</a>`);
+    }
+    info.innerHTML = parts.join('');
+  }
+
+  function _populateQapOutreachStatus(outreach) {
+    const el = document.getElementById('qap-outreach-status');
+    if (!outreach) { el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    if (outreach.status === 'sent') {
+      el.className = 'rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700';
+      el.textContent = '✓ Outreach already sent for this job.';
+    } else if (outreach.status === 'pending') {
+      el.className = 'rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700';
+      el.textContent = '💬 Draft ready — see Message tab.';
+    } else if (outreach.status === 'skipped') {
+      el.className = 'rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-400';
+      el.textContent = '⏭ This outreach was skipped.';
+    }
+  }
+
+  function _showPanel() {
+    const overlay = document.getElementById('qap-overlay');
+    const panel = document.getElementById('qap-panel');
+    overlay.classList.remove('hidden');
+    panel.classList.remove('hidden');
+    requestAnimationFrame(() => {
+      panel.style.transform = 'translateX(0)';
+    });
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeApplyPanel() {
+    const overlay = document.getElementById('qap-overlay');
+    const panel = document.getElementById('qap-panel');
+    panel.style.transform = 'translateX(100%)';
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      panel.classList.add('hidden');
+      document.body.style.overflow = '';
+    }, 280);
+  }
+
+  function qapTab(tab) {
+    ['apply', 'message', 'email'].forEach(t => {
+      const pane = document.getElementById('qap-pane-' + t);
+      const tabBtn = document.getElementById('qap-tab-' + t);
+      if (t === tab) {
+        pane.classList.remove('hidden');
+        tabBtn.classList.replace('border-transparent', 'border-gray-900');
+        tabBtn.classList.replace('text-gray-400', 'text-gray-900');
+      } else {
+        pane.classList.add('hidden');
+        tabBtn.classList.replace('border-gray-900', 'border-transparent');
+        tabBtn.classList.replace('text-gray-900', 'text-gray-400');
+      }
+    });
+    // Lazy-load drafts on tab switch
+    if (tab === 'message') _loadQapMessage();
+    if (tab === 'email') _loadQapEmail();
+  }
+
+  function _loadQapMessage() {
+    const loading = document.getElementById('qap-msg-loading');
+    const content = document.getElementById('qap-msg-content');
+    const empty = document.getElementById('qap-msg-empty');
+    const liLink = document.getElementById('qap-li-link');
+    const outreach = _outreachMap[_qapJobId];
+
+    if (!outreach || !outreach.linkedin_draft) {
+      loading.classList.add('hidden');
+      content.classList.add('hidden');
+      empty.classList.remove('hidden');
+      return;
+    }
+    loading.classList.add('hidden');
+    content.classList.remove('hidden');
+    empty.classList.add('hidden');
+    document.getElementById('qap-msg-view').textContent = outreach.linkedin_draft;
+    document.getElementById('qap-msg-edit').value = outreach.linkedin_draft;
+
+    // LinkedIn link
+    if (outreach.hm_linkedin) {
+      liLink.href = outreach.hm_linkedin;
+      liLink.classList.remove('hidden');
+    } else {
+      const role = document.getElementById('qap-role').textContent;
+      const company = document.getElementById('qap-company').textContent;
+      liLink.href = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(role + ' ' + company + ' recruiter')}`;
+      liLink.textContent = '🔍 Find on LinkedIn';
+    }
+  }
+
+  function _loadQapEmail() {
+    const loading = document.getElementById('qap-email-loading');
+    const content = document.getElementById('qap-email-content');
+    const empty = document.getElementById('qap-email-empty');
+    const outreach = _outreachMap[_qapJobId];
+
+    if (!outreach || !outreach.email_draft) {
+      loading.classList.add('hidden');
+      content.classList.add('hidden');
+      empty.classList.remove('hidden');
+      return;
+    }
+    loading.classList.add('hidden');
+    content.classList.remove('hidden');
+    empty.classList.add('hidden');
+    document.getElementById('qap-email-view').textContent = outreach.email_draft;
+    document.getElementById('qap-email-edit').value = outreach.email_draft;
+    const toEl = document.getElementById('qap-email-to');
+    if (outreach.hm_email) {
+      toEl.textContent = `To: ${outreach.hm_email}`;
+      toEl.classList.remove('hidden');
+    } else {
+      toEl.classList.add('hidden');
+    }
+    const approveLink = document.getElementById('qap-approve-link');
+    if (outreach.hm_email && _qapToken) {
+      approveLink.href = `/api/approve/${_qapToken}`;
+      approveLink.parentElement.classList.remove('hidden');
+    } else {
+      approveLink.parentElement.classList.add('hidden');
+    }
+  }
+
+  function qapCopyMsg() {
+    const view = document.getElementById('qap-msg-view');
+    if (!view) return;
+    navigator.clipboard.writeText(view.textContent).then(() => showToast('Copied to clipboard!'));
+  }
+
+  function qapEditMsg() {
+    document.getElementById('qap-msg-view').classList.add('hidden');
+    document.getElementById('qap-msg-edit').classList.remove('hidden');
+    document.getElementById('qap-msg-edit-actions').classList.remove('hidden');
+    document.getElementById('qap-edit-msg-btn').classList.add('hidden');
+    document.getElementById('qap-msg-edit').focus();
+  }
+
+  function qapEditEmail() {
+    document.getElementById('qap-email-view').classList.add('hidden');
+    document.getElementById('qap-email-edit').classList.remove('hidden');
+    document.getElementById('qap-email-edit-actions').classList.remove('hidden');
+    document.getElementById('qap-edit-email-btn').classList.add('hidden');
+  }
+
+  function qapCancelEdit(type) {
+    if (type === 'linkedin') {
+      document.getElementById('qap-msg-view').classList.remove('hidden');
+      document.getElementById('qap-msg-edit').classList.add('hidden');
+      document.getElementById('qap-msg-edit-actions').classList.add('hidden');
+      document.getElementById('qap-edit-msg-btn').classList.remove('hidden');
+    } else {
+      document.getElementById('qap-email-view').classList.remove('hidden');
+      document.getElementById('qap-email-edit').classList.add('hidden');
+      document.getElementById('qap-email-edit-actions').classList.add('hidden');
+      document.getElementById('qap-edit-email-btn').classList.remove('hidden');
+    }
+  }
+
+  function qapSaveDraft(type) {
+    if (!_qapToken) { showToast('No token — cannot save'); return; }
+    const isMsg = type === 'linkedin';
+    const val = document.getElementById(isMsg ? 'qap-msg-edit' : 'qap-email-edit').value;
+    const body = isMsg ? { linkedin_draft: val } : { email_draft: val };
+    fetch(`/api/outreach/${_qapToken}/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) { showToast('Save failed'); return; }
+        // Update local cache
+        if (isMsg) {
+          _outreachMap[_qapJobId].linkedin_draft = val;
+          document.getElementById('qap-msg-view').textContent = val;
+        } else {
+          _outreachMap[_qapJobId].email_draft = val;
+          document.getElementById('qap-email-view').textContent = val;
+        }
+        qapCancelEdit(type);
+        showToast('Draft saved ✓');
+      })
+      .catch(() => showToast('Save failed'));
+  }
+
+  function qapUpdateStatus() {
+    const sel = document.getElementById('qap-status-select');
+    const status = sel.value;
+    if (!_qapJobId || !status) return;
+    updateJobStatus(_qapJobId, status, sel);
+    // Sync the card's select
+    const card = document.getElementById('job-' + _qapJobId);
+    if (card) {
+      const cardSel = card.querySelector('select');
+      if (cardSel) cardSel.value = status;
+    }
+  }
+
+  function qapMarkApplied() {
+    updateJobStatus(_qapJobId, '1', null);
+    const card = document.getElementById('job-' + _qapJobId);
+    if (card) {
+      const cardSel = card.querySelector('select');
+      if (cardSel) cardSel.value = '1';
+    }
+    const statusSel = document.getElementById('qap-status-select');
+    if (statusSel) statusSel.value = '1';
+    showToast('Marked as Applied ✓');
+    // Also sync outreach token if exists
+    if (_qapToken) {
+      fetch(`/api/outreach/${_qapToken}/mark-applied`, { method: 'POST' }).catch(() => { });
+    }
+  }
+
+  // Close panel on Escape key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeApplyPanel();
+  });
 
 </script>
 {% endblock %}

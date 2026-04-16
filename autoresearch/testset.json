@@ -1,0 +1,272 @@
+[
+  {
+    "job_id": "55193b4d33535f70",
+    "role": "Application Architect II (Hyderabad, TG, IN)",
+    "company": "Swiss Re",
+    "job_description": "About the role You'll be at the heart of developing and maintaining our sophisticated in-house insurance products built primarily with Java and Spring Boot. You will have the opportunity to join one of our product teams and contribute to the development of functionality which generates real business impact. About the team We are a team that believes in engineering excellence and that our leaders should also be engineers themselves. We build applications that are carefully designed, thoughtfully ",
+    "db_relevance_score": 11,
+    "ground_truth_score": 24,
+    "ground_truth_reason": "The candidate has a strong background in data analysis, AI, and product development, but their skills are not closely matched with the requirements of the Application Architect II role at Swiss Re. The significant gap between their expertise and the job's emphasis on Java, Spring Boot, and insurance products makes this a poor match."
+  },
+  {
+    "job_id": "827b36a92655da8b",
+    "role": "Product Manager - Corporate Banking",
+    "company": "WorkGeek Services",
+    "job_description": "&lt;ul&gt;&lt;li&gt;Formalizing Product opportunities through Business Plan, Feasibility analysis, Market scoping and Value Proposition formalization.&lt;/li&gt;&lt;li&gt;Management of Product Team and ensuring any relevant tasks are handled efficiently.&lt;/li&gt;&lt;li&gt;Coordination with relevant Product Team and to ensure that platforms are built and designed to cater to banks&lt;/li&gt;&lt;li&gt;Build Product strategy for Banking Platforms&lt;/li&gt;&lt;li&gt;Regular monitoring of new developments and work with internal stakeholders to manage any possible impact or identify new opportunities.&lt;/li&gt;&lt;li&gt;Training to Sales, Implementation and other functions as required.&lt;/li&gt;&lt;li&gt;External meetings with clients (banks), partners, vendors and others as required.&lt;/l",
+    "db_relevance_score": 72,
+    "ground_truth_score": 20,
+    "ground_truth_reason": "The job description mentions Corporate Banking, but the candidate's background is Lending and Credit Analysis. The seniority gap between the required skills (Graduate/Post Graduate) and the candidate's PGPM from IIM Sirmaur is also a major mismatch. Additionally, there is no mention of Agile or Management experience in the candidate's background."
+  },
+  {
+    "job_id": "21eec6835436abc1",
+    "role": "Business Analyst, Logistics & Global Trade Compliance (GTC) Applications",
+    "company": "Sensata Technologies",
+    "job_description": "Business Analyst, Logistics & Global Trade Compliance (GTC) Applications will work closely with business stakeholders to understand current business processes and identify opportunities for improvement.  They will elicit and document detailed requirements and collaborate with development teams for implementation. General Responsibilities \u2022 Presents new ways to work with analyses, articulation and presentations of complex data, in order to allow effective and timely management decisions \u2022 Provide",
+    "db_relevance_score": 43,
+    "ground_truth_score": 30,
+    "ground_truth_reason": "The candidate's CV shows expertise in AI-related skills, but the job description emphasizes Business Analyst role with a focus on Logistics & Global Trade Compliance Applications, which is not directly related to their current skillset. The seniority gap between the candidate's education and the required experience for this role is also significant."
+  },
+  {
+    "job_id": "2c68966ccfb4e662",
+    "role": "Senior Technology Product Manager, Insurance Division",
+    "company": "Porch",
+    "job_description": "Cross-functional coordination: Collaborate with compliance, operations, business, carrier  product  and engineering teams to align configuration and product\u2026",
+    "db_relevance_score": 81,
+    "ground_truth_score": 60,
+    "ground_truth_reason": "The candidate's CV shows a strong technical background in AI, product management, and analytics. However, the job description highlights a senior technology product manager role in the insurance division, which appears to be outside the candidate's current domain expertise, resulting in a score that penalizes for hard mismatches."
+  },
+  {
+    "job_id": "5ca970aef6c71cb7",
+    "role": "Product Manager Senior",
+    "company": "City National Bank of Florida",
+    "job_description": "&lt;strong&gt;Overview&lt;br&gt;&lt;br&gt;&lt;/strong&gt;&lt;strong&gt;About the Role&lt;br&gt;&lt;br&gt;&lt;/strong&gt;The Product Manger Senior is responsible for working with an interdepartmental team to develop and implement the TotalDirectBank (TDB) strategy. TDB is a 100% internet-based banking platform. The Product Manager will lead an interdepartmental team from across the bank and work with internal and external stakeholders to find optimal solutions that balance growth, profitability, client experience (NPS), and risk (fraud/operational/consumer compliance).&lt;br&gt;&lt;br&gt;&lt;strong&gt;Key Collaborators Include&lt;br&gt;&lt;br&gt;&lt;/strong&gt;Prelim, external partner managing the TDB application process.&lt;br&gt;&lt;br&gt;External risk partners like LexisNexis.&lt;br&gt;&",
+    "db_relevance_score": 50,
+    "ground_truth_score": 30,
+    "ground_truth_reason": "The candidate's skills and background do not match the job requirements. The candidate lacks experience in banking, lending, credit analysis, and product management, which are essential for the Product Manager Senior role at City National Bank of Florida. Additionally, there is a significant seniority gap between the candidate's PGPM and the required Senior experience."
+  },
+  {
+    "job_id": "45144e3bc07209f9",
+    "role": "Areas Sales Manager - Performance Tapes, West",
+    "company": "Avery Dennison",
+    "job_description": "Company Description: Avery Dennison Corporation (NYSE: AVY) is a global materials science and digital identification solutions company that provides a wide range of branding and information solutions that optimize labor and supply chain efficiency, reduce waste, advance sustainability, circularity, and transparency, and better connect brands and consumers. Our products and solutions include labeling and functional materials, radio frequency identification (RFID) inlays and tags, software applica",
+    "db_relevance_score": 22,
+    "ground_truth_score": 22,
+    "ground_truth_reason": "The job requires experience in areas such as branding and supply chain efficiency, which is not mentioned in the candidate's CV. The candidate's skills and background are more aligned with product development, AI lead, and credit analysis, resulting in a significant mismatch."
+  },
+  {
+    "job_id": "f8308e11e930b5b4",
+    "role": "Product Manager II - WorkFlow Extended",
+    "company": "HighLevel",
+    "job_description": "Understanding of  product  development lifecycle and experience working on SaaS platform products. \n  You will work closely with cross-functional teams including\u2026",
+    "db_relevance_score": 81,
+    "ground_truth_score": 90,
+    "ground_truth_reason": "The candidate's CV matches well with the job description, especially in terms of technical skills and experience. However, there is a slight mismatch due to the lack of explicit mention of SaaS platform products or product development lifecycle in the candidate's CV, which might be seen as a minor drawback."
+  },
+  {
+    "job_id": "2ebd8104d9420497",
+    "role": "Fintech Product Manager (Wallet & Payments)",
+    "company": "Snaplii",
+    "job_description": "&lt;p&gt;&lt;strong&gt;About the Company&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;Snaplii is one of Canada\u2019s fastest-growing fintech platforms, transforming how people pay, save, and earn rewards. With over $100M in annual transaction volume and 200,000+ users across North America, we deliver unmatched utility and loyalty through a single seamless app. We\u2019ve ranked as high as #5 on the Apple App Store during peak shopping seasons, and consistently remain in the Top 40, driven by a highly engaged, high-retention user base. Snaplii supports 500+ leading brands including Walmart, Amazon, and Esso, with a platform fully built and maintained in-house\u2014engineered to scale and support a growing suite of financial products.&lt;/p&gt;&lt;p&gt;&lt;br&",
+    "db_relevance_score": 70,
+    "ground_truth_score": 30,
+    "ground_truth_reason": "The candidate has a broad range of skills that include AI, product management, credit analysis, and leadership, but most of these skills are not directly relevant to the Fintech Product Manager role at Snaplii. The biggest mismatch is the seniority gap between the candidate's PGPM degree and the expected 5+ years of experience for the role."
+  },
+  {
+    "job_id": "ae2d3e6088021fd7",
+    "role": "Senior Manager - Product Engineering",
+    "company": "AxisMaxlife",
+    "job_description": "Track record of delivering 0 1  products  and scaling 1 N; experience with startups/innovation programs preferred. \n  Business Use\u2011Case Discovery &amp; Pilot Design.",
+    "db_relevance_score": 42,
+    "ground_truth_score": 34,
+    "ground_truth_reason": "The job description and candidate's CV have a large mismatch in terms of domain (from Banking to AI/General), seniority gap (Senior Manager vs. no explicit title or seniority indication), and specific skills. The candidate's skills overlap with some requirements but not enough to match the job description accurately."
+  },
+  {
+    "job_id": "86e3004c517cbfe3",
+    "role": "Product Manager",
+    "company": "Lyric",
+    "job_description": "Lyric is an AI-first, platform-based healthcare technology company, committed to simplifying the business of care by preventing inaccurate payments and reducing overall waste in the healthcare ecosystem, enabling more efficient use of resources to reduce the cost of care for payers, providers, and patients. Lyric, formerly ClaimsXten, is a market leader with 35 years of pre-pay editing expertise, dedicated teams, and top technology. Lyric is proud to be recognized as 2025 Best in KLAS for Pre-Pa",
+    "db_relevance_score": 62,
+    "ground_truth_score": 30,
+    "ground_truth_reason": "The candidate's CV has no clear relevance to the Product Manager role at Lyric. The skills listed, such as SQL, Python, Excel, and AI, are valuable but lack specific industry experience in healthcare technology, a crucial mismatch for this position."
+  },
+  {
+    "job_id": "8cd92689103b836a",
+    "role": "Service Operations Analyst",
+    "company": "Norstella",
+    "job_description": "Basic understanding of  business  operations. \n  Generate monthly and on demand reports for key service delivery metrics (e.g., number of new projects sold by\u2026",
+    "db_relevance_score": 32,
+    "ground_truth_score": 20,
+    "ground_truth_reason": "The candidate's CV shows a wide range of skills that are not relevant to the Service Operations Analyst role at Norstella. The domain mismatch is significant, with skills related to AI, lending, and banking being far removed from the job description."
+  },
+  {
+    "job_id": "285977b530ebe254",
+    "role": "Credit Analyst",
+    "company": "Expert Lending Pathways",
+    "job_description": "Prepare detailed  credit  submissions and recommendations for loan approvals. \n  Identify opportunities to enhance and streamline  credit  analysis processes.",
+    "db_relevance_score": 70,
+    "ground_truth_score": 30,
+    "ground_truth_reason": "The candidate's CV does not match the job description in terms of domain. The candidate has a strong background in AI and product development, but lacks experience in lending and credit analysis. This significant mismatch reduces the score to 30."
+  },
+  {
+    "job_id": "8645cc24a6d188c1",
+    "role": "SC Business Assoc Analyst - Audit Freight Payments Analytics",
+    "company": "PepsiCo",
+    "job_description": "Ensure that all freight has pre-validation phases occurring properly and acting preventively in the cause so that the process has its continuity within the\u2026",
+    "db_relevance_score": 34,
+    "ground_truth_score": 30,
+    "ground_truth_reason": "The candidate's skills do not match the job requirements. The most notable mismatch is the lack of expertise in freight payment analytics, audit, or similar domains. Additionally, the seniority gap between the candidate's education and experience is significant."
+  },
+  {
+    "job_id": "eaeb55e488708fa8",
+    "role": "Product Owner",
+    "company": "NRG.",
+    "job_description": "&lt;p&gt;&lt;strong&gt;Job Title:&lt;/strong&gt; Product Owner \u2013 Digital, CRM &amp;amp; Data Strategy&lt;/p&gt;&lt;p&gt;&lt;strong&gt;Location: &lt;/strong&gt;London SE1&lt;/p&gt;&lt;p&gt;&lt;strong&gt;Job Type:&lt;/strong&gt; Outside IR35 9-month contract&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;Are you an experienced Product Owner with a passion for digital transformation, CRM excellence, and data-driven decision making? We\u2019re looking for a dynamic professional to own and lead the digital, CRM, and data strategy for a major business unit focused on Away from Home markets.&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;What you'll do:&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Lead and manage all digital assets related to CRM, including th",
+    "db_relevance_score": 45,
+    "ground_truth_score": 24,
+    "ground_truth_reason": "The candidate's skills and experience do not align with the job requirements. The lack of CRM, data strategy, and digital transformation expertise makes it difficult for the candidate to match the job demands. Additionally, the seniority gap is significant as the job description implies a more senior role."
+  },
+  {
+    "job_id": "9f2e3af918768741",
+    "role": "Product Manager (SaaS) - Design-to-Delivery",
+    "company": "Brain Quest Consutancy and Training",
+    "job_description": "Experience working with distributed teams and multiple products/modules. \n  You should be highly logical, strong with requirements, comfortable reviewing Figma\u2026",
+    "db_relevance_score": 78,
+    "ground_truth_score": 60,
+    "ground_truth_reason": "The candidate's CV shows a strong background in AI-related skills, but lacks direct experience with product management and SaaS products. The job requires significant domain knowledge of SaaS industry, which is not explicitly mentioned on the CV."
+  },
+  {
+    "job_id": "1243b44f2a93451c",
+    "role": "Technical Product Manager",
+    "company": "Rubrik Security Cloud",
+    "job_description": "Work with the engineering,  product  management and  product  marketing team to put together collaterals helpful for demand generation.",
+    "db_relevance_score": 70,
+    "ground_truth_score": 40,
+    "ground_truth_reason": "The job requires a strong technical background, particularly in AI, Python, Go, and API, but the candidate's CV lacks specific experience in these areas. The candidate's expertise in credit analysis, lending, and banking is not relevant to the job description."
+  },
+  {
+    "job_id": "41fdd188a7da7893",
+    "role": "Data Analyst- SAS",
+    "company": "UnitedHealth Group",
+    "job_description": "Optum is a global organization that delivers care, aided by technology to help millions of people live healthier lives. The work you do with our team will directly improve health outcomes by connecting people with the care, pharmacy benefits, data and resources they need to feel their best. Here, you will find a culture guided by inclusion, talented peers, comprehensive benefits and career development opportunities. Come make an impact on the communities we serve as you help us advance health op",
+    "db_relevance_score": 15,
+    "ground_truth_score": 30,
+    "ground_truth_reason": "The candidate's skills and background do not match the job requirements. The candidate has expertise in AI, product development, credit analysis, SQL, and Agile, but lacks experience in data analysis, SAS, and healthcare domain, which are essential for the Data Analyst-SAS role at UnitedHealth Group."
+  },
+  {
+    "job_id": "0a53b7bfd6711e61",
+    "role": "Senior Product Manager (Remote)",
+    "company": "Canibuild",
+    "job_description": "5+ years experience as a  Product   Manager  in a SaaS  product  company. \n  We\u2019re looking for a Senior  Product   Manager  to own our Operations &amp; Enablement domain.",
+    "db_relevance_score": 78,
+    "ground_truth_score": 27,
+    "ground_truth_reason": "The candidate has a strong technical background with certifications in AI Product Management, but their CV does not align with the job description. The job requires experience in SaaS product management and operations enablement, which is lacking in the candidate's CV."
+  },
+  {
+    "job_id": "3f783437620fd25a",
+    "role": "Senior Executive / Assistant Manager - Product Management",
+    "company": "ResoPro",
+    "job_description": "Ensure  product  launch readiness and lifecycle management. \n  Experience in commercial/industrial  product  development.",
+    "db_relevance_score": 50,
+    "ground_truth_score": 20,
+    "ground_truth_reason": "The candidate's CV has a wide range of skills that are not directly related to product management, which is a significant mismatch with the job description. The candidate's experience in AI and lending/credit analysis is not relevant to the job requirements."
+  },
+  {
+    "job_id": "a2bc3b5a104f0fd5",
+    "role": "Credit Analyst - Corporate",
+    "company": "Crisil",
+    "job_description": "The role would involve supporting S&amp;amp;P primary analysts, based out of North America, EMEA and Asia Pacific regions, to arrive at / monitor credit ratings for issuers across various industries. Analysis would cover surveillance of a portfolio of companies as well as responding to market events that could potentially lead to a change in ratings.&lt;br&gt;&lt;br&gt;&lt;ul&gt;&lt;li&gt; Analyze business performance, including: o Industry dynamics and regulatory trends o Evaluating country and macroeconomic risk o Competitive and market position o Strategy / execution / management of the companies o Trends in profitability and peer comparisons&lt;/li&gt;&lt;li&gt; Analyze financial performance, including: o Understanding accounting standards o Financial governance and policies o Analysis",
+    "db_relevance_score": 50,
+    "ground_truth_score": 40,
+    "ground_truth_reason": "The candidate has strong technical skills such as AI, Python, SQL, and Agile, but they lack relevant experience in credit analysis or banking industry. The job description requires specific domain knowledge and expertise in credit analysis, which is not evident in the candidate's CV."
+  },
+  {
+    "job_id": "a04e6114d0a5d08f",
+    "role": "Product Manager (Volunteer)",
+    "company": "SkilledUp Life",
+    "job_description": "Track  product  performance and recommend improvements. \n  Define and prioritize  product  features and roadmap. \n  You won\u2019t just manage tasks \u2014 you\u2019ll drive product\u2026",
+    "db_relevance_score": 76,
+    "ground_truth_score": 40,
+    "ground_truth_reason": "The candidate's CV highlights their strong technical skills in AI and data analysis, but they lack experience in product management. The job description specifically requires track record of managing tasks and driving product decisions, which is not clearly reflected in the candidate's background."
+  },
+  {
+    "job_id": "8a9b4b2f77909479",
+    "role": "Business Analyst- Liquidity, FTP & IRRBB (Bangalore, IN)",
+    "company": "Standard Chartered",
+    "job_description": "Key Responsibilities Strategy \u2022 \u00a0 \u00a0To validate that the strategic system architecture proposed by Technology is fit for its business purpose and is in line with the agreed business target state \u2022 \u00a0 \u00a0To drive prioritization taking into consideration business benefits, delivery timelines, system performance etc. \u2022 \u00a0 \u00a0To centrally coordinate system interfaces/dependencies/change releases for the Treasury and Liquidity Reporting work streams and ensure alignment across all centres \u2022 \u00a0 \u00a0To support th",
+    "db_relevance_score": 40,
+    "ground_truth_score": 40,
+    "ground_truth_reason": "The job requires specific technical skills like FTP, IRRBB, and expertise in liquidity, which are not mentioned in the candidate's CV. The domain of the job (banking) is also not directly related to the candidate's background in lending, credit, and AI, indicating a significant mismatch."
+  },
+  {
+    "job_id": "bdc1620ff326e70c",
+    "role": "Network Security Engineer - Fortigate Firewalls - VOIS-Bangalore (Pune, IN)",
+    "company": "Vodafone",
+    "job_description": "Who we are VOIS (Vodafone Intelligent Solutions) is a strategic arm of Vodafone Group Plc, creating value for customers by delivering intelligent solutions through Talent, Technology & Transformation. As the largest shared services organisation in the global telco industry with 30,000 FTE, our portfolio of next-generation solutions and services are designed in partnership with customers across Vodafone Group, local markets, and partner markets to simplify and drive growth. With our strategic par",
+    "db_relevance_score": 10,
+    "ground_truth_score": 12,
+    "ground_truth_reason": "The candidate's skills and background do not match the job requirements. The job requires expertise in network security, Fortigate firewalls, and VOSI, but the candidate's experience is in AI, credit analysis, and banking. This significant mismatch indicates a poor fit for the role."
+  },
+  {
+    "job_id": "4fd8b2dc1f2b8265",
+    "role": "Treasury & Credit Analyst - FTC",
+    "company": "Charlotte Tilbury Beauty",
+    "job_description": "&lt;strong&gt;About Charlotte Tilbury Beauty&lt;br&gt;&lt;br&gt;&lt;/strong&gt;&lt;em&gt;Founded by British makeup artist and beauty entrepreneur Charlotte Tilbury MBE in 2013, Charlotte Tilbury Beauty has revolutionised the face of the global beauty industry by de-coding makeup applications for everyone, everywhere, with an easy-to-use, easy-to-choose, easy-to-gift range. Today, Charlotte Tilbury Beauty continues to break records across countries, channels, and categories and to scale at pace.&lt;br&gt;&lt;br&gt;&lt;/em&gt;&lt;em&gt;Over the last 10 years, Charlotte Tilbury Beauty has experienced exceptional growth and is one of the most talked about brands in the beauty industry and beyond. It has become a global sensation across 50 markets (and growing), with over 2,300 employees global",
+    "db_relevance_score": 40,
+    "ground_truth_score": 40,
+    "ground_truth_reason": "The candidate's skills and experience do not align with the job requirements. The primary mismatch is that the job is in the beauty industry, while the candidate has no apparent background or experience in this domain. Additionally, there is a significant seniority gap between the job requirement (FTC) and the candidate's education background (PGPM). This makes it difficult to assess their fit for the role."
+  },
+  {
+    "job_id": "1c82618e40ff22f9",
+    "role": "Customer Service Support Advisor (Rajarhat, Kolkata, India)",
+    "company": "BT Group",
+    "job_description": "Why this job matters The Customer Service Advisor 2 assists customers across all channels, delivering customer value and success through support excellence and expertise regarding the BT Group's solution portfolio with some supervision. What you\u2019ll be doing 1. Assists in the implementation of specific Customer Service management plans under supervision. 2. Assists in creating value-based relationships with customers to optimise customer service whilst leveraging the BT Group's resource pool, wit",
+    "db_relevance_score": 0,
+    "ground_truth_score": 12,
+    "ground_truth_reason": "This job is a mismatch for the candidate's CV due to its focus on customer service and lack of technical skills. The candidate's background is in AI, product development, and analytics, with no relevant experience or skills in customer-facing roles."
+  },
+  {
+    "job_id": "2cf62b09ce1c3a2a",
+    "role": "Senior BI Analyst (48318)",
+    "company": "Incedo",
+    "job_description": "Career Opportunities: Senior BI Analyst (48318) Requisition ID 48318 -\u00a0Posted - Hyderabad \ue099 Job Description Print Preview Company Overview Incedo is a US-based consulting, data science and technology services firm with over 3000 people helping clients from our six offices across US, Mexico and India. We help our clients achieve competitive advantage through end-to-end digital transformation. Our uniqueness lies in bringing together strong engineering, data science, and design capabilities couple",
+    "db_relevance_score": 12,
+    "ground_truth_score": 20,
+    "ground_truth_reason": "The candidate's CV has a significant mismatch with the job requirements. The candidate lacks experience in Business Intelligence (BI) and Data Analysis, which are crucial for a Senior BI Analyst role. The candidate's skills in Figma, UI/UX, and product development also don't align with the job description, indicating a strong mismatch."
+  },
+  {
+    "job_id": "91d19e377a01f209",
+    "role": "Staff Product Manager - Onboarding and Activation",
+    "company": "HighLevel",
+    "job_description": "Voice of the New Customer: Conduct qualitative research and user interviews to translate early-user insights into  product  requirements and value propositions.",
+    "db_relevance_score": 70,
+    "ground_truth_score": 30,
+    "ground_truth_reason": "The job requires a staff product manager role, which is not present in the candidate's skills or background. The domain of banking and lending is also mismatched with the onboarding and activation job description."
+  },
+  {
+    "job_id": "23d10fc9df65931a",
+    "role": "Business Analyst Intern",
+    "company": "Sarvify Solutions",
+    "job_description": "Assist in gathering and documenting  business  requirements from stakeholders. \n  Good understanding of  business  processes and basic IT concepts.",
+    "db_relevance_score": 43,
+    "ground_truth_score": 12,
+    "ground_truth_reason": "The job description does not mention AI or leadership, which are prominent skills of the candidate. The domain gap between finance (banking) and IT/tech (AI, Figma) also raises concerns, resulting in a low score."
+  },
+  {
+    "job_id": "d97e50e8af310cc4",
+    "role": "Senior Business Analyst",
+    "company": "McLaren Strategic Solutions (MSS)",
+    "job_description": "&lt;p&gt;We are seeking an experienced &lt;strong&gt;Senior Business Analyst&lt;/strong&gt; with strong &lt;strong&gt;US Healthcare domain expertise&lt;/strong&gt; to support enterprise &lt;strong&gt;provider platform modernization and transformation initiatives&lt;/strong&gt;. The role will work closely with Architecture, Engineering, Product, and Operations teams to document current-state systems, analyze provider workflows, and support migration and modernization planning across complex healthcare platforms.&lt;/p&gt;&lt;p&gt; &lt;/p&gt;&lt;p&gt;&lt;strong&gt;Responsibilities&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Conduct &lt;strong&gt;stakeholder discovery sessions&lt;/strong&gt; with business, product, and technology teams to understand provider lifecycle processes (enrollment, credentialin",
+    "db_relevance_score": 30,
+    "ground_truth_score": 27,
+    "ground_truth_reason": "The candidate's CV shows a mix of skills that are not directly relevant to the job description, such as Lending, Credit, Banking, and Figma Essentials certification. The domain expertise in US Healthcare is also missing, making it difficult for the candidate to match the required skills."
+  },
+  {
+    "job_id": "ff948f9bc9f0d8f5",
+    "role": "Development Lead",
+    "company": "FNZ",
+    "job_description": "Role Description This role has been created to: Serve to support the role requirements of senior developers in the Analyst Developer job family. Provide a launching pad for transition into more senior roles in the individual contributor and leadership job families. Support delivery obligations to customers and internal stakeholders. Specific Role Responsibilities Analysis and Design Work with the analyst tester in the creation of user story definitions and acceptance criteria.\u00a0 Utilise your know",
+    "db_relevance_score": 12,
+    "ground_truth_score": 10,
+    "ground_truth_reason": "The candidate has a strong background in AI and product development, but their skills do not match the job requirements. The significant seniority gap between the candidate's education (PGPM) and the job requirement (Development Lead) also makes them less suitable for the role."
+  }
+]

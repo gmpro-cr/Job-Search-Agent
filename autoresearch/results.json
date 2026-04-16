@@ -1,0 +1,11 @@
+[
+  {
+    "experiment": 5,
+    "timestamp": "2026-03-31T20:47:43.831113",
+    "hypothesis": "We can improve ranking accuracy by introducing a scoring criterion that prioritizes seniority gaps for candidates with extensive experience in finance or leadership, while maintaining weightage for technical skills.",
+    "spearman_before": 0.09502929209334537,
+    "spearman_after": 0.015627981085161197,
+    "delta": -0.07940131100818418,
+    "committed": false
+  }
+]

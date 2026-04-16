@@ -19,10 +19,10 @@ def _load_scoring_prompt(role, company, jd, cv_skills, cv_summary):
     try:
         with open(_PROMPT_PATH, "r", encoding="utf-8") as f:
             template = f.read()
-        return template.format(
-            role=role, company=company, jd=jd,
-            cv_skills=cv_skills, cv_summary=cv_summary
-        )
+        for k, v in [("role", role), ("company", company), ("jd", jd),
+                     ("cv_skills", cv_skills), ("cv_summary", cv_summary)]:
+            template = template.replace("{" + k + "}", str(v))
+        return template
     except Exception:
         # Fallback to hardcoded if file missing
         return f"""Score this job against the candidate's CV on a scale of 0-100.

@@ -140,6 +140,13 @@ def fetch_with_selenium(url, timeout=30, retries=3, wait_selector=None):
             from selenium.webdriver.common.by import By
 
             chrome_bin = os.environ.get("CHROME_BIN")
+
+            # macOS fallback: use the standard Chrome install path
+            if not chrome_bin:
+                mac_chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+                if os.path.exists(mac_chrome):
+                    chrome_bin = mac_chrome
+
             chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
 
             if chromedriver_path:
@@ -1364,11 +1371,13 @@ def deduplicate_jobs(jobs):
     return unique
 
 
-def scrape_all_portals(job_titles, locations, config, progress_callback=None):
+def scrape_all_portals(job_titles, locations, config, progress_callback=None, stop_event=None):
     """
     Scrape all enabled portals using threading for parallelism.
     Returns (all_jobs, portal_results) where portal_results is a dict of
     portal_name -> {"status": "success"/"failed", "count": int, "time": float}.
+    If stop_event is set mid-run, already-running portal threads finish but no
+    new portals are started.
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -1385,6 +1394,8 @@ def scrape_all_portals(job_titles, locations, config, progress_callback=None):
     completed = 0
 
     def run_scraper(portal_name):
+        if stop_event and stop_event.is_set():
+            return portal_name, [], "stopped", 0.0
         start_time = time.time()
         try:
             scraper_fn = SCRAPER_MAP[portal_name]
@@ -1396,12 +1407,13 @@ def scrape_all_portals(job_titles, locations, config, progress_callback=None):
             logger.error("Portal %s failed: %s", portal_name, e)
             return portal_name, [], "failed", elapsed
 
-    # Run health checks first
-    logger.info("Running portal health checks...")
-    for portal_name in enabled_portals:
-        base_url = config["portals"][portal_name].get("base_url", "")
-        if base_url:
-            check_portal_health(portal_name, base_url, config)
+    # Run health checks first (skip if already stopping)
+    if not (stop_event and stop_event.is_set()):
+        logger.info("Running portal health checks...")
+        for portal_name in enabled_portals:
+            base_url = config["portals"][portal_name].get("base_url", "")
+            if base_url:
+                check_portal_health(portal_name, base_url, config)
 
     logger.info("Starting scraping from %d portals with %d threads", total, thread_count)
 

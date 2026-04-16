@@ -89,6 +89,7 @@ scraper_status = {
     "finished_at": None,
 }
 scraper_lock = threading.Lock()
+_scraper_stop_event = threading.Event()   # set() to request stop
 
 # ---------------------------------------------------------------------------
 # AI agent run state
@@ -161,34 +162,344 @@ def _scheduled_pipeline_run():
         logger.error("AI agent pipeline error in scheduler: %s", e)
 
 
+_HR_EMAIL_DIR = os.path.join(os.path.expanduser("~"), "Documents", "Claude")
+
+
+def _load_hm():
+    """Load hiring_managers module from Documents/Claude via importlib."""
+    import importlib.util as _ilu
+    spec = _ilu.spec_from_file_location("hiring_managers",
+                                         os.path.join(_HR_EMAIL_DIR, "hiring_managers.py"))
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _load_gmail():
+    """Load send_gmail module from Documents/Claude via importlib."""
+    import importlib.util as _ilu
+    spec = _ilu.spec_from_file_location("send_gmail",
+                                         os.path.join(_HR_EMAIL_DIR, "send_gmail.py"))
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _run_hr_email(reminder_id: str):
+    """Send daily HR email for a specific reminder (called by scheduler or on-demand)."""
+    from datetime import date as _date
+    from reminder_runner import load_reminders, save_reminders
+
+    all_reminders = load_reminders()
+    reminder = next((r for r in all_reminders if r.get("id") == reminder_id), None)
+    if not reminder:
+        logger.error("HR email: reminder %s not found", reminder_id)
+        return
+
+    try:
+        hm    = _load_hm()
+        gmail = _load_gmail()
+
+        cv_data       = reminder.get("cv_data") or {}
+        skills        = cv_data.get("skills") or []
+        raw_text      = (cv_data.get("raw_text") or "")[:500]
+        role_keywords = [k.strip() for k in reminder.get("keyword", "").split(",") if k.strip()]
+        location      = reminder.get("hr_location") or "India"
+        recipient     = reminder.get("email", "")
+        user_name     = reminder.get("name", "")
+
+        sent     = hm.load_hr_sent(reminder_id)
+        contacts = hm.get_new_hiring_managers(
+            sent, role_keywords=role_keywords, skills=skills,
+            location=location, target=5
+        )
+
+        today_str = _date.today().strftime("%A, %d %B %Y")
+        body = (
+            f"Hi! 👋\n\nHere is your daily hiring manager digest for {today_str}.\n\n"
+            "Below are recruiters actively hiring for your target roles —\n"
+            "none of these have been sent to you before.\n\n"
+            "Reach out via LinkedIn today and track your responses.\n"
+        ) + hm.format_hiring_section(contacts, user_name=user_name,
+                                      user_summary=raw_text,
+                                      role_keywords=role_keywords)
+
+        subject = f"🎯 Daily Hiring Managers — {_date.today().strftime('%d %b %Y')} ({len(contacts)} new contacts)"
+        gmail.send_email(to=recipient, subject=subject, body=body)
+        if contacts:
+            hm.update_hr_sent(reminder_id, contacts)
+
+        # Update last_hr_sent timestamp
+        for r in all_reminders:
+            if r.get("id") == reminder_id:
+                r["last_hr_sent"] = _date.today().isoformat()
+                break
+        save_reminders(all_reminders)
+        logger.info("HR email sent for reminder %s (%d contacts) to %s", reminder_id, len(contacts), recipient)
+    except Exception as e:
+        logger.error("HR email failed for reminder %s: %s", reminder_id, e)
+
+
+def _reschedule_hr_jobs():
+    """
+    Register UI-only placeholder jobs in APScheduler for the /api/scheduler/jobs
+    display. Actual HR email execution is handled by the simple scheduler loop.
+    """
+    if not _scheduler:
+        return
+    from apscheduler.triggers.cron import CronTrigger
+    from reminder_runner import load_reminders
+
+    try:
+        reminders = load_reminders()
+    except Exception:
+        return
+
+    for r in reminders:
+        rid    = r.get("id", "")
+        job_id = f"hr_email_{rid}"
+        try:
+            enabled = r.get("hr_email_enabled", False)
+            hour   = int(r.get("hr_email_hour") or 11)
+            minute = int(r.get("hr_email_minute") or 0)
+
+            if enabled:
+                _scheduler.add_job(
+                    lambda: None,   # UI display only — simple scheduler fires the real job
+                    trigger=CronTrigger(hour=hour, minute=minute),
+                    id=job_id,
+                    name=f"HR email — {r.get('name', rid)} at {hour:02d}:{minute:02d}",
+                    replace_existing=True,
+                )
+                logger.info("HR email scheduled for %s at %02d:%02d", r.get("name", rid), hour, minute)
+            else:
+                try:
+                    _scheduler.remove_job(job_id)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.error("Failed to schedule HR email for reminder %s: %s", rid, e)
+
+
+def _send_prd_email_job():
+    """Scheduled job: generate today's PRD and send it via email."""
+    try:
+        from prd_generator import generate_daily_prd, build_prd_email_html
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        prefs = load_preferences()
+        gmail_address = prefs.get("gmail_address", "").strip()
+        gmail_app_password = prefs.get("gmail_app_password", "").strip()
+        recipient = prefs.get("email", "").strip()
+
+        if not gmail_address or not gmail_app_password:
+            logger.warning("PRD email skipped — Gmail credentials not configured in Settings")
+            return
+        if not recipient:
+            logger.warning("PRD email skipped — no recipient email in Settings")
+            return
+
+        prd = generate_daily_prd()
+        html_body = build_prd_email_html(prd)
+        subject = f"📋 Daily PRD: {prd['product']['name']} ({prd['date']})"
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = gmail_address
+        msg["To"] = recipient
+        msg.attach(MIMEText(html_body, "html"))
+
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(gmail_address, gmail_app_password)
+            server.sendmail(gmail_address, [recipient], msg.as_string())
+
+        logger.info("PRD email sent to %s: %s", recipient, prd["product"]["name"])
+    except Exception as e:
+        logger.error("PRD email job failed: %s", e)
+
+
+def _startup_catchup():
+    """
+    On startup, fire any missed daily emails if we're past their scheduled time
+    and the mail hasn't been sent yet today. Runs in a background thread.
+    """
+    import threading, time as _time
+    from datetime import datetime as _dt, date as _date
+
+    def _run():
+        _time.sleep(5)  # wait for scheduler to settle
+        now = _dt.now()
+        today_str = _date.today().isoformat()
+
+        # ── PRD email: scheduled at 08:00, send if past 08:00 and no cache yet sent ──
+        prd_cache = os.path.join(BASE_DIR, "data", "prds", f"prd_{today_str}.json")
+        prd_sent_flag = os.path.join(BASE_DIR, "data", "prds", f"prd_{today_str}.sent")
+        if now.hour >= 8 and not os.path.exists(prd_sent_flag):
+            logger.info("Startup catch-up: PRD email not sent today — sending now")
+            try:
+                _send_prd_email_job()
+                # Mark as sent
+                open(prd_sent_flag, "w").close()
+            except Exception as e:
+                logger.error("Startup PRD catch-up failed: %s", e)
+        else:
+            logger.info("Startup catch-up: PRD already sent today or before 08:00 — skipping")
+
+        # ── HR emails: scheduled at 11:00 ──
+        if now.hour >= 11:
+            from reminder_runner import load_reminders
+            reminders = load_reminders()  # returns a list of dicts, each with "id" key
+            for r in reminders:
+                if not r.get("hr_email_enabled"):
+                    continue
+                rid = r.get("id", "")
+                last_hr_sent = r.get("last_hr_sent", "")
+                if last_hr_sent and last_hr_sent[:10] == today_str:
+                    continue  # already sent today
+                logger.info("Startup catch-up: HR email for '%s' not sent today — sending now", r.get("name", rid))
+                try:
+                    _run_hr_email(rid)
+                except Exception as e:
+                    logger.error("Startup HR catch-up failed for %s: %s", rid, e)
+        else:
+            logger.info("Startup catch-up: before 11:00 — HR emails will fire on schedule")
+
+    threading.Thread(target=_run, daemon=True).start()
+
+
 def setup_background_scheduler():
-    """Start APScheduler with two fixed daily pipeline runs: 07:00 and 19:00."""
+    """
+    Start a simple time-checker scheduler. Replaces APScheduler to avoid
+    executor-blocking issues caused by long-running scraper jobs.
+
+    The scheduler loop wakes every 60 seconds, checks the current time, and
+    fires jobs that haven't run yet today. Each job runs in its own daemon
+    thread so the loop is never blocked.
+    """
     global _scheduler
+
+    # Keep APScheduler alive for the /api/scheduler/jobs endpoint compatibility
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.cron import CronTrigger
-
         _scheduler = BackgroundScheduler(daemon=True)
-        _scheduler.add_job(
-            _scheduled_pipeline_run,
-            trigger=CronTrigger(hour=7, minute=0),
-            id="morning_pipeline",
-            name="Morning job scraper pipeline at 07:00",
-            replace_existing=True,
-        )
-        _scheduler.add_job(
-            _scheduled_pipeline_run,
-            trigger=CronTrigger(hour=19, minute=0),
-            id="evening_pipeline",
-            name="Evening job scraper pipeline at 19:00",
-            replace_existing=True,
-        )
+        _scheduler.add_job(lambda: None, trigger=CronTrigger(hour=7, minute=0),
+                           id="morning_pipeline",
+                           name="Morning job scraper pipeline at 07:00",
+                           replace_existing=True)
+        _scheduler.add_job(lambda: None, trigger=CronTrigger(hour=19, minute=0),
+                           id="evening_pipeline",
+                           name="Evening job scraper pipeline at 19:00",
+                           replace_existing=True)
+        _scheduler.add_job(lambda: None, trigger=CronTrigger(hour=8, minute=0),
+                           id="daily_prd_email",
+                           name="Daily PRD email at 08:00",
+                           replace_existing=True)
         _scheduler.start()
-        logger.info("Background scheduler started - pipeline runs at 07:00 and 19:00 daily")
-    except ImportError:
-        logger.warning("APScheduler not installed - daily scheduling disabled")
-    except Exception as e:
-        logger.error("Failed to start background scheduler: %s", e)
+    except Exception:
+        pass  # API compatibility only — actual scheduling is done below
+
+    _start_simple_scheduler()
+
+
+def _start_simple_scheduler():
+    """
+    Reliable minute-tick scheduler that fires jobs in isolated daemon threads.
+    Cannot be blocked by long-running jobs.
+    """
+    import threading
+    import time as _time
+    from datetime import datetime as _dt, date as _date
+
+    PRD_HOUR = 8
+    HR_HOUR  = 11
+    MORNING_PIPELINE_HOUR = 7
+    EVENING_PIPELINE_HOUR = 19
+
+    _ran_today: dict = {}   # job_key -> date string of last run
+
+    def _already_ran(key: str, today: str) -> bool:
+        return _ran_today.get(key) == today
+
+    def _mark_ran(key: str, today: str):
+        _ran_today[key] = today
+
+    def _fire(name: str, fn, *args):
+        def _run():
+            try:
+                fn(*args)
+            except Exception as e:
+                logger.error("Simple scheduler job '%s' failed: %s", name, e)
+        t = threading.Thread(target=_run, daemon=True, name=f"job-{name}")
+        t.start()
+
+    def _loop():
+        logger.info("Simple scheduler started — PRD@08:00, HR@11:00, pipeline@07:00/19:00")
+        # Run startup catch-up first
+        _startup_catchup()
+
+        while True:
+            _time.sleep(60)
+            try:
+                now   = _dt.now()
+                today = _date.today().isoformat()
+                h     = now.hour
+
+                # PRD email at 08:00
+                if h >= PRD_HOUR and not _already_ran("prd", today):
+                    prd_sent_flag = os.path.join(BASE_DIR, "data", "prds", f"prd_{today}.sent")
+                    if not os.path.exists(prd_sent_flag):
+                        logger.info("Simple scheduler: firing PRD email")
+                        _mark_ran("prd", today)
+                        def _prd_job(flag=prd_sent_flag):
+                            _send_prd_email_job()
+                            open(flag, "w").close()
+                        _fire("prd_email", _prd_job)
+                    else:
+                        _mark_ran("prd", today)  # already sent, mark to skip
+
+                # HR emails at 11:00
+                if h >= HR_HOUR and not _already_ran("hr", today):
+                    _mark_ran("hr", today)
+                    logger.info("Simple scheduler: firing HR emails")
+                    def _hr_jobs(t=today):
+                        from reminder_runner import load_reminders
+                        for r in load_reminders():
+                            if not r.get("hr_email_enabled"):
+                                continue
+                            rid = r.get("id", "")
+                            last = r.get("last_hr_sent", "")
+                            if last and last[:10] == t:
+                                continue
+                            try:
+                                _run_hr_email(rid)
+                            except Exception as e:
+                                logger.error("HR email failed for %s: %s", rid, e)
+                    _fire("hr_emails", _hr_jobs)
+
+                # Morning pipeline at 07:00
+                if h >= MORNING_PIPELINE_HOUR and h < EVENING_PIPELINE_HOUR and not _already_ran("morning_pipeline", today):
+                    _mark_ran("morning_pipeline", today)
+                    logger.info("Simple scheduler: firing morning pipeline")
+                    _fire("morning_pipeline", _scheduled_pipeline_run)
+
+                # Evening pipeline at 19:00
+                if h >= EVENING_PIPELINE_HOUR and not _already_ran("evening_pipeline", today):
+                    _mark_ran("evening_pipeline", today)
+                    logger.info("Simple scheduler: firing evening pipeline")
+                    _fire("evening_pipeline", _scheduled_pipeline_run)
+
+
+            except Exception as e:
+                logger.error("Simple scheduler loop error: %s", e)
+
+    t = threading.Thread(target=_loop, daemon=True, name="simple-scheduler")
+    t.start()
 
 
 def _run_apollo_enrichment(job_ids):
@@ -234,6 +545,17 @@ def _run_apollo_enrichment(job_ids):
 def _run_scraper_pipeline():
     """Run the full pipeline in a background thread."""
     global scraper_status
+
+    def _stopped():
+        return _scraper_stop_event.is_set()
+
+    def _mark_stopped():
+        with scraper_lock:
+            scraper_status["phase"] = "stopped"
+            scraper_status["finished_at"] = datetime.now().isoformat()
+            scraper_status["running"] = False
+        logger.info("Scraper stopped by user request")
+
     try:
         config = load_config()
         preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
@@ -256,7 +578,12 @@ def _run_scraper_pipeline():
 
         all_jobs, portal_results = scrape_all_portals(
             job_titles, locations, config, progress_callback=scrape_cb,
+            stop_event=_scraper_stop_event,
         )
+
+        if _stopped():
+            _mark_stopped()
+            return
 
         with scraper_lock:
             scraper_status["total_jobs"] = len(all_jobs)
@@ -269,6 +596,9 @@ def _run_scraper_pipeline():
             return
 
         # Phase 2: Analyze
+        if _stopped():
+            _mark_stopped()
+            return
         with scraper_lock:
             scraper_status["phase"] = "analyzing"
 
@@ -723,6 +1053,7 @@ def _build_jobs_query(filters):
         "date_desc": "date_found DESC",
         "date_asc": "date_found ASC",
         "company_asc": "company ASC",
+        "cv_score_desc": "cv_score DESC",
     }
     order = sort_map.get(sort, "date_found DESC")
 
@@ -753,10 +1084,22 @@ def jobs():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Fetch all matching jobs (no pagination)
+    # Pagination params
+    try:
+        page = int(request.args.get("page", 1))
+    except ValueError:
+        page = 1
+    per_page = 25
+    offset = (page - 1) * per_page
+
+    # Fetch total count
+    cursor.execute(f"SELECT COUNT(*) as count FROM job_listings{where}", params)
+    total = cursor.fetchone()["count"]
+
+    # Fetch paginated matching jobs
     cursor.execute(
-        f"SELECT * FROM job_listings{where} ORDER BY {order}",
-        params,
+        f"SELECT * FROM job_listings{where} ORDER BY {order} LIMIT ? OFFSET ?",
+        params + [per_page, offset],
     )
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
@@ -765,19 +1108,20 @@ def jobs():
     cv_data = load_cv_data()
     cv_uploaded = cv_data is not None
     if cv_uploaded:
+        # Dynamic missing skills analysis ONLY (score already pre-computed or we just rely on cv_score)
         for job in rows:
             gap = compute_gap_analysis(job, cv_data)
             job["_missing_top3"] = gap.get("missing_skills", [])[:3]
-            job["_cv_score"] = gap.get("cv_score", 0)
-        # Re-sort by CV match score if requested (can't do in SQL)
-        if filters.get("sort") == "cv_score_desc":
-            rows.sort(key=lambda j: j.get("_cv_score", 0), reverse=True)
+            # Since we're paginated, we rely on the db column `cv_score` for sorting
+            # But let's also pass the computed score incase it changed
+            job["_cv_score"] = gap.get("cv_score", job.get("cv_score", 0))
     else:
         for job in rows:
             job["_missing_top3"] = []
             job["_cv_score"] = 0
 
-    total = len(rows)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("ajax") == "1":
+        return render_template("_job_card_list.html", jobs=rows, cv_uploaded=cv_uploaded, offset=offset)
 
     # Get distinct portals for filter dropdown
     conn2 = get_connection()
@@ -975,7 +1319,7 @@ def tailored_points(job_id):
 
 @app.route("/scraper")
 def scraper():
-    return render_template("scraper.html")
+    return render_template("scraper.html", config=load_config())
 
 
 @app.route("/api/jobs/import", methods=["POST"])
@@ -1028,6 +1372,32 @@ def import_jobs():
     return jsonify({"ok": True, "inserted": inserted, "skipped": skipped, "alerts": alert_count})
 
 
+@app.route("/api/portals/update", methods=["POST"])
+def update_portals():
+    """Enable or disable job portals. Persists to config.json."""
+    data = request.get_json(force=True) or {}
+    enabled_portals = data.get("enabled", [])   # list of portal names to enable
+
+    config_path = os.path.join(BASE_DIR, "config.json")
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+    except Exception:
+        config = load_config()
+
+    all_portal_names = list(config.get("portals", {}).keys())
+    for name in all_portal_names:
+        config["portals"][name]["enabled"] = (name in enabled_portals)
+
+    # Atomic write — temp file then rename so a crash never corrupts config.json
+    tmp_path = config_path + ".tmp"
+    with open(tmp_path, "w") as f:
+        json.dump(config, f, indent=2)
+    os.replace(tmp_path, config_path)
+
+    return jsonify({"ok": True, "enabled": enabled_portals})
+
+
 @app.route("/api/scraper/start", methods=["POST"])
 def start_scraper():
     if _IS_VERCEL:
@@ -1051,8 +1421,21 @@ def start_scraper():
             "started_at": datetime.now().isoformat(),
             "finished_at": None,
         }
+    _scraper_stop_event.clear()
     t = threading.Thread(target=_run_scraper_pipeline, daemon=True)
     t.start()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/scraper/stop", methods=["POST"])
+def stop_scraper():
+    global scraper_status
+    with scraper_lock:
+        if not scraper_status["running"]:
+            return jsonify({"ok": False, "error": "Scraper is not running"}), 409
+    _scraper_stop_event.set()
+    with scraper_lock:
+        scraper_status["phase"] = "stopping"
     return jsonify({"ok": True})
 
 
@@ -1572,6 +1955,11 @@ def reminders_create():
         "enabled": True,
         "last_sent": None,
         "cv_data": cv_data,
+        "hr_email_enabled": False,
+        "hr_email_hour": 11,
+        "hr_email_minute": 0,
+        "hr_location": "",
+        "last_hr_sent": None,
     })
     try:
         save_reminders(all_reminders)
@@ -1691,6 +2079,54 @@ def reminders_update_cv(reminder_id):
     return redirect(url_for("reminders"))
 
 
+@app.route("/reminders/<reminder_id>/hr-toggle", methods=["POST"])
+def reminders_hr_toggle(reminder_id):
+    """Enable or disable HR email for a reminder."""
+    from reminder_runner import load_reminders, save_reminders
+    all_reminders = load_reminders()
+    for r in all_reminders:
+        if r.get("id") == reminder_id:
+            r["hr_email_enabled"] = not r.get("hr_email_enabled", False)
+            break
+    save_reminders(all_reminders)
+    _reschedule_hr_jobs()
+    return redirect(url_for("reminders"))
+
+
+@app.route("/reminders/<reminder_id>/hr-schedule", methods=["POST"])
+def reminders_hr_schedule(reminder_id):
+    """Update HR email send time for a reminder."""
+    from reminder_runner import load_reminders, save_reminders
+    try:
+        hour   = max(0, min(23, int(request.form.get("hr_hour", 11))))
+        minute = max(0, min(59, int(request.form.get("hr_minute", 0))))
+        location = request.form.get("hr_location", "").strip()
+    except (ValueError, TypeError):
+        flash("Invalid time values.", "error")
+        return redirect(url_for("reminders"))
+    all_reminders = load_reminders()
+    for r in all_reminders:
+        if r.get("id") == reminder_id:
+            r["hr_email_hour"]   = hour
+            r["hr_email_minute"] = minute
+            if location:
+                r["hr_location"] = location
+            break
+    save_reminders(all_reminders)
+    _reschedule_hr_jobs()
+    flash("HR email schedule updated.", "success")
+    return redirect(url_for("reminders"))
+
+
+@app.route("/reminders/<reminder_id>/hr-send", methods=["POST"])
+def reminders_hr_send(reminder_id):
+    """Send HR email right now for a reminder."""
+    import threading
+    threading.Thread(target=_run_hr_email, args=[reminder_id], daemon=True).start()
+    flash("Sending HR email in background — check your inbox in ~1 minute.", "success")
+    return redirect(url_for("reminders"))
+
+
 @app.route("/reminders/<reminder_id>/edit", methods=["POST"])
 def reminders_edit(reminder_id):
     """Update editable fields of an existing reminder."""
@@ -1788,6 +2224,21 @@ def autoresearch_stop():
     return jsonify({"ok": True})
 
 
+@app.route("/api/scheduler/jobs")
+def scheduler_jobs():
+    """List all scheduled jobs and their next run times."""
+    if not _scheduler:
+        return jsonify({"ok": False, "error": "Scheduler not running"})
+    jobs = []
+    for job in _scheduler.get_jobs():
+        jobs.append({
+            "id": job.id,
+            "name": job.name,
+            "next_run": str(job.next_run_time) if job.next_run_time else None,
+        })
+    return jsonify({"ok": True, "jobs": jobs})
+
+
 @app.route("/api/autoresearch/status")
 def autoresearch_status():
     """Poll current loop status (used by UI)."""
@@ -1810,9 +2261,345 @@ def autoresearch_seed():
     return jsonify({"ok": True, "message": "Seeding started in background (takes ~2 min)"})
 
 
+
+
+# ---------------------------------------------------------------------------
+# Agent Pipeline
+# ---------------------------------------------------------------------------
+
+def _parse_pipeline_md(path: str) -> list[dict]:
+    """Parse pipeline.md into a list of job dicts."""
+    if not os.path.exists(path):
+        return []
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    jobs = []
+    # Split on --- separators (after the header comment block)
+    marker = "<!-- Scraper appends entries below this line -->"
+    if marker in content:
+        content = content.split(marker, 1)[1]
+
+    blocks = [b.strip() for b in content.split("---") if b.strip()]
+    for block in blocks:
+        lines = block.splitlines()
+        job = {"company": "", "role": "", "score": 0, "portal": "", "date": "",
+               "url": "", "location": "", "salary": "", "skills": [], "description": ""}
+        for line in lines:
+            line = line.strip()
+            if line.startswith("## "):
+                parts = line[3:].split(" — ", 1)
+                job["company"] = parts[0].strip()
+                job["role"] = parts[1].strip() if len(parts) > 1 else ""
+            elif line.startswith("**Score:**"):
+                import re
+                m = re.search(r'\*\*Score:\*\*\s*(\d+)', line)
+                if m:
+                    job["score"] = int(m.group(1))
+                pm = re.search(r'\*\*Portal:\*\*\s*(\S+)', line)
+                if pm:
+                    job["portal"] = pm.group(1)
+                dm = re.search(r'\*\*Date:\*\*\s*(\S+)', line)
+                if dm:
+                    job["date"] = dm.group(1)
+            elif line.startswith("**URL:**"):
+                job["url"] = line.replace("**URL:**", "").strip()
+            elif line.startswith("**Location:**"):
+                loc_salary = line.replace("**Location:**", "").split("**Salary:**")
+                job["location"] = loc_salary[0].strip()
+                if len(loc_salary) > 1:
+                    job["salary"] = loc_salary[1].strip()
+            elif line.startswith("**Skills:**"):
+                raw = line.replace("**Skills:**", "").strip()
+                job["skills"] = [s.strip() for s in raw.split(",") if s.strip()]
+            elif line.startswith("**Description:**"):
+                pass  # description follows on next lines
+        if job["company"]:
+            jobs.append(job)
+    return jobs
+
+
+def _parse_applications_md(path: str) -> list[dict]:
+    """Parse applications.md tracker table into list of dicts."""
+    if not os.path.exists(path):
+        return []
+    apps = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line.startswith("|") or line.startswith("| #") or line.startswith("|--") or line.startswith("| ---"):
+                continue
+            cols = [c.strip() for c in line.split("|")[1:-1]]
+            if len(cols) >= 6:
+                apps.append({
+                    "num": cols[0], "date": cols[1], "company": cols[2],
+                    "role": cols[3], "score": cols[4], "status": cols[5],
+                    "notes": cols[7] if len(cols) > 7 else "",
+                })
+    return apps
+
+
+@app.route("/pipeline")
+def pipeline():
+    import os
+    career_ops = os.path.join(BASE_DIR, "tmp_career_ops")
+    pipeline_path = os.path.join(career_ops, "data", "pipeline.md")
+    apps_path = os.path.join(career_ops, "data", "applications.md")
+    cv_path = os.path.join(career_ops, "cv.md")
+    profile_path = os.path.join(career_ops, "config", "profile.yml")
+
+    queued_jobs = _parse_pipeline_md(pipeline_path)
+
+    # Check if CV has actual content (not just template)
+    cv_ready = False
+    if os.path.exists(cv_path):
+        cv_text = open(cv_path).read()
+        cv_ready = bool(cv_text.strip()) and "TODO" not in cv_text
+
+    # Check profile completeness
+    profile_ready = False
+    if os.path.exists(profile_path):
+        import yaml
+        try:
+            p = yaml.safe_load(open(profile_path)) or {}
+            name = (p.get("candidate") or {}).get("full_name", "")
+            email = (p.get("candidate") or {}).get("email", "")
+            profile_ready = bool(name and "TODO" not in name and email)
+        except Exception:
+            pass
+
+    applications = _parse_applications_md(apps_path)
+
+    return render_template(
+        "pipeline.html",
+        queued_jobs=queued_jobs,
+        queue_count=len(queued_jobs),
+        applied_count=len(applications),
+        applications=applications,
+        cv_ready=cv_ready,
+        profile_ready=profile_ready,
+        career_ops_path=career_ops,
+    )
+
+
+@app.route("/api/pipeline/open-terminal", methods=["POST"])
+def pipeline_open_terminal():
+    """Open Terminal.app at the career-ops directory (macOS)."""
+    import subprocess
+    career_ops = os.path.join(BASE_DIR, "tmp_career_ops")
+    try:
+        # macOS: open a new Terminal window cd'd into career_ops
+        script = f'tell application "Terminal" to do script "cd {career_ops} && clear && echo \\"Run: claude\\" && echo \\"Then type: /career-ops pipeline\\""'
+        subprocess.Popen(["osascript", "-e", script])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+# ---------------------------------------------------------------------------
+# How it Works
+# ---------------------------------------------------------------------------
+
+@app.route("/how-it-works")
+def how_it_works():
+    return render_template("how_it_works.html")
+
+
+# ---------------------------------------------------------------------------
+# Setup / Profile (career-ops integration)
+# ---------------------------------------------------------------------------
+
+CAREER_OPS_DIR  = os.path.join(BASE_DIR, "tmp_career_ops")
+PROFILE_YML     = os.path.join(CAREER_OPS_DIR, "config", "profile.yml")
+CV_MD           = os.path.join(CAREER_OPS_DIR, "cv.md")
+
+
+def _load_profile() -> dict:
+    """Load profile.yml as a dict with safe nested defaults."""
+    import yaml
+    if not os.path.exists(PROFILE_YML):
+        return {}
+    with open(PROFILE_YML, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
+def _save_profile(data: dict) -> None:
+    import yaml
+    os.makedirs(os.path.dirname(PROFILE_YML), exist_ok=True)
+    with open(PROFILE_YML, "w", encoding="utf-8") as f:
+        yaml.dump(data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+
+
+def _nested(d: dict, *keys, default=None):
+    """Safe nested dict access."""
+    for k in keys:
+        if not isinstance(d, dict):
+            return default
+        d = d.get(k, default)
+    return d if d is not None else default
+
+
+@app.route("/setup", methods=["GET", "POST"])
+def setup_profile():
+    import yaml
+
+    profile = _load_profile()
+
+    # Ensure nested dicts exist for template rendering
+    profile.setdefault("candidate", {})
+    profile.setdefault("narrative", {})
+    profile.setdefault("target_roles", {})
+    profile["target_roles"].setdefault("locations", {})
+    profile.setdefault("compensation", {})
+
+    cv_content = ""
+    if os.path.exists(CV_MD):
+        with open(CV_MD, "r", encoding="utf-8") as f:
+            cv_content = f.read()
+
+    # Detect completeness for the status dots
+    todo_markers = ["TODO", ""]
+    profile_complete = all([
+        profile["candidate"].get("full_name", "TODO") not in todo_markers,
+        profile["candidate"].get("email", "TODO") not in todo_markers,
+        _nested(profile, "narrative", "exit_story", default="TODO") not in todo_markers,
+        _nested(profile, "compensation", "target_range", default="TODO") not in todo_markers,
+    ])
+    cv_complete = bool(cv_content) and "TODO" not in cv_content
+
+    if request.method == "POST":
+        tab = request.form.get("tab", "profile")
+
+        if tab == "profile":
+            profile["candidate"]["full_name"]    = request.form.get("full_name", "").strip()
+            profile["candidate"]["email"]        = request.form.get("email", "").strip()
+            profile["candidate"]["phone"]        = request.form.get("phone", "").strip()
+            profile["candidate"]["location"]     = request.form.get("location", "").strip()
+            profile["candidate"]["linkedin"]     = request.form.get("linkedin", "").strip()
+            profile["candidate"]["portfolio_url"]= request.form.get("portfolio_url", "").strip()
+
+            profile["narrative"]["headline"]     = request.form.get("headline", "").strip()
+            profile["narrative"]["exit_story"]   = request.form.get("exit_story", "").strip()
+            superpowers_raw = request.form.get("superpowers", "")
+            profile["narrative"]["superpowers"]  = [s.strip() for s in superpowers_raw.split(",") if s.strip()]
+
+            # Proof points (parallel arrays from form)
+            names   = request.form.getlist("proof_name[]")
+            urls    = request.form.getlist("proof_url[]")
+            metrics = request.form.getlist("proof_metric[]")
+            proof_points = []
+            for n, u, m in zip(names, urls, metrics):
+                if n.strip():
+                    proof_points.append({"name": n.strip(), "url": u.strip(), "hero_metric": m.strip()})
+            profile["narrative"]["proof_points"] = proof_points
+
+            _save_profile(profile)
+            flash("Profile saved successfully.", "success")
+            return redirect(url_for("setup_profile") + "?tab=profile")
+
+        elif tab == "targets":
+            primary_raw = request.form.get("primary_roles", "")
+            profile["target_roles"]["primary"] = [r.strip() for r in primary_raw.splitlines() if r.strip()]
+
+            locs_raw = request.form.get("locations", "")
+            profile["target_roles"]["locations"]["preferred"] = [l.strip() for l in locs_raw.splitlines() if l.strip()]
+
+            ind_raw = request.form.get("industries", "")
+            profile["target_roles"]["industries"] = [i.strip() for i in ind_raw.splitlines() if i.strip()]
+
+            db_raw = request.form.get("deal_breakers", "")
+            profile["deal_breakers"] = [d.strip() for d in db_raw.splitlines() if d.strip()]
+
+            _save_profile(profile)
+            flash("Target roles saved.", "success")
+            return redirect(url_for("setup_profile") + "?tab=targets")
+
+        elif tab == "comp":
+            profile["compensation"]["target_range"]         = request.form.get("target_range", "").strip()
+            profile["compensation"]["currency"]             = request.form.get("currency", "INR").strip()
+            profile["compensation"]["minimum"]              = request.form.get("minimum", "").strip()
+            profile["compensation"]["location_flexibility"] = request.form.get("location_flexibility", "").strip()
+
+            _save_profile(profile)
+            flash("Compensation details saved.", "success")
+            return redirect(url_for("setup_profile") + "?tab=comp")
+
+        elif tab == "cv":
+            cv_text = request.form.get("cv_content", "")
+            os.makedirs(os.path.dirname(CV_MD), exist_ok=True)
+            with open(CV_MD, "w", encoding="utf-8") as f:
+                f.write(cv_text)
+            flash("CV saved successfully.", "success")
+            return redirect(url_for("setup_profile") + "?tab=cv")
+
+        return redirect(url_for("setup_profile"))
+
+    return render_template(
+        "setup.html",
+        profile=profile,
+        cv_content=cv_content,
+        profile_complete=profile_complete,
+        cv_complete=cv_complete,
+    )
+
+
+# ---------------------------------------------------------------------------
+# PRD Library
+# ---------------------------------------------------------------------------
+
+@app.route("/prds")
+def prd_library():
+    from prd_generator import list_prds, generate_daily_prd
+    prds = list_prds()
+    today_prd = None
+    try:
+        today_prd = generate_daily_prd()
+    except Exception:
+        pass
+    return render_template("prd_library.html", prds=prds, today_prd=today_prd, detail=None)
+
+
+@app.route("/prds/<date_str>")
+def prd_detail(date_str):
+    from prd_generator import PRD_DIR
+    import json
+    cache_path = os.path.join(PRD_DIR, f"prd_{date_str}.json")
+    if not os.path.exists(cache_path):
+        flash("PRD not found.", "error")
+        return redirect(url_for("prd_library"))
+    with open(cache_path) as f:
+        prd = json.load(f)
+    return render_template("prd_library.html", prds=[], today_prd=prd, detail=prd)
+
+
+@app.route("/api/prd/send-now", methods=["POST"])
+def prd_send_now():
+    """Manually trigger today's PRD email."""
+    try:
+        threading.Thread(target=_send_prd_email_job, daemon=True).start()
+        return jsonify({"ok": True, "message": "PRD email queued"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route("/api/prd/<date_str>")
+def prd_json(date_str):
+    from prd_generator import PRD_DIR
+    import json
+    cache_path = os.path.join(PRD_DIR, f"prd_{date_str}.json")
+    if not os.path.exists(cache_path):
+        return jsonify({"error": "not found"}), 404
+    with open(cache_path) as f:
+        return jsonify(json.load(f))
+
+
 # ---------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    # Use FLASK_DEBUG env var so LaunchAgent can force production mode.
+    # Default to debug=True only when not set (i.e. manual terminal run).
+    import os as _os
+    _debug = _os.environ.get("FLASK_DEBUG", "1") == "1"
+    app.run(debug=_debug, port=5001)

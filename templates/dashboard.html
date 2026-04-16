@@ -2,61 +2,69 @@
 {% block title %}Dashboard - Job Search Agent{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-  <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-  <p class="text-gray-500 mt-1">Overview of your job search progress</p>
+<div class="mb-8">
+  <h1 class="text-2xl font-semibold tracking-tight" style="color:#1e1b4b;">Dashboard</h1>
+  <p class="text-sm mt-1" style="color:#6b7280;">Overview of your job search progress</p>
 </div>
 
 <!-- Insight Cards -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
 
   <!-- Unopened high-score jobs -->
-  <a href="/jobs?min_score=75" class="stat-card block hover:shadow-md transition-shadow">
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Unreviewed Gems</p>
-    <p class="text-3xl font-bold {% if insights.unopened_high_score > 0 %}text-indigo-600{% else %}text-gray-900{% endif %} mt-1">
+  <a href="/jobs?min_score=75" class="stat-card block group">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Unreviewed Gems</p>
+    <p class="text-4xl font-bold text-gray-900 mt-2 tracking-tight group-hover:text-teal-600 transition-colors">
       {{ insights.unopened_high_score }}
     </p>
-    <p class="text-xs text-gray-400 mt-1">high-score jobs not yet opened</p>
+    <p class="text-xs text-gray-400 mt-2">high-score jobs not yet opened</p>
   </a>
 
   <!-- Follow-ups overdue -->
-  <a href="/jobs?applied=applied" class="stat-card block hover:shadow-md transition-shadow">
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Follow-ups Due</p>
-    <p class="text-3xl font-bold {% if insights.overdue_followups > 0 %}text-amber-500{% else %}text-gray-900{% endif %} mt-1">
+  <a href="/jobs?applied=applied" class="stat-card block group">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Follow-ups Due</p>
+    <p
+      class="text-4xl font-bold {% if insights.overdue_followups > 0 %}text-amber-600{% else %}text-gray-900{% endif %} mt-2 tracking-tight group-hover:text-amber-500 transition-colors">
       {{ insights.overdue_followups }}
     </p>
-    <p class="text-xs text-gray-400 mt-1">overdue application follow-ups</p>
+    <p class="text-xs text-gray-400 mt-2">overdue application follow-ups</p>
   </a>
 
   <!-- CV match trend -->
   <div class="stat-card">
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">CV Match (7d avg)</p>
-    <p class="text-3xl font-bold text-gray-900 mt-1">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">CV Match (7d avg)</p>
+    <p class="text-4xl font-bold text-gray-900 mt-2 tracking-tight">
       {% if insights.avg_cv_this_week %}{{ insights.avg_cv_this_week }}%{% else %}—{% endif %}
     </p>
     {% if insights.avg_cv_this_week and insights.avg_cv_last_week %}
-      {% set delta = insights.avg_cv_this_week - insights.avg_cv_last_week %}
-      {% if delta > 0 %}
-      <p class="text-xs mt-1 text-green-600 font-medium">↑ {{ "%.1f"|format(delta) }}% vs last week</p>
-      {% elif delta < 0 %}
-      <p class="text-xs mt-1 text-red-500 font-medium">↓ {{ "%.1f"|format(delta|abs) }}% vs last week</p>
+    {% set delta = insights.avg_cv_this_week - insights.avg_cv_last_week %}
+    {% if delta > 0 %}
+    <p class="text-xs mt-2 text-emerald-600 font-medium">↑ {{ "%.1f"|format(delta) }}% vs last week</p>
+    {% elif delta < 0 %} <p class="text-xs mt-2 text-rose-500 font-medium">↓ {{ "%.1f"|format(delta|abs) }}% vs last
+      week</p>
       {% else %}
-      <p class="text-xs mt-1 text-gray-400">same as last week</p>
+      <p class="text-xs mt-2 text-gray-400">same as last week</p>
       {% endif %}
-    {% else %}
-    <p class="text-xs text-gray-400 mt-1">upload CV to track</p>
-    {% endif %}
+      {% else %}
+      <div class="mt-3">
+        <a href="{{ url_for('cv_page') }}"
+          class="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors shadow-sm">
+          Upload CV
+        </a>
+      </div>
+      {% endif %}
   </div>
 
   <!-- Applied / Saved + Top gap skill -->
   <div class="stat-card">
-    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide">Pipeline</p>
-    <p class="text-3xl font-bold text-gray-900 mt-1">
-      {{ stats.applied_count }}<span class="text-lg text-gray-400"> / {{ stats.saved_count }}</span>
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Pipeline</p>
+    <p class="text-4xl font-bold text-gray-900 mt-2 tracking-tight">
+      {{ stats.applied_count }}<span class="text-xl text-gray-400 font-medium ml-1">/ {{ stats.saved_count }}</span>
     </p>
-    <p class="text-xs text-gray-400 mt-1">applied / saved · <a href="{{ url_for('jobs') }}" class="text-indigo-500 hover:underline">browse →</a></p>
+    <p class="text-xs text-gray-400 mt-2">applied / saved · <a href="{{ url_for('jobs') }}"
+        class="text-teal-600 hover:text-teal-700 font-medium hover:underline transition-colors">browse &rarr;</a>
+    </p>
     {% if insights.top_missing_skill %}
-    <p class="text-xs text-amber-600 mt-2">Top gap: <strong>{{ insights.top_missing_skill }}</strong></p>
+    <p class="text-xs text-amber-600 font-medium mt-1">Top gap: {{ insights.top_missing_skill }}</p>
     {% endif %}
   </div>
 
@@ -64,114 +72,134 @@
 
 <!-- Recommended Actions -->
 {% if recommendations %}
-<div class="bg-white rounded-lg shadow mb-6">
-  <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-    <h2 class="text-lg font-semibold text-gray-900">Recommended Actions</h2>
-    <div class="flex items-center gap-3 text-xs text-gray-400">
-      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Urgent</span>
-      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> Follow-up</span>
-      <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span> Opportunity</span>
+<div class="glass-panel mb-8 overflow-hidden">
+  <div class="glass-panel-header flex items-center justify-between">
+    <h2 class="text-sm font-bold tracking-wide text-gray-900 uppercase">Recommended Actions</h2>
+    <div class="flex items-center gap-4 text-xs font-medium text-gray-500">
+      <span class="flex items-center gap-1.5"><span
+          class="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)] block"></span> Urgent</span>
+      <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500 block"></span>
+        Follow-up</span>
+      <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-500 block"></span>
+        Opportunity</span>
     </div>
   </div>
-  <div class="p-5 space-y-3">
+  <div class="p-3">
     {% for rec in recommendations %}
-    <a href="{{ rec.link }}" class="flex items-start space-x-3 p-3 rounded-md hover:bg-gray-50 transition-colors">
+    <a href="{{ rec.link }}"
+      class="group flex items-center justify-between px-4 py-3.5 my-1 rounded-xl transition-all duration-200 {% if rec.type == 'action' %}bg-rose-50/40 hover:bg-rose-50 text-rose-900{% else %}hover:bg-gray-50 text-gray-700{% endif %}">
+      <div class="flex items-center gap-3.5">
+        {% if rec.type == 'action' %}
+        <span class="flex-shrink-0 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)] block"></span>
+        {% elif rec.type == 'reminder' %}
+        <span class="flex-shrink-0 w-2 h-2 rounded-full bg-amber-500 block"></span>
+        {% else %}
+        <span class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 block"></span>
+        {% endif %}
+        <span class="text-sm font-medium">{{ rec.text }}</span>
+      </div>
       {% if rec.type == 'action' %}
-      <span class="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-red-500"></span>
-      {% elif rec.type == 'reminder' %}
-      <span class="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-amber-500"></span>
+      <span
+        class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-100/80 text-rose-700 uppercase tracking-widest transition-transform group-hover:scale-105">Urgent</span>
       {% else %}
-      <span class="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-blue-500"></span>
+      <span class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </span>
       {% endif %}
-      <span class="text-sm text-gray-700">{{ rec.text }}</span>
     </a>
     {% endfor %}
   </div>
 </div>
 {% endif %}
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
   <!-- Portal Quality -->
-  <div class="lg:col-span-2 bg-white rounded-lg shadow">
-    <div class="px-5 py-4 border-b border-gray-200">
-      <h2 class="text-lg font-semibold text-gray-900">Portal Quality</h2>
+  <div class="lg:col-span-2 glass-panel overflow-hidden">
+    <div class="glass-panel-header">
+      <h2 class="text-sm font-bold tracking-wide text-gray-900 uppercase">Portal Quality</h2>
     </div>
-    <div class="p-5">
+    <div class="px-6 py-4">
       {% if portal_quality %}
       <table class="w-full text-sm">
         <thead>
-          <tr class="text-left text-gray-500 border-b">
-            <th class="pb-2 font-medium">Portal</th>
-            <th class="pb-2 font-medium text-right">Total</th>
-            <th class="pb-2 font-medium text-right">Avg Score</th>
-            <th class="pb-2 font-medium text-right">Best</th>
-            <th class="pb-2 font-medium text-right">Quality*</th>
+          <tr class="text-left text-gray-400 font-medium">
+            <th class="pb-3 pt-2">Portal</th>
+            <th class="pb-3 pt-2 text-right">Total</th>
+            <th class="pb-3 pt-2 text-right">Avg Score</th>
+            <th class="pb-3 pt-2 text-right">Best</th>
+            <th class="pb-3 pt-2 text-right">Quality*</th>
           </tr>
         </thead>
         <tbody>
           {% for p in portal_quality %}
-          <tr class="border-b border-gray-100">
-            <td class="py-2 font-medium text-gray-900">{{ p.portal }}</td>
-            <td class="py-2 text-right text-gray-700">{{ p.total_jobs }}</td>
-            <td class="py-2 text-right">
-              <span class="inline-block px-2 py-0.5 rounded text-xs font-medium
-                {% if p.avg_score >= 70 %}bg-green-100 text-green-800
-                {% elif p.avg_score >= 50 %}bg-yellow-100 text-yellow-800
-                {% else %}bg-gray-100 text-gray-700{% endif %}">
+          <tr class="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+            <td class="py-3.5 font-semibold text-gray-900">{{ p.portal }}</td>
+            <td class="py-3.5 text-right text-gray-500">{{ p.total_jobs }}</td>
+            <td class="py-3.5 text-right">
+              <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold
+                {% if p.avg_score >= 70 %}bg-emerald-50 text-emerald-700
+                {% elif p.avg_score >= 50 %}bg-amber-50 text-amber-700
+                {% else %}bg-gray-100 text-gray-600{% endif %}">
                 {{ p.avg_score }}
               </span>
             </td>
-            <td class="py-2 text-right text-gray-700">{{ p.max_score }}</td>
-            <td class="py-2 text-right text-gray-700">{{ p.quality_jobs }}</td>
+            <td class="py-3.5 text-right text-gray-500">{{ p.max_score }}</td>
+            <td class="py-3.5 text-right text-gray-500 font-medium">{{ p.quality_jobs }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
-      <p class="text-xs text-gray-400 mt-2">* Quality = score >= 65</p>
+      <p class="text-xs text-gray-400 mt-4">* Quality = score &ge; 65</p>
       {% else %}
-      <p class="text-gray-500 text-sm">No data yet. Run the scraper first.</p>
+      <div class="py-8 text-center">
+        <p class="text-gray-400 text-sm">No data yet. Run the scraper first.</p>
+      </div>
       {% endif %}
     </div>
   </div>
 
   <!-- Top Companies & Roles -->
-  <div class="space-y-6">
-    <div class="bg-white rounded-lg shadow">
-      <div class="px-5 py-4 border-b border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-900">Top Companies</h2>
+  <div class="space-y-8">
+    <div class="glass-panel overflow-hidden">
+      <div class="glass-panel-header">
+        <h2 class="text-sm font-bold tracking-wide text-gray-900 uppercase">Top Companies</h2>
       </div>
-      <div class="p-5">
+      <div class="px-6 py-5">
         {% if stats.top_companies %}
-        <ul class="space-y-2">
+        <ul class="space-y-4">
           {% for company, count in stats.top_companies %}
-          <li class="flex justify-between items-center">
-            <span class="text-sm text-gray-700 truncate">{{ company }}</span>
-            <span class="text-xs font-medium bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{{ count }}</span>
+          <li class="flex justify-between items-center group">
+            <span class="text-sm font-medium text-gray-700 truncate group-hover:text-gray-900 transition-colors">{{
+              company }}</span>
+            <span class="text-xs font-bold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md">{{ count }}</span>
           </li>
           {% endfor %}
         </ul>
         {% else %}
-        <p class="text-gray-500 text-sm">No data yet.</p>
+        <p class="text-gray-400 text-sm text-center py-4">No data yet.</p>
         {% endif %}
       </div>
     </div>
 
-    <div class="bg-white rounded-lg shadow">
-      <div class="px-5 py-4 border-b border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-900">Top Roles</h2>
+    <div class="glass-panel overflow-hidden">
+      <div class="glass-panel-header">
+        <h2 class="text-sm font-bold tracking-wide text-gray-900 uppercase">Top Roles</h2>
       </div>
-      <div class="p-5">
+      <div class="px-6 py-5">
         {% if stats.top_roles %}
-        <ul class="space-y-2">
+        <ul class="space-y-4">
           {% for role, count in stats.top_roles %}
-          <li class="flex justify-between items-center">
-            <span class="text-sm text-gray-700 truncate">{{ role }}</span>
-            <span class="text-xs font-medium bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{{ count }}</span>
+          <li class="flex justify-between items-center group">
+            <span class="text-sm font-medium text-gray-700 truncate group-hover:text-gray-900 transition-colors">{{ role
+              }}</span>
+            <span class="text-xs font-bold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md">{{ count }}</span>
           </li>
           {% endfor %}
         </ul>
         {% else %}
-        <p class="text-gray-500 text-sm">No data yet.</p>
+        <p class="text-gray-400 text-sm text-center py-4">No data yet.</p>
         {% endif %}
       </div>
     </div>
@@ -179,93 +207,67 @@
 </div>
 
 <!-- Application Pipeline & Best Categories -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
   <!-- Application Pipeline -->
-  <div class="bg-white rounded-lg shadow">
-    <div class="px-5 py-4 border-b border-gray-200">
-      <h2 class="text-lg font-semibold text-gray-900">Application Pipeline</h2>
-      <p class="text-xs text-gray-400 mt-0.5">Excludes unreviewed "New" jobs</p>
+  <div class="glass-panel overflow-hidden flex flex-col">
+    <div class="glass-panel-header flex items-baseline justify-between mb-4">
+      <h2 class="text-sm font-bold tracking-wide text-gray-900 uppercase">Application Pipeline</h2>
+      <p class="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Excl. New</p>
     </div>
-    <div class="p-5">
+    <div class="px-6 pb-6 flex-1 flex flex-col justify-center">
       {% if pipeline %}
-        {% set tracked_stages = ['Applied', 'Saved', 'Phone Screen', 'Interview', 'Offer', 'Rejected'] %}
-        {% set pipe_colors = {
-          'Applied': 'bg-green-400', 'Saved': 'bg-blue-300',
-          'Phone Screen': 'bg-cyan-400', 'Interview': 'bg-orange-400',
-          'Offer': 'bg-emerald-500', 'Rejected': 'bg-red-300'
-        } %}
-        {% set tracked_values = [] %}
-        {% for stage in tracked_stages %}
-          {% if pipeline.get(stage, 0) > 0 %}{% set _ = tracked_values.append(pipeline.get(stage, 0)) %}{% endif %}
-        {% endfor %}
-        {% set pipe_max = tracked_values | max if tracked_values else 1 %}
-        {% set total_tracked = tracked_values | sum if tracked_values else 0 %}
-
-        {% if total_tracked > 0 %}
-        <div class="space-y-3">
-          {% for stage in tracked_stages %}
-          {% set count = pipeline.get(stage, 0) %}
-          <div>
-            <div class="flex justify-between text-sm mb-1">
-              <span class="text-gray-700">{{ stage }}</span>
-              <span class="font-medium text-gray-900">{{ count }}</span>
-            </div>
-            <div class="w-full bg-gray-100 rounded-full h-2">
-              <div class="{{ pipe_colors.get(stage, 'bg-gray-300') }} h-2 rounded-full" style="width: {{ (count / pipe_max * 100) if pipe_max > 0 and count > 0 else 0 }}%"></div>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-        {% else %}
-        <div class="text-center py-6">
-          <p class="text-gray-400 text-sm">No applications tracked yet.</p>
-          <a href="{{ url_for('jobs') }}" class="mt-3 inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-            Browse jobs and start applying →
-          </a>
-        </div>
-        {% endif %}
+      <div class="w-full h-[250px] relative">
+        <canvas id="pipelineChart"></canvas>
+      </div>
       {% else %}
-      <p class="text-gray-500 text-sm">No pipeline data yet.</p>
+      <div class="text-center py-8">
+        <p class="text-gray-400 text-sm">No applications tracked yet.</p>
+        <a href="{{ url_for('jobs') }}" class="mt-4 inline-flex items-center gap-1 text-sm text-teal-600 hover:text-indigo-800 font-semibold transition-colors">
+          Browse jobs and start applying &rarr;
+        </a>
+      </div>
       {% endif %}
     </div>
   </div>
 
   <!-- Best Matching Categories -->
-  <div class="bg-white rounded-lg shadow">
-    <div class="px-5 py-4 border-b border-gray-200">
-      <h2 class="text-lg font-semibold text-gray-900">Best Matching Categories</h2>
+  <div class="glass-panel overflow-hidden">
+    <div class="glass-panel-header">
+      <h2 class="text-sm font-bold tracking-wide text-gray-900 uppercase">Best Matching Categories</h2>
     </div>
-    <div class="p-5">
+    <div class="px-6 py-4">
       {% if categories %}
       <table class="w-full text-sm">
         <thead>
-          <tr class="text-left text-gray-500 border-b">
-            <th class="pb-2 font-medium">Category</th>
-            <th class="pb-2 font-medium text-right">Jobs</th>
-            <th class="pb-2 font-medium text-right">Avg Score</th>
-            <th class="pb-2 font-medium text-right">Applied</th>
+          <tr class="text-left text-gray-400 font-medium">
+            <th class="pb-3 pt-2">Category</th>
+            <th class="pb-3 pt-2 text-right">Jobs</th>
+            <th class="pb-3 pt-2 text-right">Avg Score</th>
+            <th class="pb-3 pt-2 text-right">Applied</th>
           </tr>
         </thead>
         <tbody>
           {% for cat in categories %}
-          <tr class="border-b border-gray-100">
-            <td class="py-2 font-medium text-gray-900">{{ cat.category }}</td>
-            <td class="py-2 text-right text-gray-700">{{ cat.total }}</td>
-            <td class="py-2 text-right">
-              <span class="inline-block px-2 py-0.5 rounded text-xs font-medium
-                {% if cat.avg_score >= 70 %}bg-green-100 text-green-800
-                {% elif cat.avg_score >= 50 %}bg-yellow-100 text-yellow-800
-                {% else %}bg-gray-100 text-gray-700{% endif %}">
+          <tr class="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+            <td class="py-3.5 font-semibold text-gray-900">{{ cat.category }}</td>
+            <td class="py-3.5 text-right text-gray-500">{{ cat.total }}</td>
+            <td class="py-3.5 text-right">
+              <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold
+                {% if cat.avg_score >= 70 %}bg-emerald-50 text-emerald-700
+                {% elif cat.avg_score >= 50 %}bg-amber-50 text-amber-700
+                {% else %}bg-gray-100 text-gray-600{% endif %}">
                 {{ cat.avg_score }}
               </span>
             </td>
-            <td class="py-2 text-right text-gray-700">{{ cat.applied }}</td>
+            <td class="py-3.5 text-right text-gray-500 font-medium">{{ cat.applied }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
       {% else %}
-      <p class="text-gray-500 text-sm">No data yet.</p>
+      <div class="py-8 text-center">
+        <p class="text-gray-400 text-sm">No data yet.</p>
+      </div>
       {% endif %}
     </div>
   </div>
@@ -273,31 +275,122 @@
 
 <!-- Application Activity -->
 {% if activity %}
-<div class="mt-6 bg-white rounded-lg shadow">
-  <div class="px-5 py-4 border-b border-gray-200">
-    <h2 class="text-lg font-semibold text-gray-900">Recent Activity (Last 14 Days)</h2>
+<div class="mt-8 glass-panel overflow-hidden mb-10">
+  <div class="glass-panel-header flex items-center gap-2">
+    <h2 class="text-sm font-bold tracking-wide text-gray-900 uppercase">Recent Activity</h2>
+    <span class="text-[10px] text-gray-400 font-medium uppercase tracking-wider">(Last 14 Days)</span>
   </div>
-  <div class="p-5">
-    <div class="grid grid-cols-7 gap-2 text-center">
-      {% for day in activity | reverse %}
-      <div class="flex flex-col items-center">
-        <div class="text-xs text-gray-400 mb-1">{{ day.day[5:] }}</div>
-        <div class="w-full bg-gray-100 rounded-md relative" style="height: 60px;">
-          {% set max_found = activity | map(attribute='found') | max if activity else 1 %}
-          <div class="absolute bottom-0 left-0 right-0 bg-indigo-200 rounded-md" style="height: {{ (day.found / max_found * 100) if max_found > 0 else 0 }}%"></div>
-          {% if day.acted_on > 0 %}
-          <div class="absolute bottom-0 left-0 right-0 bg-green-400 rounded-md" style="height: {{ (day.acted_on / max_found * 100) if max_found > 0 else 0 }}%"></div>
-          {% endif %}
-        </div>
-        <div class="text-xs font-medium text-gray-700 mt-1">{{ day.found }}</div>
-      </div>
-      {% endfor %}
-    </div>
-    <div class="flex items-center gap-4 mt-3 text-xs text-gray-500">
-      <div class="flex items-center gap-1"><span class="w-3 h-3 bg-indigo-200 rounded"></span> Found</div>
-      <div class="flex items-center gap-1"><span class="w-3 h-3 bg-green-400 rounded"></span> Acted On</div>
+  <div class="px-6 py-6">
+    <div class="w-full h-[300px] relative">
+      <canvas id="activityChart"></canvas>
     </div>
   </div>
 </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if pipeline or activity %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  Chart.defaults.font.family = "'Outfit', sans-serif";
+  Chart.defaults.color = '#6b7280';
+
+  {% if pipeline %}
+  const pipeCtx = document.getElementById('pipelineChart').getContext('2d');
+  const pipeData = {
+    labels: ['Applied', 'Saved', 'Phone Screen', 'Interview', 'Offer', 'Rejected'],
+    datasets: [{
+      label: 'Applications',
+      data: [
+        {{ pipeline.get('Applied', 0) }},
+        {{ pipeline.get('Saved', 0) }},
+        {{ pipeline.get('Phone Screen', 0) }},
+        {{ pipeline.get('Interview', 0) }},
+        {{ pipeline.get('Offer', 0) }},
+        {{ pipeline.get('Rejected', 0) }}
+      ],
+      backgroundColor: [
+        '#34d399', // emerald-400
+        '#93c5fd', // blue-300
+        '#22d3ee', // cyan-400
+        '#818cf8', // indigo-400
+        '#10b981', // emerald-500
+        '#fca5a5'  // rose-300
+      ],
+      borderRadius: 4,
+      barThickness: 16
+    }]
+  };
+  new Chart(pipeCtx, {
+    type: 'bar',
+    data: pipeData,
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: { beginAtZero: true, grid: { display: false } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+  {% endif %}
+
+  {% if activity %}
+  const actCtx = document.getElementById('activityChart').getContext('2d');
+  const actData = {
+    labels: [
+      {% for day in activity | reverse %}
+      '{{ day.day[5:] }}'{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ],
+    datasets: [
+      {
+        label: 'Acted On',
+        data: [
+          {% for day in activity | reverse %}
+          {{ day.acted_on }}{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ],
+        backgroundColor: '#6366f1',
+        borderRadius: 4,
+        stack: 'Stack 0'
+      },
+      {
+        label: 'Found',
+        data: [
+          {% for day in activity | reverse %}
+          {{ day.found - day.acted_on }}{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ],
+        backgroundColor: '#e5e7eb',
+        borderRadius: 4,
+        stack: 'Stack 0'
+      }
+    ]
+  };
+  new Chart(actCtx, {
+    type: 'bar',
+    data: actData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false } },
+        y: { stacked: true, beginAtZero: true, border: { dash: [4, 4] } }
+      }
+    }
+  });
+  {% endif %}
+});
+</script>
 {% endif %}
 {% endblock %}

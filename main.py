@@ -43,6 +43,7 @@ from scrapers import scrape_all_portals
 from analyzer import analyze_jobs
 from digest_generator import generate_digest, get_latest_digest
 from scheduler import setup_scheduler
+from queue_exporter import export_to_pipeline
 
 # =============================================================================
 # Paths
@@ -130,12 +131,15 @@ DEFAULT_PREFS = {
     "telegram_bot_token": "",
     "telegram_chat_id": "",
     "telegram_min_score": 65,
-    "agent_score_threshold": 60,   # min LLM score to include a job in outreach
+    "agent_score_threshold": 50,   # min LLM score to include a job in outreach
+    "agent_job_cap": 200,          # max jobs fetched per agent run
     "agent_host": "http://localhost:5001",  # base URL for approve/skip links in email
+    "linkedin_email": "",
+    "linkedin_password": "",
 }
 
 # Keys that should be stored in .env, not in user_preferences.json
-_CREDENTIAL_KEYS = {"gmail_app_password", "telegram_bot_token", "apollo_api_key"}
+_CREDENTIAL_KEYS = {"gmail_app_password", "telegram_bot_token", "apollo_api_key", "linkedin_password"}
 
 
 def load_preferences():
@@ -153,6 +157,7 @@ def save_preferences(prefs):
         "gmail_app_password": "GMAIL_APP_PASSWORD",
         "telegram_bot_token": "TELEGRAM_BOT_TOKEN",
         "apollo_api_key": "APOLLO_API_KEY",
+        "linkedin_password": "LINKEDIN_PASSWORD",
     }
     for pref_key, env_key in env_cred_map.items():
         if os.environ.get(env_key):
@@ -170,6 +175,8 @@ def apply_env_overrides(prefs):
         "TELEGRAM_BOT_TOKEN": "telegram_bot_token",
         "TELEGRAM_CHAT_ID": "telegram_chat_id",
         "APOLLO_API_KEY": "apollo_api_key",
+        "LINKEDIN_EMAIL": "linkedin_email",
+        "LINKEDIN_PASSWORD": "linkedin_password",
     }
     for env_key, pref_key in env_map.items():
         val = os.environ.get(env_key)
@@ -363,6 +370,12 @@ def run_pipeline(config, preferences):
     sent_ids = [j.get("job_id") for j in digest_jobs if j.get("job_id")]
     if sent_ids:
         mark_sent_in_digest(sent_ids)
+
+    # --- Step 5: Export top jobs to career-ops pipeline ---
+    try:
+        export_to_pipeline(digest_jobs, max_jobs=top_n)
+    except Exception as e:
+        logger.warning("queue_exporter failed (non-fatal): %s", e)
 
     elapsed = (datetime.now() - start_time).total_seconds()
 

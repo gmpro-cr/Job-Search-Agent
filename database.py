@@ -121,6 +121,7 @@ def init_db():
             role             TEXT,
             hiring_manager   TEXT,
             hm_email         TEXT,
+            hm_linkedin      TEXT,
             email_draft      TEXT,
             linkedin_draft   TEXT,
             approval_token   TEXT UNIQUE,
@@ -128,9 +129,16 @@ def init_db():
             llm_score        INTEGER,
             llm_reason       TEXT,
             created_at       TEXT,
-            sent_at          TEXT
+            sent_at          TEXT,
+            apply_url        TEXT
         )
     """)
+
+    # Add hm_linkedin column to existing outreach_queue tables (idempotent)
+    try:
+        cursor.execute("ALTER TABLE outreach_queue ADD COLUMN hm_linkedin TEXT")
+    except sqlite3.OperationalError:
+        pass
 
     conn.commit()
     conn.close()
@@ -626,6 +634,20 @@ def update_job_contacts(job_id, poster_name, poster_email, poster_phone, poster_
     conn.close()
 
 
+def update_job_description(job_id, job_description):
+    """Update the job_description field only if it is currently empty."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """UPDATE job_listings
+           SET job_description = ?
+           WHERE job_id = ? AND (job_description IS NULL OR job_description = '')""",
+        (job_description, job_id),
+    )
+    conn.commit()
+    conn.close()
+
+
 def dedup_jobs():
     """
     Remove cross-portal / cross-session duplicates from the database.
@@ -1021,20 +1043,21 @@ def insert_outreach_draft(job_id: str, company: str, role: str,
                            hiring_manager: str, hm_email: str,
                            email_draft: str, linkedin_draft: str,
                            approval_token: str, llm_score: int,
-                           llm_reason: str) -> None:
+                           llm_reason: str, apply_url: str = "",
+                           hm_linkedin: str = "") -> None:
     """Insert a new outreach draft into the queue."""
     from datetime import datetime
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
         INSERT OR IGNORE INTO outreach_queue
-        (job_id, company, role, hiring_manager, hm_email,
+        (job_id, company, role, hiring_manager, hm_email, hm_linkedin,
          email_draft, linkedin_draft, approval_token,
-         status, llm_score, llm_reason, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
-    """, (job_id, company, role, hiring_manager, hm_email,
+         status, llm_score, llm_reason, created_at, apply_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+    """, (job_id, company, role, hiring_manager, hm_email, hm_linkedin,
           email_draft, linkedin_draft, approval_token,
-          llm_score, llm_reason, datetime.now().isoformat()))
+          llm_score, llm_reason, datetime.now().isoformat(), apply_url))
     conn.commit()
     conn.close()
 
@@ -1080,3 +1103,46 @@ def get_outreach_queue(status: str = None) -> list[dict]:
     rows = cursor.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def get_outreach_map() -> dict:
+    """
+    Return a dict mapping job_id → outreach info for all entries in the queue.
+    Used by the jobs page to badge cards with draft/sent status without N+1 queries.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """SELECT job_id, status, approval_token, hm_email, hm_linkedin,
+                  linkedin_draft, email_draft, hiring_manager
+           FROM outreach_queue"""
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return {r["job_id"]: dict(r) for r in rows}
+
+
+def update_outreach_draft(token: str, email_draft: str = None,
+                          linkedin_draft: str = None) -> bool:
+    """Update the draft text for an outreach item. Returns True if updated."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    if email_draft is not None and linkedin_draft is not None:
+        cursor.execute(
+            "UPDATE outreach_queue SET email_draft=?, linkedin_draft=? WHERE approval_token=?",
+            (email_draft, linkedin_draft, token)
+        )
+    elif email_draft is not None:
+        cursor.execute(
+            "UPDATE outreach_queue SET email_draft=? WHERE approval_token=?",
+            (email_draft, token)
+        )
+    elif linkedin_draft is not None:
+        cursor.execute(
+            "UPDATE outreach_queue SET linkedin_draft=? WHERE approval_token=?",
+            (linkedin_draft, token)
+        )
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated

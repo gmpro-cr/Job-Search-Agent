@@ -1,92 +1,468 @@
 {% extends "base.html" %}
 {% block title %}Outbox — Job Agent{% endblock %}
 {% block content %}
-<div class="mb-6 flex items-center justify-between">
+<div class="mb-8 flex items-start justify-between gap-4">
   <div>
-    <h1 class="text-2xl font-semibold text-gray-900">Outbox</h1>
-    <p class="text-gray-500 mt-1 text-sm">Agent-drafted cold emails and LinkedIn messages.</p>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#1e1b4b;">Outbox</h1>
+    <p class="mt-1 text-sm font-medium" style="color:#6b7280;">Review and send AI-drafted messages to hiring managers.</p>
   </div>
-  {% if pending %}
-  <span class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold">{{ pending|length }} pending</span>
-  {% endif %}
+  <div class="flex items-center gap-3 flex-shrink-0">
+    {% if pending %}
+    <span
+      class="px-3.5 py-1.5 bg-amber-50 text-amber-700 border border-amber-100/50 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm">{{
+      pending|length }} pending</span>
+    {% endif %}
+    <button id="run-agent-btn" onclick="runAgent()"
+      class="px-5 py-2.5 text-white text-sm font-bold tracking-wide rounded-xl transition-all shadow-sm flex items-center gap-2"
+      style="background:linear-gradient(135deg,#6366f1,#8b5cf6); box-shadow:0 2px 10px rgba(99,102,241,0.32);"
+      onmouseover="this.style.boxShadow='0 6px 20px rgba(99,102,241,0.42)'; this.style.transform='translateY(-1px)'"
+      onmouseout="this.style.boxShadow='0 2px 10px rgba(99,102,241,0.32)'; this.style.transform='translateY(0)'">
+      <svg id="run-agent-spinner" class="hidden animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      </svg>
+      <span id="run-agent-label">Run Agent Now</span>
+    </button>
+  </div>
+</div>
+<div id="agent-status-bar"
+  class="hidden mb-6 px-5 py-3.5 rounded-xl text-sm font-medium shadow-sm"
+  style="background:rgba(99,102,241,0.10); border:1px solid rgba(99,102,241,0.20); color:#4338ca; backdrop-filter:blur(12px);">
 </div>
 
-{% macro outreach_card(item, show_actions) %}
-<div class="bg-white border border-gray-200 rounded-xl p-5 mb-4">
-  <div class="flex items-start justify-between mb-3">
-    <div>
-      <h3 class="font-semibold text-gray-900">{{ item.role }} @ {{ item.company }}</h3>
-      <p class="text-xs text-gray-400 mt-0.5">
-        To: {{ item.hm_email or 'No email found' }} ·
-        Score: {{ item.llm_score }} ·
-        {{ item.created_at[:10] }}
-      </p>
-      {% if item.llm_reason %}
-      <p class="text-xs text-gray-500 mt-1 italic">{{ item.llm_reason }}</p>
-      {% endif %}
+{# ── How it works strip (shown when no pending and no sent) ── #}
+{% if not pending and not sent %}
+<div class="mb-8 rounded-2xl p-6 overflow-hidden relative"
+  style="background:rgba(255,255,255,0.62); border:1px solid rgba(255,255,255,0.55); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); box-shadow:0 4px 24px -4px rgba(99,88,220,0.09);">
+  <div class="absolute top-0 left-0 w-1 h-full bg-teal-500"></div>
+  <h3 class="text-sm font-bold text-gray-900 uppercase tracking-widest mb-4">How this works</h3>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-gray-500">
+    <div class="flex gap-3">
+      <div
+        class="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0 text-xl border border-gray-100 shadow-sm">
+        🔍</div>
+      <div><strong class="text-gray-900 block mb-1">Score jobs</strong>Agent reads fresh jobs, scores them against your
+        CV, picks the best matches.</div>
     </div>
-    <span class="text-xs px-2 py-1 rounded-full flex-shrink-0 ml-4
-      {% if item.status == 'pending' %}bg-amber-100 text-amber-700
-      {% elif item.status == 'sent' %}bg-green-100 text-green-700
-      {% else %}bg-gray-100 text-gray-500{% endif %}">
-      {{ item.status | capitalize }}
+    <div class="flex gap-3">
+      <div
+        class="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0 text-xl border border-gray-100 shadow-sm">
+        ✍️</div>
+      <div><strong class="text-gray-900 block mb-1">Draft messages</strong>Writes a personalised cold email + LinkedIn
+        message for each shortlisted role.</div>
+    </div>
+    <div class="flex gap-3">
+      <div
+        class="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0 text-xl border border-gray-100 shadow-sm">
+        ✅</div>
+      <div><strong class="text-gray-900 block mb-1">You review &amp; send</strong>Edit, approve, or skip each draft.
+        Emails send automatically; LinkedIn messages copy to clipboard.</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% macro outreach_card(item, show_actions) %}
+{%- set has_email = item.hm_email and item.hm_email.strip() -%}
+{%- set has_linkedin = item.hm_linkedin and item.hm_linkedin.strip() -%}
+{%- set li_search = "https://www.linkedin.com/search/results/people/?keywords=" + (item.role or '') | urlencode + "%20"
++ (item.company or '') | urlencode + "%20recruiter" -%}
+<div
+  class="rounded-2xl p-6 mb-5 transition-all duration-200 group/card"
+  style="background:rgba(255,255,255,0.62); border:1px solid rgba(255,255,255,0.55); backdrop-filter:blur(20px) saturate(140%); -webkit-backdrop-filter:blur(20px) saturate(140%); box-shadow:0 4px 24px -4px rgba(99,88,220,0.09);"
+  onmouseover="this.style.boxShadow='0 12px 36px -6px rgba(99,88,220,0.15)'; this.style.transform='translateY(-2px)'"
+  onmouseout="this.style.boxShadow='0 4px 24px -4px rgba(99,88,220,0.09)'; this.style.transform='translateY(0)'">
+  <div class="flex items-start justify-between mb-4">
+    <div>
+      <h3 class="font-bold text-gray-900 text-[15px] leading-snug">
+        {% if item.apply_url %}
+        <a href="{{ item.apply_url }}" target="_blank" rel="noopener" class="hover:text-teal-600 transition-colors">{{
+          item.role }} @ {{
+          item.company }} &nearr;</a>
+        {% else %}
+        {{ item.role }} @ {{ item.company }}
+        {% endif %}
+      </h3>
+      <div class="flex items-center gap-2 mt-1.5 list-none">
+        <span
+          class="inline-flex items-center justify-center px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider {% if item.llm_score >= 80 %}bg-emerald-50 text-emerald-700{% elif item.llm_score >= 65 %}bg-amber-50 text-amber-700{% else %}bg-gray-100 text-gray-600{% endif %}">Score
+          {{ item.llm_score }}</span>
+        <span class="text-gray-300">&bull;</span>
+        <span class="text-xs text-gray-400 font-medium tracking-wide">{{ item.created_at[:10] }}</span>
+        {% if item.hiring_manager %}
+        <span class="text-gray-300">&bull;</span>
+        <span class="text-xs text-gray-500 font-medium">HM: <span class="text-gray-700">{{ item.hiring_manager
+            }}</span></span>
+        {% endif %}
+      </div>
+    </div>
+    <span class="text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-md flex-shrink-0 ml-4
+      {% if item.status == 'pending' %}bg-amber-50 text-amber-700 border border-amber-100
+      {% elif item.status == 'sent' %}bg-emerald-50 text-emerald-700 border border-emerald-100
+      {% else %}bg-gray-100 text-gray-500 border border-gray-200{% endif %}">
+      {{ item.status }}
     </span>
   </div>
 
-  <div class="mb-3">
-    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Cold Email</p>
-    <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 whitespace-pre-wrap max-h-40 overflow-y-auto">{{ item.email_draft }}</div>
+  {# Contact row #}
+  <div class="flex flex-wrap items-center gap-2 mb-5">
+    {% if has_email %}
+    <span
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-700 font-semibold shadow-sm">
+      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+      {{ item.hm_email }}
+    </span>
+    {% endif %}
+    {% if has_linkedin %}
+    <a href="{{ item.hm_linkedin }}" target="_blank" rel="noopener"
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0a66c2]/5 border border-[#0a66c2]/10 rounded-lg text-xs text-[#0a66c2] font-bold hover:bg-[#0a66c2]/10 transition-colors shadow-sm">
+      <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+        <path
+          d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+      </svg>
+      View Profile
+    </a>
+    {% else %}
+    <a href="{{ li_search }}" target="_blank" rel="noopener"
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-700 font-semibold transition-colors shadow-sm">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      Find on LinkedIn
+    </a>
+    {% endif %}
   </div>
 
-  <div class="mb-4">
-    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">LinkedIn Message</p>
-    <div class="bg-blue-50 rounded-lg p-3 text-sm text-gray-700" id="li-{{ item.approval_token }}">{{ item.linkedin_draft }}</div>
-    <button onclick="copyText('li-{{ item.approval_token }}', this)"
-            class="mt-1 text-xs text-indigo-600 hover:text-indigo-800 underline">Copy LinkedIn msg</button>
+  {% if item.llm_reason %}
+  <details class="mb-4 group">
+    <summary
+      class="text-[11px] font-bold text-gray-400 hover:text-gray-600 uppercase tracking-widest cursor-pointer list-none flex items-center gap-2 mb-2 transition-colors">
+      <svg class="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor"
+        viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
+      Why this job
+    </summary>
+    <div class="px-3.5 border-l-2 border-gray-100 ml-1.5 mt-2">
+      <p class="text-sm text-gray-600 leading-relaxed">{{ item.llm_reason }}</p>
+    </div>
+  </details>
+  {% endif %}
+
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4 mb-5">
+    {% if has_email %}
+    <div class="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm flex flex-col h-full">
+      <div class="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex justify-between items-center group/header">
+        <div class="flex items-center gap-2 text-xs font-bold text-gray-700 tracking-wide uppercase">
+          <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          Cold Email Draft
+        </div>
+        <button onclick="toggleEdit('email-{{ item.approval_token }}')" class="text-[10px] uppercase font-bold text-gray-400 hover:text-teal-600 bg-white/0 hover:bg-teal-50 px-2 py-1 rounded transition-colors shadow-none border-none">Edit</button>
+      </div>
+      <div class="p-4 flex-1 flex flex-col relative">
+        <div class="flex items-center text-sm mb-2.5">
+          <span class="text-gray-400 w-16 text-xs tracking-wide">To:</span> 
+          <span class="font-medium text-gray-900 bg-teal-50/50 text-indigo-900 px-2.5 py-0.5 rounded-md text-[13px] border border-indigo-100/50 inline-flex items-center">{{ item.hm_email }}</span>
+        </div>
+        <div class="flex items-center text-sm mb-4 pb-4 border-b border-gray-100">
+          <span class="text-gray-400 w-16 text-xs tracking-wide">Subject:</span> 
+          <span class="font-medium text-gray-800 truncate text-[13px]">Application for {{ item.role }} — {{ item.company }}</span>
+        </div>
+        
+        <div id="email-view-{{ item.approval_token }}" class="flex-1 text-[13px] text-gray-700 whitespace-pre-wrap leading-[1.6] font-sans overflow-y-auto max-h-64 pr-2 custom-scrollbar">
+          {{- item.email_draft -}}
+        </div>
+        
+        <div id="email-edit-{{ item.approval_token }}" class="hidden flex-1 flex flex-col h-full">
+          <textarea class="flex-1 w-full text-[13px] font-sans text-gray-800 border-none focus:ring-0 p-0 resize-none min-h-[12rem] bg-gray-50/30 rounded-lg p-2" placeholder="Write your email here...">{{ item.email_draft }}</textarea>
+          <div class="flex gap-2.5 mt-4 pt-4 border-t border-gray-100">
+            <button onclick="saveDraft('{{ item.approval_token }}', 'email', this)" class="text-xs font-bold bg-teal-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-teal-700 transition-colors">Save Draft</button>
+            <button onclick="toggleEdit('email-{{ item.approval_token }}')" class="text-xs font-bold text-gray-600 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="rounded-xl border border-blue-100 bg-white overflow-hidden shadow-sm flex flex-col h-full {{ 'xl:col-span-2' if not has_email else '' }}">
+      <div class="bg-[#f3f2ef]/50 px-4 py-2.5 border-b border-blue-100 flex justify-between items-center group/header">
+        <div class="flex items-center gap-2 text-xs font-bold text-[#0a66c2] tracking-wide uppercase">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+          </svg>
+          LinkedIn Message
+        </div>
+        <button onclick="toggleEdit('li-{{ item.approval_token }}')" class="text-[10px] uppercase font-bold text-gray-400 hover:text-[#0a66c2] bg-white/0 hover:bg-blue-50 px-2 py-1 rounded transition-colors shadow-none border-none">Edit</button>
+      </div>
+      <div class="p-4 flex-1 flex flex-col relative">
+        <div class="flex items-center text-sm mb-4 pb-4 border-b border-gray-100">
+          <span class="text-gray-400 w-16 text-xs tracking-wide">To:</span> 
+          <span class="font-medium text-gray-900 bg-blue-50/50 text-[#0a66c2] px-2.5 py-0.5 rounded-md text-[13px] border border-blue-100/50 inline-flex items-center">{{ item.hiring_manager or 'Hiring Manager' }}</span>
+        </div>
+        
+        <div id="li-view-{{ item.approval_token }}" class="flex-1 text-[13px] text-gray-700 whitespace-pre-wrap leading-[1.6] font-sans overflow-y-auto max-h-64 pr-2 custom-scrollbar">
+          {{- item.linkedin_draft -}}
+        </div>
+        
+        <div id="li-edit-{{ item.approval_token }}" class="hidden flex-1 flex flex-col h-full">
+          <textarea class="flex-1 w-full text-[13px] font-sans text-gray-800 border-none focus:ring-0 p-0 resize-none min-h-[8rem] bg-blue-50/10 rounded-lg p-2" placeholder="Write your message here...">{{ item.linkedin_draft }}</textarea>
+          <div class="flex gap-2.5 mt-4 pt-4 border-t border-gray-100">
+            <button onclick="saveDraft('{{ item.approval_token }}', 'linkedin', this)" class="text-xs font-bold bg-[#0a66c2] text-white px-4 py-2 rounded-lg shadow-sm hover:bg-[#004182] transition-colors">Save Draft</button>
+            <button onclick="toggleEdit('li-{{ item.approval_token }}')" class="text-xs font-bold text-gray-600 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors">Cancel</button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-50 border-dashed">
+          <button onclick="copyDraft('li-view-{{ item.approval_token }}', this)" class="text-xs font-bold tracking-wide text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:border-gray-300 px-3.5 py-1.5 rounded-lg transition-all shadow-sm flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+            Copy
+          </button>
+          {% if has_linkedin %}
+          <a href="{{ item.hm_linkedin }}" target="_blank" rel="noopener" class="text-xs font-bold tracking-wide px-3.5 py-1.5 rounded-lg bg-[#0a66c2] text-white hover:bg-[#004182] transition-colors shadow-sm flex items-center gap-1.5">
+            Send on LinkedIn &nearr;
+          </a>
+          {% else %}
+          <a href="{{ li_search }}" target="_blank" rel="noopener" class="text-xs font-bold tracking-wide px-3.5 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm flex items-center gap-1.5">
+            Find &amp; Message &nearr;
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
   </div>
 
-  {% if show_actions and item.hm_email %}
-  <div class="flex gap-2">
+  {% if show_actions %}
+  <div class="flex flex-wrap items-center gap-3 border-t border-gray-100/80 pt-4 mt-2">
+    {% if has_email %}
     <a href="/api/approve/{{ item.approval_token }}"
-       class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">✅ Approve &amp; Send</a>
+      class="px-4 py-2 bg-gray-900 text-white text-xs font-bold tracking-wide rounded-xl hover:bg-gray-800 shadow-sm transition-colors flex items-center gap-2">
+      <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+      </svg>
+      Approve &amp; Send Email
+    </a>
+    {% endif %}
+    {% if has_linkedin %}
+    <a href="{{ item.hm_linkedin }}" target="_blank" rel="noopener"
+      class="px-4 py-2 bg-[#0a66c2]/10 text-[#0a66c2] text-xs font-bold tracking-wide rounded-xl hover:bg-[#0a66c2]/20 shadow-sm transition-colors flex items-center gap-2">
+      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+        <path
+          d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+      </svg>
+      Message on LinkedIn
+    </a>
+    {% else %}
+    <a href="{{ li_search }}" target="_blank" rel="noopener"
+      class="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold tracking-wide rounded-xl hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-colors flex items-center gap-2">
+      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      Find Hiring Manager
+    </a>
+    {% endif %}
+    <div class="h-6 w-px bg-gray-200 mx-1 hidden sm:block"></div>
     <a href="/api/skip/{{ item.approval_token }}"
-       class="px-4 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200">❌ Skip</a>
+      class="px-4 py-2 bg-white text-rose-600 hover:text-rose-700 text-xs font-bold tracking-wide rounded-xl hover:bg-rose-50 transition-colors flex items-center gap-1.5 ml-auto sm:ml-0 shadow-sm border border-gray-200 hover:border-rose-200">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+      Skip
+    </a>
   </div>
-  {% elif show_actions %}
-  <p class="text-xs text-amber-600">⚠ No hiring manager email found — cannot send. <a href="/api/skip/{{ item.approval_token }}" class="underline">Skip</a></p>
   {% endif %}
 </div>
 {% endmacro %}
 
 {% if pending %}
-<h2 class="text-base font-semibold text-gray-700 mb-3">Pending Approval ({{ pending|length }})</h2>
+<h2 class="text-xs font-bold tracking-widest uppercase text-gray-500 mb-4 px-1">Pending Approval ({{ pending|length }})
+</h2>
 {% for item in pending %}{{ outreach_card(item, true) }}{% endfor %}
 {% else %}
-<div class="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-400 text-sm mb-6">
-  No pending drafts. The agent will populate this after the next scheduled run.
+<div
+  class="bg-white border border-gray-100/80 shadow-sm rounded-2xl p-12 text-center mb-8 flex flex-col items-center justify-center min-h-[300px]">
+  <div
+    class="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center text-4xl mb-5 shadow-inner border border-gray-100">
+    📭</div>
+  <h3 class="text-lg font-bold text-gray-900 mb-2">No pending drafts</h3>
+  <p class="text-sm text-gray-500 mb-6 max-w-sm mx-auto leading-relaxed">Click <strong
+      class="text-gray-900 font-semibold">Run Agent Now</strong> to score today's jobs and auto-draft personalised
+    outreach for the best matches.</p>
+  <p class="text-[11px] font-medium text-gray-400 uppercase tracking-widest bg-gray-50 px-3 py-1.5 rounded-lg">Runs
+    intelligently in the background</p>
 </div>
 {% endif %}
 
 {% if sent %}
-<h2 class="text-base font-semibold text-gray-700 mb-3 mt-6">Sent ({{ sent|length }})</h2>
-{% for item in sent %}{{ outreach_card(item, false) }}{% endfor %}
+<h2 class="text-xs font-bold tracking-widest uppercase text-gray-500 mb-4 mt-10 px-1 opacity-80">Sent ({{ sent|length
+  }})</h2>
+<div class="opacity-90">
+  {% for item in sent %}{{ outreach_card(item, false) }}{% endfor %}
+</div>
 {% endif %}
 
 {% if skipped %}
-<h2 class="text-base font-semibold text-gray-700 mb-3 mt-6">Skipped ({{ skipped|length }})</h2>
-{% for item in skipped %}{{ outreach_card(item, false) }}{% endfor %}
+<h2 class="text-xs font-bold tracking-widest uppercase text-gray-500 mb-4 mt-10 px-1 opacity-80">Skipped ({{
+  skipped|length }})</h2>
+<div class="opacity-75 grayscale-[0.2]">
+  {% for item in skipped %}{{ outreach_card(item, false) }}{% endfor %}
+</div>
 {% endif %}
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-function copyText(elId, btn) {
-  const text = document.getElementById(elId).innerText;
-  navigator.clipboard.writeText(text).then(() => {
-    btn.textContent = '✓ Copied!';
-    setTimeout(() => btn.textContent = 'Copy LinkedIn msg', 2000);
+  function copyDraft(elId, btn) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      const orig = btn.innerHTML;
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.innerHTML = orig; }, 2000);
+    });
+  }
+
+  // Legacy alias (used in older cards)
+  function copyText(elId, btn) { copyDraft(elId, btn); }
+
+  function toggleEdit(prefix) {
+    const view = document.getElementById(prefix + '-view-' + prefix.split('-').pop()) ||
+      document.getElementById(prefix.replace(/^(li|email)-/, m => m === 'li-' ? 'li-view-' : 'email-view-'));
+    // Simple approach: toggle by naming convention
+    // prefix is like "li-TOKEN" or "email-TOKEN"
+    const parts = prefix.split('-');
+    const type = parts[0]; // "li" or "email"
+    const token = parts.slice(1).join('-');
+    const viewEl = document.getElementById(type + '-view-' + token);
+    const editEl = document.getElementById(type + '-edit-' + token);
+    if (!viewEl || !editEl) return;
+    const isEditing = !editEl.classList.contains('hidden');
+    viewEl.classList.toggle('hidden', !isEditing);
+    editEl.classList.toggle('hidden', isEditing);
+  }
+
+  function saveDraft(token, type, btn) {
+    const prefix = type === 'linkedin' ? 'li' : 'email';
+    const editEl = document.getElementById(prefix + '-edit-' + token);
+    if (!editEl) return;
+    const textarea = editEl.querySelector('textarea');
+    if (!textarea) return;
+    const val = textarea.value;
+    const body = type === 'linkedin' ? { linkedin_draft: val } : { email_draft: val };
+
+    const origText = btn.textContent;
+    btn.textContent = '...';
+    btn.disabled = true;
+
+    fetch(`/api/outreach/${token}/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(r => r.json())
+      .then(d => {
+        btn.textContent = origText;
+        btn.disabled = false;
+        if (!d.ok) { alert('Save failed'); return; }
+        // Update view
+        const viewEl = document.getElementById(prefix + '-view-' + token);
+        if (viewEl) viewEl.textContent = val;
+        // Close edit mode
+        const viewParent = document.getElementById(prefix + '-view-' + token);
+        const editParent = document.getElementById(prefix + '-edit-' + token);
+        if (viewParent) viewParent.classList.remove('hidden');
+        if (editParent) editParent.classList.add('hidden');
+        // Flash feedback
+        if (viewParent) {
+          viewParent.style.outline = '2px solid #22c55e';
+          setTimeout(() => { viewParent.style.outline = ''; }, 1200);
+        }
+      })
+      .catch(() => { btn.textContent = origText; btn.disabled = false; alert('Save failed'); });
+  }
+
+  let _agentPoll = null;
+
+  function runAgent() {
+    const btn = document.getElementById('run-agent-btn');
+    const label = document.getElementById('run-agent-label');
+    const spinner = document.getElementById('run-agent-spinner');
+    const bar = document.getElementById('agent-status-bar');
+
+    btn.disabled = true;
+    spinner.classList.remove('hidden');
+    label.textContent = 'Running…';
+    bar.textContent = 'Agent started — scoring fresh jobs and drafting outreach…';
+    bar.classList.remove('hidden');
+
+    fetch('/api/agent/run', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) {
+          bar.textContent = data.error || 'Failed to start agent.';
+          bar.classList.replace('bg-zinc-50', 'bg-red-50');
+          bar.classList.replace('text-zinc-700', 'text-red-600');
+          bar.classList.replace('border-zinc-200', 'border-red-200');
+          btn.disabled = false;
+          spinner.classList.add('hidden');
+          label.textContent = 'Run Agent Now';
+          return;
+        }
+        _agentPoll = setInterval(pollAgent, 3000);
+      })
+      .catch(err => {
+        bar.textContent = 'Network error: ' + err.message;
+        btn.disabled = false;
+        spinner.classList.add('hidden');
+        label.textContent = 'Run Agent Now';
+      });
+  }
+
+  function pollAgent() {
+    fetch('/api/agent/status')
+      .then(r => r.json())
+      .then(s => {
+        const bar = document.getElementById('agent-status-bar');
+        if (!s.running) {
+          clearInterval(_agentPoll);
+          const btn = document.getElementById('run-agent-btn');
+          const label = document.getElementById('run-agent-label');
+          const spinner = document.getElementById('run-agent-spinner');
+          btn.disabled = false;
+          spinner.classList.add('hidden');
+          label.textContent = 'Run Agent Now';
+          if (s.error) {
+            bar.textContent = '⚠ Agent error: ' + s.error;
+          } else {
+            bar.textContent = `✓ Done — ${s.queued} draft${s.queued !== 1 ? 's' : ''} queued. Refreshing…`;
+            setTimeout(() => location.reload(), 1500);
+          }
+        }
+      })
+      .catch(() => { });
+  }
+
+  // Auto-poll if agent was already running when page loaded
+  fetch('/api/agent/status').then(r => r.json()).then(s => {
+    if (s.running) {
+      const btn = document.getElementById('run-agent-btn');
+      const label = document.getElementById('run-agent-label');
+      const spinner = document.getElementById('run-agent-spinner');
+      const bar = document.getElementById('agent-status-bar');
+      btn.disabled = true;
+      spinner.classList.remove('hidden');
+      label.textContent = 'Running…';
+      bar.textContent = 'Agent is running in background…';
+      bar.classList.remove('hidden');
+      _agentPoll = setInterval(pollAgent, 3000);
+    }
   });
-}
 </script>
 {% endblock %}

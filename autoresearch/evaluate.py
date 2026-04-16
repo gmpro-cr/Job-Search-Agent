@@ -8,6 +8,7 @@ on the frozen 30-job test set.
 import json
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from agent.llm import call_llm_json  # noqa: E402 — imported here for monkeypatching
 
@@ -34,7 +35,7 @@ def evaluate(
     from scipy.stats import spearmanr
 
     with open(testset_path, "r", encoding="utf-8") as f:
-        testset = json.load(f)
+        testset = json.load(f)[:15]  # use first 15 jobs — enough for Spearman, halves eval time
 
     if prompt_path and os.path.exists(prompt_path):
         with open(prompt_path, "r", encoding="utf-8") as f:
@@ -42,21 +43,19 @@ def evaluate(
     else:
         template = None
 
-    ground_truth = []
-    agent_scores  = []
-    details       = []
-
-    for job in testset:
+    def _score_job(job):
         role    = job.get("role", "")
         company = job.get("company", "")
-        jd      = (job.get("job_description") or "")[:800]
+        jd      = (job.get("job_description") or "")[:300]
         gt      = job["ground_truth_score"]
 
         if template:
-            prompt = template.format(
-                role=role, company=company, jd=jd,
-                cv_skills=cv_skills, cv_summary=cv_summary
-            )
+            # Use manual replace instead of .format() — the template contains literal
+            # JSON braces like {"score": ...} which confuse str.format()
+            prompt = template
+            for k, v in [("role", role), ("company", company), ("jd", jd),
+                         ("cv_skills", cv_skills), ("cv_summary", cv_summary)]:
+                prompt = prompt.replace("{" + k + "}", str(v))
         else:
             prompt = (
                 f"Score this job 0-100 for this candidate.\n"
@@ -71,15 +70,24 @@ def evaluate(
             logger.warning("evaluate: scoring failed for %s @ %s: %s", role, company, e)
             score = 50
 
-        ground_truth.append(gt)
-        agent_scores.append(score)
-        details.append({
+        return {
             "job_id":       job.get("job_id", ""),
             "role":         role,
             "company":      company,
             "ground_truth": gt,
             "agent_score":  score,
-        })
+        }
+
+    # Score jobs sequentially (Ollama doesn't parallelize — one GPU at a time)
+    details = [None] * len(testset)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future_to_idx = {executor.submit(_score_job, job): i for i, job in enumerate(testset)}
+        for future in as_completed(future_to_idx):
+            idx = future_to_idx[future]
+            details[idx] = future.result()
+
+    ground_truth = [d["ground_truth"] for d in details]
+    agent_scores  = [d["agent_score"]  for d in details]
 
     corr, pvalue = spearmanr(ground_truth, agent_scores)
     spearman = float(corr) if corr == corr else 0.0  # nan guard

@@ -24,12 +24,12 @@ except OSError:
 
 
 PORTAL_COLORS = {
-    "LinkedIn": "#0A66C2",
-    "Indeed": "#2164F3",
-    "Naukri": "#4A90D9",
-    "HiringCafe": "#FF6B35",
-    "Wellfound": "#000000",
-    "IIMJobs": "#1A5276",
+    "LinkedIn": "#00CED1",
+    "Indeed": "#00A8AB",
+    "Naukri": "#14B8A6",
+    "HiringCafe": "#00CED1",
+    "Wellfound": "#0F3332",
+    "IIMJobs": "#002D2F",
 }
 
 REMOTE_BADGES = {
@@ -101,16 +101,16 @@ def generate_html_digest(jobs, portal_results, preferences, stats):
 
         # Score bar color
         if score >= 80:
-            score_color = "#10B981"
+            score_color = "#00CED1"
         elif score >= 65:
-            score_color = "#F59E0B"
+            score_color = "#00A8AB"
         else:
-            score_color = "#EF4444"
+            score_color = "#002D2F"
 
         # Skills tags
         skills_html = ""
         for skill in skills[:6]:
-            skills_html += f'<span style="display:inline-block;background:#EEF2FF;color:#4338CA;padding:2px 8px;border-radius:12px;font-size:12px;margin:2px;">{escape(skill)}</span>'
+            skills_html += f'<span style="display:inline-block;background:#E0FAFB;color:#00CED1;padding:2px 8px;border-radius:12px;font-size:12px;margin:2px;">{escape(skill)}</span>'
 
         # Description excerpt
         desc = job.get("job_description", "")[:200]
@@ -158,13 +158,13 @@ def generate_html_digest(jobs, portal_results, preferences, stats):
 
             <!-- Application Email (collapsible) -->
             <details style="margin-bottom:12px;background:#F9FAFB;border-radius:8px;padding:12px;">
-                <summary style="cursor:pointer;font-size:13px;font-weight:600;color:#4338CA;">&#x2709; View Personalized Application Draft</summary>
+                <summary style="cursor:pointer;font-size:13px;font-weight:600;color:#00CED1;">&#x2709; View Personalized Application Draft</summary>
                 <pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;color:#374151;margin-top:8px;line-height:1.5;">{email}</pre>
             </details>
 
             <!-- Apply Button -->
             <div style="display:flex;gap:8px;">
-                <a href="{escape(apply_url)}" target="_blank" style="display:inline-block;background:#4338CA;color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Apply Now &#x2192;</a>
+                <a href="{escape(apply_url)}" target="_blank" style="display:inline-block;background:#00CED1;color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Apply Now &#x2192;</a>
             </div>
         </div>"""
 
@@ -178,7 +178,7 @@ def generate_html_digest(jobs, portal_results, preferences, stats):
         * {{ margin:0; padding:0; box-sizing:border-box; }}
         body {{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; background:#F9FAFB; color:#111827; line-height:1.6; }}
         .container {{ max-width:720px; margin:0 auto; padding:24px 16px; }}
-        a {{ color:#4338CA; }}
+        a {{ color:#00CED1; }}
     </style>
 </head>
 <body>
@@ -190,7 +190,7 @@ def generate_html_digest(jobs, portal_results, preferences, stats):
         </div>
 
         <!-- Summary -->
-        <div style="background:linear-gradient(135deg,#4338CA 0%,#6366F1 100%);border-radius:12px;padding:24px;color:white;margin-bottom:24px;">
+        <div style="background:linear-gradient(135deg,#00CED1 0%,#00A8AB 100%);border-radius:12px;padding:24px;color:white;margin-bottom:24px;">
             <h2 style="font-size:20px;margin-bottom:8px;">Found {len(jobs)} matching jobs from {succeeded}/{total_portals} portals</h2>
             <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:14px;opacity:0.9;">
                 <span>&#x1F4C5; Today: {stats.get('jobs_today', 0)}</span>

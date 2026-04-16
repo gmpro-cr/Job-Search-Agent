@@ -1,0 +1,66 @@
+{
+  "id": "2026-04-16",
+  "date": "2026-04-16",
+  "generated_at": "2026-04-16T08:19:37.139503",
+  "generated_by": "template",
+  "product": {
+    "name": "Automobile Workshop Job Card System",
+    "domain": "SaaS",
+    "type": "Non-Technical",
+    "tagline": "Mechanics create digital job cards, track parts used, and send customer bill estimates on WhatsApp"
+  },
+  "sections": {
+    "problem_statement": "Users in the SaaS space currently face significant friction with mechanics create digital job cards, track parts used, and send customer bill estimates on whatsapp. Existing solutions are either too expensive, too complex, or not tailored to the Indian market. Automobile Workshop Job Card System addresses this gap with a focused, user-first approach.",
+    "target_users": [
+      "Primary: Decision-makers in SaaS who face this problem daily",
+      "Secondary: Operations teams who execute and track outcomes",
+      "Tertiary: Analysts and managers who need reporting and insights"
+    ],
+    "user_stories": [
+      "As a primary user, I want to access Automobile Workshop Job Card System in under 30 seconds so that I don't lose momentum",
+      "As a user, I want to see clear results so that I can make decisions with confidence",
+      "As an admin, I want to configure settings without engineering help so that I stay autonomous",
+      "As a manager, I want a dashboard view so that I can track team-level outcomes",
+      "As a new user, I want onboarding guidance so that I get value within the first session"
+    ],
+    "mvp_features": [
+      "Core workflow: End-to-end execution of the primary use case with minimal clicks",
+      "User authentication: Email + Google SSO with role-based access",
+      "Dashboard: Key metrics and recent activity in a single view",
+      "Export: Download results as PDF and CSV",
+      "Notifications: Email and in-app alerts for key events",
+      "Mobile responsive: Full functionality on mobile browsers"
+    ],
+    "future_features": [
+      "API access for enterprise integrations",
+      "AI-powered recommendations and automation",
+      "White-label / custom branding for B2B customers",
+      "Advanced analytics and custom reporting"
+    ],
+    "success_metrics": [
+      "Activation rate: 60%+ of sign-ups complete the core workflow in session 1",
+      "D7 retention: 40%+ of activated users return within 7 days",
+      "NPS: Score of 50+ by month 3",
+      "Time-to-value: Core task completed in under 5 minutes for 80% of users"
+    ],
+    "assumptions": [
+      "Users have a smartphone or laptop with internet access",
+      "The SaaS market in India has sufficient TAM to justify the product",
+      "Unit economics are viable at the target price point"
+    ],
+    "risks": [
+      "Low adoption risk \u2192 mitigate with strong onboarding, free trial, and white-glove support for first 50 customers",
+      "Competition from incumbents \u2192 differentiate on UX simplicity and India-specific features",
+      "Regulatory risk (if applicable) \u2192 engage compliance counsel early and build compliance-first"
+    ],
+    "go_to_market": "Launch with a waitlist and 50 beta users recruited from SaaS communities on LinkedIn and WhatsApp. Use a freemium model to drive top-of-funnel, then convert via usage-based gating. Invest in SEO-rich content targeting high-intent search terms in the domain.",
+    "tech_stack_suggestion": "No-code first: Bubble or Webflow for MVP to move fast. Use  cloud-hosted DB for scalability. Integrate with existing tools via Zapier/webhooks for B2B customers.",
+    "monetisation": "Freemium: free tier with usage limits to drive acquisition. Pro plan at \u20b9999/month for individuals, \u20b94,999/month for teams up to 10. Enterprise: custom pricing with SLA, SSO, and dedicated support.",
+    "timeline_weeks": {
+      "discovery": 2,
+      "mvp_build": 8,
+      "beta": 4,
+      "launch": 2
+    }
+  }
+}

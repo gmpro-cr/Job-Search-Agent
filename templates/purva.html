@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Purva Email Schedule — Job Agent{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+  <h1 class="text-2xl font-bold tracking-tight" style="color:#1e1b4b;">Purva's Daily Email</h1>
+  <p class="mt-1 text-sm font-medium" style="color:#6b7280;">
+    Daily hiring manager digest sent to purva.pilot57@gmail.com
+  </p>
+</div>
+
+<!-- Status bar -->
+<div id="status-bar" class="hidden mb-6 px-5 py-3.5 rounded-xl text-sm font-medium"
+  style="background:rgba(99,102,241,0.10); border:1px solid rgba(99,102,241,0.20); color:#4338ca; backdrop-filter:blur(12px);">
+</div>
+
+<!-- Metric cards -->
+<div class="grid grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+  <div class="stat-card">
+    <p class="text-xs font-semibold uppercase tracking-wider" style="color:#9ca3af;">Status</p>
+    <p class="text-2xl font-bold mt-2" id="card-status"
+      style="color:{% if cfg.enabled %}#059669{% else %}#9ca3af{% endif %};">
+      {% if cfg.enabled %}Enabled{% else %}Disabled{% endif %}
+    </p>
+    <p class="text-xs mt-2" style="color:#9ca3af;">email schedule</p>
+  </div>
+  <div class="stat-card">
+    <p class="text-xs font-semibold uppercase tracking-wider" style="color:#9ca3af;">Daily Time</p>
+    <p class="text-2xl font-bold mt-2" style="color:#1e1b4b;" id="card-time">
+      {{ "%02d:%02d"|format(cfg.hour, cfg.minute) }}
+    </p>
+    <p class="text-xs mt-2" style="color:#9ca3af;">sends every day</p>
+  </div>
+  <div class="stat-card">
+    <p class="text-xs font-semibold uppercase tracking-wider" style="color:#9ca3af;">Next Run</p>
+    <p class="text-lg font-bold mt-2" style="color:#6366f1;" id="card-next">
+      {{ next_run or ("—" if not cfg.enabled else "Restart app to schedule") }}
+    </p>
+    <p class="text-xs mt-2" style="color:#9ca3af;">{{ sent_count }} contacts sent so far</p>
+  </div>
+</div>
+
+<!-- Schedule settings -->
+<div class="glass-panel mb-6">
+  <div class="glass-panel-header">
+    <h2 class="text-sm font-bold uppercase tracking-wider" style="color:#374151;">Schedule Settings</h2>
+  </div>
+  <div class="p-6 space-y-6">
+
+    <!-- Enable toggle -->
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-sm font-semibold" style="color:#374151;">Enable daily email</p>
+        <p class="text-xs mt-0.5" style="color:#9ca3af;">Send hiring managers digest to Purva every day</p>
+      </div>
+      <button id="toggle-btn" onclick="toggleEnabled()"
+        class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors"
+        style="background:{% if cfg.enabled %}#6366f1{% else %}#d1d5db{% endif %};">
+        <span id="toggle-dot"
+          class="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform"
+          style="transform:translateX({% if cfg.enabled %}26px{% else %}4px{% endif %});"></span>
+      </button>
+    </div>
+
+    <!-- Time picker -->
+    <div>
+      <p class="text-sm font-semibold mb-3" style="color:#374151;">Send time</p>
+      <div class="flex items-center gap-3">
+        <div>
+          <label class="text-xs font-medium block mb-1" style="color:#6b7280;">Hour (0–23)</label>
+          <input id="hour-input" type="number" min="0" max="23" value="{{ cfg.hour }}"
+            class="w-20 px-3 py-2 rounded-xl text-sm font-mono font-bold text-center"
+            style="background:rgba(255,255,255,0.7); border:1px solid rgba(255,255,255,0.5); color:#1e1b4b;">
+        </div>
+        <span class="text-2xl font-bold mt-4" style="color:#6b7280;">:</span>
+        <div>
+          <label class="text-xs font-medium block mb-1" style="color:#6b7280;">Minute</label>
+          <input id="minute-input" type="number" min="0" max="59" value="{{ cfg.minute }}"
+            class="w-20 px-3 py-2 rounded-xl text-sm font-mono font-bold text-center"
+            style="background:rgba(255,255,255,0.7); border:1px solid rgba(255,255,255,0.5); color:#1e1b4b;">
+        </div>
+        <div class="mt-4">
+          <button onclick="saveTime()"
+            class="px-5 py-2 text-white text-sm font-bold rounded-xl"
+            style="background:linear-gradient(135deg,#6366f1,#8b5cf6); box-shadow:0 2px 10px rgba(99,102,241,0.32);">
+            Save Time
+          </button>
+        </div>
+      </div>
+      <p class="text-xs mt-2" style="color:#9ca3af;">
+        Currently set to <strong id="time-display">{{ "%02d:%02d"|format(cfg.hour, cfg.minute) }}</strong> daily
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Send now -->
+<div class="glass-panel">
+  <div class="glass-panel-header">
+    <h2 class="text-sm font-bold uppercase tracking-wider" style="color:#374151;">Manual Send</h2>
+  </div>
+  <div class="p-6 flex items-center justify-between">
+    <div>
+      <p class="text-sm font-semibold" style="color:#374151;">Send email right now</p>
+      <p class="text-xs mt-0.5" style="color:#9ca3af;">Searches for 5 new hiring managers and sends immediately</p>
+    </div>
+    <button onclick="sendNow()"
+      class="px-5 py-2.5 text-white text-sm font-bold rounded-xl"
+      style="background:linear-gradient(135deg,#059669,#10b981); box-shadow:0 2px 10px rgba(16,185,129,0.30);"
+      id="send-btn">
+      Send Now
+    </button>
+  </div>
+</div>
+
+<script>
+let enabled = {{ 'true' if cfg.enabled else 'false' }};
+
+function showStatus(msg, color) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.style.display = 'block';
+  bar.style.color = color || '#4338ca';
+}
+
+function toggleEnabled() {
+  enabled = !enabled;
+  const btn = document.getElementById('toggle-btn');
+  const dot = document.getElementById('toggle-dot');
+  btn.style.background = enabled ? '#6366f1' : '#d1d5db';
+  dot.style.transform = enabled ? 'translateX(26px)' : 'translateX(4px)';
+  document.getElementById('card-status').textContent = enabled ? 'Enabled' : 'Disabled';
+  document.getElementById('card-status').style.color = enabled ? '#059669' : '#9ca3af';
+
+  fetch('/api/purva/schedule', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({enabled})
+  }).then(r => r.json()).then(d => {
+    showStatus(enabled ? '✓ Email enabled — will send daily at ' + document.getElementById('time-display').textContent
+                       : '✓ Email disabled');
+    if (d.next_run) document.getElementById('card-next').textContent = d.next_run;
+  });
+}
+
+function saveTime() {
+  const hour   = parseInt(document.getElementById('hour-input').value);
+  const minute = parseInt(document.getElementById('minute-input').value);
+  if (isNaN(hour) || isNaN(minute)) { showStatus('Invalid time', '#dc2626'); return; }
+
+  fetch('/api/purva/schedule', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({hour, minute})
+  }).then(r => r.json()).then(d => {
+    const t = String(hour).padStart(2,'0') + ':' + String(minute).padStart(2,'0');
+    document.getElementById('card-time').textContent = t;
+    document.getElementById('time-display').textContent = t;
+    showStatus('✓ Schedule updated — next run: ' + (d.next_run || 'restart app to apply'));
+    if (d.next_run) document.getElementById('card-next').textContent = d.next_run;
+  });
+}
+
+function sendNow() {
+  const btn = document.getElementById('send-btn');
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+  fetch('/api/purva/send-now', {method: 'POST'})
+    .then(r => r.json()).then(d => {
+      showStatus('✓ Sending in background — check purva.pilot57@gmail.com in ~1 min');
+      setTimeout(() => { btn.textContent = 'Send Now'; btn.disabled = false; }, 5000);
+    });
+}
+</script>
+{% endblock %}

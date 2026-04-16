@@ -1,0 +1,60 @@
+{
+  "id": "2026-04-09",
+  "date": "2026-04-09",
+  "generated_at": "2026-04-09T11:22:13.171854",
+  "generated_by": "gemini-2.0-flash",
+  "product": {
+    "name": "Tuition Centre Batch Manager",
+    "domain": "EdTech",
+    "type": "Non-Technical",
+    "tagline": "Manage batches, attendance, fees, and parent communication for coaching institutes"
+  },
+  "sections": {
+    "problem_statement": "Coaching center owners in India rely on fragmented tools like WhatsApp and Excel, leading to high revenue leakage from missed fee collections and poor student retention due to lack of transparent communication. Existing enterprise ERPs are overly complex and expensive, failing to address the high-touch, hyper-local nature of small-to-medium tuition centers. This product solves the core operational chaos by centralizing batch management, automated fee reminders, and digital attendance tracking into a single, intuitive mobile-first interface.",
+    "target_users": [
+      "Rajesh Sharma, Founder of 'Sharma Tutorials', neighborhood coaching center, struggles with manual fee follow-ups leading to a 20% delay in monthly cash flow.",
+      "Priya Deshmukh, Administrative Manager, mid-sized competitive exam institute, overwhelmed by maintaining paper-based attendance registers for 500+ students across multiple shifts.",
+      "Sunita Reddy, Parent of a Class 10 student, frustrated by the lack of updates on her child's performance and sudden schedule changes communicated via chaotic WhatsApp groups."
+    ],
+    "user_stories": [
+      "As a center owner, I want to automate recurring fee payment reminders via WhatsApp/SMS so that I reduce monthly payment delays by 30%.",
+      "As an admin, I want to mark attendance via a mobile QR code scan so that I can generate real-time student presence reports for parents in under 30 seconds.",
+      "As a teacher, I want to broadcast batch-specific announcements so that I don't have to manage multiple noisy WhatsApp groups.",
+      "As a parent, I want to view my child\u2019s upcoming class schedule and fee receipts in one place so that I can plan my finances and track academic consistency.",
+      "As a center owner, I want to export batch-wise revenue reports in CSV format so that I can easily reconcile my monthly bank statements for tax filing."
+    ],
+    "mvp_features": [
+      "Smart Batch Dashboard: A centralized view to create batches, assign teachers, and set schedules to streamline daily operations.",
+      "Automated Fee Reminders: Integration with WhatsApp Business API to send personalized, automated payment links to parents on due dates.",
+      "Digital Attendance Tracker: QR-based or one-tap attendance logging that pushes instant notifications to parents' apps.",
+      "Parent Communication Module: A dedicated feed for announcements, schedule changes, and performance updates to replace disorganized messaging groups.",
+      "Revenue Analytics: Simple dashboard showing monthly projected vs. actual collections to provide clear visibility on cash flow.",
+      "Receipt Generation: Automated generation of professional, GST-compliant digital receipts sent via email/WhatsApp upon fee payment."
+    ],
+    "future_features": [
+      "Integrated Online Assessment Engine: To conduct unit tests and generate automated performance reports for students.",
+      "Video Content Locker: Secure storage for recorded lectures to provide value-added hybrid learning experiences.",
+      "AI-based Dropout Prediction: Identifying students with declining attendance to proactively manage retention.",
+      "Third-party UPI/Payment Gateway Integration: Direct integration with Razorpay/Cashfree for instant settlement and automated ledger reconciliation."
+    ],
+    "success_metrics": [
+      "Monthly Recurring Revenue (MRR): Reach \u20b95 Lakhs by month 6 \u2014 indicates product-market fit and willingness to pay.",
+      "Fee Collection Efficiency: Increase on-time payments by 25% within 3 months \u2014 validates the effectiveness of automated reminders.",
+      "Daily Active Users (DAU): Maintain 60% of enrolled students/staff using the app daily \u2014 measures stickiness and operational utility.",
+      "Customer Churn Rate: Keep monthly churn below 5% \u2014 ensures the product is solving a core pain point reliably."
+    ],
+    "assumptions": [
+      "Users have a basic smartphone and are comfortable with WhatsApp-based workflows.",
+      "Coaching centers are moving toward formalizing their financial records to comply with tightening regulations.",
+      "Parents are willing to download a dedicated app if it provides tangible visibility into their child's progress."
+    ],
+    "risks": [
+      "Data privacy concerns under DPDP Act \u2192 Implement robust encryption and explicit data consent workflows for student/parent information.",
+      "Low adoption by non-tech-savvy teachers \u2192 Invest in localized, vernacular UI (Hindi/Regional) and provide 1-on-1 video onboarding.",
+      "Payment gateway high MDR costs \u2192 Offer multiple payment options including UPI-first flows to minimize transaction fees."
+    ],
+    "go_to_market": "Launch through a direct sales force targeting coaching hubs in Tier-2 Indian cities using a 'freemium' model for the first 50 centers. Leverage local educational associations for word-of-mouth referrals and run targeted Facebook/Instagram ads for 'Institute Management Software'. The first 100 customers will receive lifetime priority support and free migration services from their legacy Excel sheets to ensure high retention.",
+    "tech_stack_suggestion": "Use a No-Code/Low-Code approach with Bubble.io or FlutterFlow for the frontend to ensure rapid iteration and cross-platform mobile support. Backend logic handled by Xano with PostgreSQL for secure database management, ensuring compliance with RBI data localization norms. Integrate WhatsApp Business API via Interakt/AiSensy for seamless communication and Razorpay for payment processing.",
+    "monetisation": "Adopt a tiered subscription model: 'Basic' at \u20b9999/month for up to 50 students, 'Growth' at \u20b92,499/month for up to 200 students, and 'Enterprise' for larger chains. Revenue rationale is based on the value of time saved and improved collection rates, making it a no-brainer expense for owners. Expansion revenue will come from offering value-added services like integrated test series and premium analytics plugins."
+  }
+}

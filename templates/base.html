@@ -10,128 +10,153 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
   <style>
+    /* ══════════════════════════════════════════
+       ELECTRIC TEAL DESIGN SYSTEM
+       Primary:  #00CED1  (electric teal)
+       Dark:     #00A8AB  (hover / pressed)
+       Deepest:  #002D2F  (sidebar)
+       Light:    #80EAEC  (borders, accents)
+       XLight:   #E0FAFB  (backgrounds)
+    ══════════════════════════════════════════ */
     :root {
-      --glass:        rgba(255, 255, 255, 0.60);
-      --glass-border: rgba(255, 255, 255, 0.52);
-      --glass-shadow: 0 8px 32px -4px rgba(99, 88, 220, 0.10), 0 2px 8px rgba(0,0,0,0.04);
-      --sidebar-bg:   rgba(10, 8, 26, 0.88);
-      --sidebar-border: rgba(255,255,255,0.06);
-      --accent:       #6366f1;
-      --accent-2:     #8b5cf6;
-      --accent-glow:  rgba(99, 102, 241, 0.30);
+      --et:           #00CED1;   /* electric teal */
+      --et-dark:      #00A8AB;
+      --et-darker:    #007F82;
+      --et-glow:      rgba(0, 206, 209, 0.30);
+      --et-light:     #80EAEC;
+      --et-xlight:    #E0FAFB;
+      --sidebar-bg:   #002D2F;
+      --sidebar-border: rgba(0,206,209,0.12);
+      --glass:        rgba(255,255,255,0.75);
+      --glass-border: rgba(0,206,209,0.20);
+      --glass-shadow: 0 8px 32px -4px rgba(0,206,209,0.10), 0 2px 8px rgba(0,0,0,0.04);
+      --accent:       #00CED1;
+      --accent-2:     #00A8AB;
     }
 
     *, *::before, *::after { box-sizing: border-box; }
 
     body {
       font-family: 'Outfit', sans-serif;
-      background: linear-gradient(145deg, #eef2ff 0%, #f5f0ff 50%, #e0f7ff 100%);
+      background: linear-gradient(145deg, #E0FAFB 0%, #ffffff 55%, #EBF9FA 100%);
       min-height: 100vh;
     }
 
     /* ── Background orbs ── */
     .bg-orb {
-      position: fixed;
-      border-radius: 50%;
-      filter: blur(90px);
-      pointer-events: none;
-      z-index: 0;
+      position: fixed; border-radius: 50%;
+      filter: blur(90px); pointer-events: none; z-index: 0;
     }
-    .bg-orb-1 {
-      width: 520px; height: 520px;
-      background: #818cf8;
-      opacity: 0.13;
-      top: -160px; left: -120px;
-    }
-    .bg-orb-2 {
-      width: 420px; height: 420px;
-      background: #a78bfa;
-      opacity: 0.10;
-      bottom: 60px; right: 80px;
-    }
-    .bg-orb-3 {
-      width: 300px; height: 300px;
-      background: #38bdf8;
-      opacity: 0.09;
-      top: 50%; left: 52%;
-      transform: translate(-50%, -50%);
-    }
+    .bg-orb-1 { width:520px; height:520px; background:#00CED1; opacity:0.12; top:-160px; left:-120px; }
+    .bg-orb-2 { width:420px; height:420px; background:#00A8AB; opacity:0.08; bottom:60px; right:80px; }
+    .bg-orb-3 { width:300px; height:300px; background:#80EAEC; opacity:0.14; top:50%; left:52%; transform:translate(-50%,-50%); }
 
     /* ── Sidebar ── */
     .sidebar-link {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.5rem 0.875rem;
-      border-radius: 0.625rem;
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: rgba(255,255,255,0.45);
-      transition: all 0.2s ease;
-      text-decoration: none;
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.5rem 0.875rem; border-radius: 0.625rem;
+      font-size: 0.875rem; font-weight: 500;
+      color: rgba(255,255,255,0.55);
+      transition: all 0.2s ease; text-decoration: none;
     }
-    .sidebar-link:hover {
-      background: rgba(255,255,255,0.08);
-      color: rgba(255,255,255,0.90);
-    }
+    .sidebar-link:hover  { background: rgba(0,206,209,0.12); color: rgba(255,255,255,0.95); }
     .sidebar-link.active {
-      background: linear-gradient(135deg, rgba(99,102,241,0.30) 0%, rgba(139,92,246,0.22) 100%);
-      color: #ffffff;
-      font-weight: 600;
-      box-shadow: inset 0 0 0 1px rgba(139,92,246,0.30), 0 2px 8px rgba(99,102,241,0.18);
+      background: linear-gradient(135deg, rgba(0,206,209,0.30) 0%, rgba(0,168,171,0.22) 100%);
+      color: #fff; font-weight: 600;
+      box-shadow: inset 0 0 0 1px rgba(0,206,209,0.40), 0 2px 8px rgba(0,206,209,0.22);
     }
-    .sidebar-link svg { opacity: 0.55; transition: opacity 0.2s; }
+    .sidebar-link svg        { opacity: 0.45; transition: opacity 0.2s; }
     .sidebar-link.active svg { opacity: 1; }
-    .sidebar-link:hover svg { opacity: 0.90; }
+    .sidebar-link:hover  svg { opacity: 0.90; }
 
     .nav-group-label {
-      font-size: 0.60rem;
-      font-weight: 600;
-      letter-spacing: 0.10em;
-      color: rgba(255,255,255,0.25);
-      text-transform: uppercase;
-      padding: 0.25rem 0.875rem;
-      margin-top: 1.5rem;
-      margin-bottom: 0.5rem;
+      font-size: 0.60rem; font-weight: 600; letter-spacing: 0.10em;
+      color: rgba(0,206,209,0.35); text-transform: uppercase;
+      padding: 0.25rem 0.875rem; margin-top: 1.5rem; margin-bottom: 0.5rem;
     }
 
     /* ── Glass cards ── */
     .stat-card {
-      background: var(--glass);
-      border: 1px solid var(--glass-border);
-      border-radius: 1.125rem;
-      padding: 1.5rem;
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 1.125rem; padding: 1.5rem;
       box-shadow: var(--glass-shadow);
       backdrop-filter: blur(20px) saturate(150%);
       -webkit-backdrop-filter: blur(20px) saturate(150%);
       transition: all 0.22s ease;
     }
     .stat-card:hover {
-      box-shadow: 0 16px 40px -8px rgba(99, 88, 220, 0.14), 0 4px 12px rgba(0,0,0,0.05);
-      transform: translateY(-2px);
-      border-color: rgba(255,255,255,0.70);
+      box-shadow: 0 16px 40px -8px rgba(0,206,209,0.16), 0 4px 12px rgba(0,0,0,0.05);
+      transform: translateY(-2px); border-color: rgba(0,206,209,0.35);
     }
 
-    /* ── Glass panel (for tables/containers) ── */
     .glass-panel {
-      background: var(--glass);
-      border: 1px solid var(--glass-border);
-      border-radius: 1.25rem;
-      box-shadow: var(--glass-shadow);
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 1.25rem; box-shadow: var(--glass-shadow);
       backdrop-filter: blur(20px) saturate(150%);
-      -webkit-backdrop-filter: blur(20px) saturate(150%);
-      overflow: hidden;
+      -webkit-backdrop-filter: blur(20px) saturate(150%); overflow: hidden;
     }
     .glass-panel-header {
       padding: 1.25rem 1.5rem;
-      background: rgba(255,255,255,0.35);
-      border-bottom: 1px solid rgba(255,255,255,0.40);
+      background: rgba(224,250,251,0.60);
+      border-bottom: 1px solid rgba(0,206,209,0.12);
     }
 
     /* ── Flash messages ── */
-    .flash-success { background: rgba(209,250,229,0.75); backdrop-filter: blur(12px); }
-    .flash-error   { background: rgba(254,226,226,0.75); backdrop-filter: blur(12px); }
-    .flash-info    { background: rgba(219,234,254,0.75); backdrop-filter: blur(12px); }
+    .flash-success { background: rgba(0,206,209,0.12); border:1px solid rgba(0,206,209,0.30); backdrop-filter: blur(12px); }
+    .flash-error   { background: rgba(254,226,226,0.80); backdrop-filter: blur(12px); }
+    .flash-info    { background: rgba(0,206,209,0.08);   backdrop-filter: blur(12px); }
+
+    /* ── Skeleton Loader ── */
+    .skeleton-loader {
+      background: linear-gradient(-90deg, #E0FAFB 0%, #B2F0F2 50%, #E0FAFB 100%);
+      background-size: 400% 400%;
+      animation: skeleton-pulse 1.2s ease-in-out infinite; border-radius: 0.5rem;
+    }
+    @keyframes skeleton-pulse {
+      0%   { background-position: 0% 0%; }
+      100% { background-position: -135% 0%; }
+    }
+
+    /* ── Electric teal button ── */
+    .btn-teal {
+      background: var(--et);
+      color: #ffffff; font-weight: 700;
+      border-radius: 0.5rem; padding: 0.5rem 1.25rem; font-size: 0.875rem;
+      transition: background 0.18s, box-shadow 0.18s; border: none; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 0.375rem;
+      letter-spacing: 0.01em;
+    }
+    .btn-teal:hover {
+      background: var(--et-dark);
+      box-shadow: 0 4px 18px rgba(0,206,209,0.40);
+    }
+
+    /* ── Form inputs ── */
+    input:focus, textarea:focus, select:focus {
+      outline: none !important;
+      border-color: #00CED1 !important;
+      box-shadow: 0 0 0 3px rgba(0,206,209,0.18) !important;
+    }
+
+    /* ══ Tailwind override: inject missing electric teal utility classes ══
+       (Tailwind CSS is pre-compiled without teal; these classes were used in templates) */
+    .bg-teal-50   { background-color: #E0FAFB !important; }
+    .bg-teal-100  { background-color: #B2F0F2 !important; }
+    .bg-teal-500  { background-color: #00CED1 !important; }
+    .bg-teal-600  { background-color: #00CED1 !important; }
+    .bg-teal-700  { background-color: #00A8AB !important; }
+    .bg-teal-800  { background-color: #007F82 !important; }
+    .bg-teal-900  { background-color: #002D2F !important; }
+    .text-teal-400 { color: #80EAEC !important; }
+    .text-teal-500 { color: #00CED1 !important; }
+    .text-teal-600 { color: #00CED1 !important; }
+    .text-teal-700 { color: #00A8AB !important; }
+    .border-teal-500 { border-color: #00CED1 !important; }
+    .border-teal-600 { border-color: #00CED1 !important; }
+    .hover\:bg-teal-800:hover { background-color: #007F82 !important; }
+    .focus\:border-teal-500:focus { border-color: #00CED1 !important; }
+    .focus\:ring-teal-500:focus { --tw-ring-color: rgba(0,206,209,0.40) !important; }
+    .ring-teal-500 { --tw-ring-color: rgba(0,206,209,0.40) !important; }
   </style>
   {% block head %}{% endblock %}
 </head>
@@ -145,10 +170,10 @@
 
   <!-- Sidebar (desktop) -->
   <aside class="hidden md:flex flex-col w-64 min-h-screen fixed left-0 top-0 z-20"
-    style="background:var(--sidebar-bg); border-right:1px solid var(--sidebar-border); backdrop-filter:blur(24px) saturate(160%); -webkit-backdrop-filter:blur(24px) saturate(160%);">
-    <div class="px-5 py-6 flex items-center gap-3" style="border-bottom:1px solid rgba(255,255,255,0.07);">
+    style="background:var(--sidebar-bg); border-right:1px solid var(--sidebar-border);">
+    <div class="px-5 py-6 flex items-center gap-3" style="border-bottom:1px solid rgba(0,206,209,0.12);">
       <div class="w-8 h-8 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0"
-        style="background:linear-gradient(135deg,#6366f1,#8b5cf6); box-shadow:0 4px 14px rgba(99,102,241,0.45);">
+        style="background:linear-gradient(135deg,#00CED1,#00A8AB); box-shadow:0 4px 14px rgba(0,206,209,0.50);">
         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2" />
@@ -177,21 +202,18 @@
           </svg>
           Jobs
         </a>
-        <a href="{{ url_for('digests') }}" class="sidebar-link {% if request.endpoint == 'digests' %}active{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
-          Digests
-        </a>
-        <a href="{{ url_for('outbox') }}" class="sidebar-link {% if request.endpoint == 'outbox' %}active{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-          </svg>
-          Outbox
-        </a>
+
+
       </div>
+
+      <a href="{{ url_for('pipeline') }}"
+        class="sidebar-link {% if request.endpoint == 'pipeline' %}active{% endif %}"
+        style="margin-top:12px;background:{% if request.endpoint == 'pipeline' %}linear-gradient(135deg,rgba(0,206,209,0.30),rgba(0,168,171,0.22)){% else %}rgba(0,206,209,0.08){% endif %};border:1px solid rgba(0,206,209,0.20);">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        <span style="color:{% if request.endpoint == 'pipeline' %}#fff{% else %}#00CED1{% endif %};">Agent Pipeline</span>
+      </a>
 
       <!-- Tools group -->
       <div class="nav-group-label">Tools</div>
@@ -227,6 +249,19 @@
         </a>
       </div>
 
+      <!-- Learning group -->
+      <div class="nav-group-label">Learning</div>
+      <div class="space-y-1">
+        <a href="{{ url_for('prd_library') }}"
+          class="sidebar-link {% if request.endpoint in ['prd_library', 'prd_detail'] %}active{% endif %}">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          PRD Library
+        </a>
+      </div>
+
       <!-- Settings group -->
       <div class="nav-group-label">Settings</div>
       <div class="space-y-1">
@@ -240,6 +275,22 @@
           </svg>
           Settings
         </a>
+        <a href="{{ url_for('setup_profile') }}"
+          class="sidebar-link {% if request.endpoint == 'setup_profile' %}active{% endif %}">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          My Profile
+        </a>
+        <a href="{{ url_for('how_it_works') }}"
+          class="sidebar-link {% if request.endpoint == 'how_it_works' %}active{% endif %}">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+          </svg>
+          How it Works
+        </a>
       </div>
 
     </nav>
@@ -247,7 +298,7 @@
 
   <!-- Mobile bottom nav (5 items) -->
   <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 flex"
-    style="background:rgba(10,8,26,0.88); border-top:1px solid rgba(255,255,255,0.08); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); box-shadow:0 -4px 24px rgba(0,0,0,0.18);">
+    style="background:var(--sidebar-bg); border-top:1px solid rgba(255,255,255,0.08); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); box-shadow:0 -4px 24px rgba(0,0,0,0.18);">
     <a href="{{ url_for('dashboard') }}"
       class="flex-1 flex flex-col items-center py-3 text-xs {% if request.endpoint == 'dashboard' %}text-white font-semibold{% else %}text-white/40{% endif %}">
       <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -264,13 +315,7 @@
       </svg>
       Jobs
     </a>
-    <a href="{{ url_for('outbox') }}"
-      class="flex-1 flex flex-col items-center py-3 text-xs {% if request.endpoint == 'outbox' %}text-white font-semibold{% else %}text-white/40{% endif %}">
-      <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-      </svg>
-      Outbox
-    </a>
+
     <a href="{{ url_for('reminders') }}"
       class="flex-1 flex flex-col items-center py-3 text-xs {% if request.endpoint in ['reminders', 'reminders_create'] %}text-white font-semibold{% else %}text-white/40{% endif %}">
       <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -291,9 +336,9 @@
   <!-- Mobile Drawer Menu -->
   <div id="mobileMenu"
     class="hidden md:hidden fixed inset-0 z-40 flex justify-end transition-opacity"
-    style="background:rgba(5,4,15,0.55); backdrop-filter:blur(4px);">
+    style="background:rgba(2,26,24,0.55); backdrop-filter:blur(4px);">
     <div class="w-64 h-full flex flex-col"
-      style="background:var(--sidebar-bg); backdrop-filter:blur(24px); border-left:1px solid rgba(255,255,255,0.07); box-shadow:-8px 0 32px rgba(0,0,0,0.4);">
+      style="background:var(--sidebar-bg); border-left:1px solid rgba(255,255,255,0.07); box-shadow:-8px 0 32px rgba(0,0,0,0.4);">
       <div class="p-5 flex justify-between items-center" style="border-bottom:1px solid rgba(255,255,255,0.07);">
         <span class="font-semibold text-white text-sm">Navigation</span>
         <button onclick="document.getElementById('mobileMenu').classList.add('hidden')"
@@ -311,10 +356,8 @@
               class="block px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'dashboard' %}font-semibold text-white{% else %}text-white/50 hover:text-white/80 hover:bg-white/5{% endif %}">Dashboard</a>
             <a href="{{ url_for('jobs') }}"
               class="block px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'jobs' %}font-semibold text-white{% else %}text-white/50 hover:text-white/80 hover:bg-white/5{% endif %}">Jobs</a>
-            <a href="{{ url_for('digests') }}"
-              class="block px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'digests' %}font-semibold text-white{% else %}text-white/50 hover:text-white/80 hover:bg-white/5{% endif %}">Digests</a>
-            <a href="{{ url_for('outbox') }}"
-              class="block px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'outbox' %}font-semibold text-white{% else %}text-white/50 hover:text-white/80 hover:bg-white/5{% endif %}">Outbox</a>
+
+
           </div>
         </div>
         <div>

@@ -15,7 +15,7 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_TIMEOUT = 30  # seconds
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-OPENROUTER_MODEL = "anthropic/claude-haiku-4-5-20251001"
+OPENROUTER_MODEL = "anthropic/claude-haiku-4.5"
 OPENROUTER_TIMEOUT = 60  # seconds
 
 
@@ -73,6 +73,21 @@ def _call_openrouter(prompt: str, system: str) -> str:
     if not choices:
         raise ValueError(f"OpenRouter returned no choices: {data}")
     return (choices[0].get("message") or {}).get("content", "").strip()
+
+
+def call_llm_json_fast(prompt: str, system: str = "") -> dict:
+    """Call OpenRouter directly (skips Ollama). Use for batch/research tasks where speed matters."""
+    text = _call_openrouter(prompt, system)
+    start = text.find('{')
+    if start >= 0:
+        try:
+            result, _ = json.JSONDecoder().raw_decode(text, start)
+            if isinstance(result, dict):
+                return result
+        except json.JSONDecodeError:
+            pass
+    logger.warning("LLM did not return valid JSON: %s", text[:200])
+    return {}
 
 
 def call_llm_json(prompt: str, system: str = "") -> dict:

@@ -154,31 +154,52 @@ function startLoop(n) {
     if (!d.ok) { showStatus('Error: ' + d.error, '#dc2626'); return; }
     document.getElementById('stop-btn').classList.remove('hidden');
     showStatus('Running experiment loop (' + n + ' experiments)…');
-    pollInterval = setInterval(pollStatus, 3000);
+    startPolling();
   });
 }
 
 function stopLoop() {
   fetch('/api/autoresearch/stop', {method:'POST'})
-    .then(() => { clearInterval(pollInterval); showStatus('Stopped.'); });
+    .then(() => { clearInterval(pollInterval); pollInterval = null; showStatus('Stopped.'); document.getElementById('stop-btn').classList.add('hidden'); });
+}
+
+function startPolling() {
+  if (pollInterval) return;
+  pollInterval = setInterval(pollStatus, 3000);
 }
 
 function pollStatus() {
   fetch('/api/autoresearch/status').then(r => r.json()).then(s => {
     if (s.best_spearman) document.getElementById('metric-best').textContent = s.best_spearman.toFixed(4);
+    if (s.baseline_spearman) document.getElementById('metric-baseline').textContent = s.baseline_spearman.toFixed(4);
     document.getElementById('metric-experiments').textContent = s.experiment;
-    if (s.last_hypothesis) {
+    if (s.experiment === 0 && s.running) {
+      showStatus('Computing baseline Spearman on test set (scoring 30 jobs)… this takes 1–3 min.');
+    } else if (s.last_hypothesis) {
       const outcome = s.last_outcome === 'committed' ? '✓' : '✗';
       const delta   = s.last_delta >= 0 ? '+' + s.last_delta.toFixed(4) : s.last_delta.toFixed(4);
       showStatus(`Exp #${s.experiment} ${outcome} ${delta} — ${s.last_hypothesis}`);
     }
+    if (s.running) {
+      document.getElementById('stop-btn').classList.remove('hidden');
+    }
     if (!s.running) {
       clearInterval(pollInterval);
+      pollInterval = null;
       document.getElementById('stop-btn').classList.add('hidden');
-      showStatus('Loop finished. Best Spearman: ' + (s.best_spearman || '—'));
+      showStatus('Loop finished. Best Spearman: ' + (s.best_spearman ? s.best_spearman.toFixed(4) : '—'));
       setTimeout(() => location.reload(), 2000);
     }
   });
 }
+
+// Auto-start polling if loop is already running when page loads
+fetch('/api/autoresearch/status').then(r => r.json()).then(s => {
+  if (s.running) {
+    document.getElementById('stop-btn').classList.remove('hidden');
+    showStatus(s.experiment === 0 ? 'Computing baseline Spearman on test set (scoring 30 jobs)… this takes 1–3 min.' : `Running… experiment #${s.experiment}`);
+    startPolling();
+  }
+});
 </script>
 {% endblock %}

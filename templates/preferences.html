@@ -4,12 +4,12 @@
 {% block content %}
 <div class="mb-6 flex items-center justify-between">
   <div>
-    <h1 class="text-2xl font-bold text-gray-900">Preferences</h1>
-    <p class="text-gray-500 mt-1">Configure your job search criteria</p>
+    <h1 class="text-xl font-semibold text-zinc-900">Preferences</h1>
+    <p class="text-sm text-zinc-500 mt-1">Configure your job search criteria</p>
   </div>
   <!-- Top save button (quick access without scrolling) -->
   <button type="button" onclick="document.getElementById('prefs-form').requestSubmit()"
-          class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+          class="btn-teal">
     Save
   </button>
 </div>
@@ -19,95 +19,95 @@
   <div class="lg:col-span-2">
     <form id="prefs-form" method="POST" action="{{ url_for('preferences') }}">
       <!-- ── Section 1: Job Search ─────────────────────────────────────── -->
-      <div class="bg-white rounded-lg shadow mb-5">
-        <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-          <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="bg-white rounded-xl border border-zinc-200 mb-5">
+        <div class="px-6 py-4 border-b border-zinc-100 flex items-center gap-2">
+          <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
           </svg>
           <h2 class="text-sm font-semibold text-gray-900">Job Search</h2>
         </div>
-        <div class="p-6 space-y-5">
+        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label for="job_titles" class="block text-sm font-medium text-gray-700 mb-1">Job Titles</label>
+            <p class="text-xs text-gray-400 mb-2 mt-1">Comma-separated list of job titles to search for</p>
             <textarea id="job_titles" name="job_titles" rows="2"
-                      class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2"
+                      class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2"
                       placeholder="Product Manager, PM, Associate PM">{{ prefs.job_titles | join(', ') }}</textarea>
-            <p class="text-xs text-gray-400 mt-1">Comma-separated list of job titles to search for</p>
           </div>
 
           <div>
             <label for="locations" class="block text-sm font-medium text-gray-700 mb-1">Locations</label>
+            <p class="text-xs text-gray-400 mb-2 mt-1">Comma-separated list of preferred locations</p>
             <textarea id="locations" name="locations" rows="2"
-                      class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2"
+                      class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2"
                       placeholder="Remote, Bangalore, Delhi">{{ prefs.locations | join(', ') }}</textarea>
-            <p class="text-xs text-gray-400 mt-1">Comma-separated list of preferred locations</p>
           </div>
 
           <div>
             <label for="industries" class="block text-sm font-medium text-gray-700 mb-1">Industries</label>
+            <p class="text-xs text-gray-400 mb-2 mt-1">Comma-separated list of industries of interest</p>
             <textarea id="industries" name="industries" rows="2"
-                      class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2"
+                      class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2"
                       placeholder="Fintech, SaaS, AI/ML">{{ prefs.industries | join(', ') }}</textarea>
-            <p class="text-xs text-gray-400 mt-1">Comma-separated list of industries of interest</p>
           </div>
 
           <div>
             <label for="transferable_skills" class="block text-sm font-medium text-gray-700 mb-1">Transferable Skills</label>
+            <p class="text-xs text-gray-400 mb-2 mt-1">Skills from your banking/finance career that transfer to tech roles. Used for scoring and tailored points.</p>
             <textarea id="transferable_skills" name="transferable_skills" rows="2"
-                      class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2"
+                      class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2"
                       placeholder="Stakeholder Management, Risk Management, Data Analysis">{{ prefs.get('transferable_skills', []) | join(', ') }}</textarea>
-            <p class="text-xs text-gray-400 mt-1">Skills from your banking/finance career that transfer to tech roles. Used for scoring and tailored points.</p>
           </div>
         </div>
       </div>
 
       <!-- ── Section 2: Notifications ──────────────────────────────────── -->
-      <div class="bg-white rounded-lg shadow mb-5">
-        <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-          <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="bg-white rounded-xl border border-zinc-200 mb-5">
+        <div class="px-6 py-4 border-b border-zinc-100 flex items-center gap-2">
+          <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
           </svg>
           <h2 class="text-sm font-semibold text-gray-900">Notifications &amp; Digest</h2>
         </div>
-        <div class="p-6 space-y-5">
+        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label for="top_jobs" class="block text-sm font-medium text-gray-700 mb-1">Jobs per Digest</label>
               <input type="number" id="top_jobs" name="top_jobs" min="3" max="10"
                      value="{{ prefs.top_jobs_per_digest }}"
-                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
+                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2">
             </div>
             <div>
               <label for="digest_time" class="block text-sm font-medium text-gray-700 mb-1">Digest Time</label>
-              <input type="text" id="digest_time" name="digest_time"
+              <p class="text-xs text-gray-400 mb-2 mt-1">e.g. 6:00 AM, 11:00 AM, 18:30</p>
+            <input type="text" id="digest_time" name="digest_time"
                      value="{{ prefs.digest_time }}" placeholder="6:00 AM"
-                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
-              <p class="text-xs text-gray-400 mt-1">e.g. 6:00 AM, 11:00 AM, 18:30</p>
+                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2">
             </div>
           </div>
 
           <div>
             <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Recipient Email (optional)</label>
+            <p class="text-xs text-gray-400 mb-2 mt-1">Email address to receive job digest notifications</p>
             <input type="email" id="email" name="email"
                    value="{{ prefs.email }}" placeholder="you@example.com"
-                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
-            <p class="text-xs text-gray-400 mt-1">Email address to receive job digest notifications</p>
+                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2">
           </div>
 
           <!-- Email SMTP settings -->
-          <div class="pt-4 border-t border-gray-100">
+          <div class="pt-4 border-t border-zinc-100 col-span-1 md:col-span-2">
             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Gmail SMTP</h3>
             <p class="text-xs text-gray-400 mb-4">Configure Gmail SMTP to receive daily job digest emails. Requires a
-              <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" class="text-indigo-600 underline">Google App Password</a>
+              <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" class="text-teal-600 underline">Google App Password</a>
               — not your regular Google password.</p>
 
             <div class="space-y-4">
               <div>
                 <label for="gmail_address" class="block text-sm font-medium text-gray-700 mb-1">Gmail Address (sender)</label>
-                <input type="email" id="gmail_address" name="gmail_address"
+                <p class="text-xs text-gray-400 mb-2 mt-1">The Gmail account that will send the digest emails</p>
+            <input type="email" id="gmail_address" name="gmail_address"
                        value="{{ prefs.get('gmail_address', '') }}" placeholder="yourname@gmail.com"
-                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
-                <p class="text-xs text-gray-400 mt-1">The Gmail account that will send the digest emails</p>
+                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2">
               </div>
 
               <div>
@@ -117,47 +117,63 @@
                   Set via environment variable (GMAIL_APP_PASSWORD)
                 </div>
                 {% else %}
-                <input type="password" id="gmail_app_password" name="gmail_app_password"
-                       value="{{ prefs.get('gmail_app_password', '') }}" placeholder="xxxx xxxx xxxx xxxx"
-                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
-                {% endif %}
-                <p class="text-xs text-gray-400 mt-1">
-                  Generate at <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" class="text-indigo-600 underline">Google App Passwords</a>.
+                <div class="relative">
+                  <input type="password" id="gmail_app_password" name="gmail_app_password"
+                         value="{{ prefs.get('gmail_app_password', '') }}" placeholder="xxxx xxxx xxxx xxxx"
+                         class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2 pr-10">
+                  <button type="button" onclick="togglePassword('gmail_app_password')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <svg id="icon-gmail_app_password" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                </div>
+                <p class="text-xs text-gray-400 mb-2 mt-1">
+                  Generate at <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" class="text-teal-600 underline">Google App Passwords</a>.
                   Requires 2-Step Verification enabled.
                 </p>
+                {% endif %}
               </div>
             </div>
           </div>
 
           <!-- Agent settings -->
-          <div class="pt-4 border-t border-gray-100">
+          <div class="pt-4 border-t border-zinc-100 col-span-1 md:col-span-2">
             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Agent Outreach</h3>
-            <div class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label for="agent_score_threshold" class="block text-sm font-medium text-gray-700 mb-1">Agent Score Threshold</label>
-                <input type="number" id="agent_score_threshold" name="agent_score_threshold" min="0" max="100"
-                       value="{{ prefs.agent_score_threshold or 60 }}"
-                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
-                <p class="text-xs text-gray-400 mt-1">Minimum LLM score (0-100) for a job to be included in outreach drafts</p>
+                <p class="text-xs text-gray-400 mb-2 mt-1">Minimum LLM score (0–100) for a job to appear in your outreach digest. Lower = more jobs.</p>
+            <input type="number" id="agent_score_threshold" name="agent_score_threshold" min="0" max="100"
+                       value="{{ prefs.agent_score_threshold if prefs.agent_score_threshold is not none else 50 }}"
+                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2">
+              </div>
+
+              <div>
+                <label for="agent_job_cap" class="block text-sm font-medium text-gray-700 mb-1">Jobs Per Agent Run</label>
+                <p class="text-xs text-gray-400 mb-2 mt-1">Max number of fresh jobs processed per agent run. Higher = more emails but more LLM cost.</p>
+                <input type="number" id="agent_job_cap" name="agent_job_cap" min="10" max="500"
+                       value="{{ prefs.agent_job_cap or 200 }}"
+                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2">
               </div>
 
               <div>
                 <label for="agent_host" class="block text-sm font-medium text-gray-700 mb-1">Agent Host URL</label>
-                <input type="text" id="agent_host" name="agent_host"
+                <p class="text-xs text-gray-400 mb-2 mt-1">Base URL used in email approve/skip links (e.g. http://your-server:5001)</p>
+            <input type="text" id="agent_host" name="agent_host"
                        value="{{ prefs.agent_host or 'http://localhost:5001' }}" placeholder="http://localhost:5001"
-                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
-                <p class="text-xs text-gray-400 mt-1">Base URL used in email approve/skip links (e.g. http://your-server:5001)</p>
+                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2">
               </div>
             </div>
           </div>
 
           <!-- Telegram settings -->
-          <div class="pt-4 border-t border-gray-100">
+          <div class="pt-4 border-t border-zinc-100 col-span-1 md:col-span-2">
             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Telegram Bot</h3>
             <p class="text-xs text-gray-400 mb-4">Get real-time job alerts and an interactive bot on Telegram.
-              Create a bot via <a href="https://t.me/BotFather" target="_blank" rel="noopener" class="text-indigo-600 underline">@BotFather</a>.</p>
+              Create a bot via <a href="https://t.me/BotFather" target="_blank" rel="noopener" class="text-teal-600 underline">@BotFather</a>.</p>
 
-            <div class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label for="telegram_bot_token" class="block text-sm font-medium text-gray-700 mb-1">Bot Token</label>
                 {% if env_credentials.get('telegram_bot_token') %}
@@ -165,35 +181,43 @@
                   Set via environment variable (TELEGRAM_BOT_TOKEN)
                 </div>
                 {% else %}
-                <input type="password" id="telegram_bot_token" name="telegram_bot_token"
-                       value="{{ prefs.get('telegram_bot_token', '') }}" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
-                {% endif %}
-                <p class="text-xs text-gray-400 mt-1">
-                  Get from <a href="https://t.me/BotFather" target="_blank" rel="noopener" class="text-indigo-600 underline">@BotFather</a>:
+                <div class="relative">
+                  <input type="password" id="telegram_bot_token" name="telegram_bot_token"
+                         value="{{ prefs.get('telegram_bot_token', '') }}" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                         class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2 pr-10">
+                  <button type="button" onclick="togglePassword('telegram_bot_token')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <svg id="icon-telegram_bot_token" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                </div>
+                <p class="text-xs text-gray-400 mb-2 mt-1">
+                  Get from <a href="https://t.me/BotFather" target="_blank" rel="noopener" class="text-teal-600 underline">@BotFather</a>:
                   send <code>/newbot</code>. Also enables <code>/stats</code>, <code>/scrape</code> commands.
                   Requires app restart after saving.
                 </p>
+                {% endif %}
               </div>
 
               <div>
                 <label for="telegram_chat_id" class="block text-sm font-medium text-gray-700 mb-1">Chat ID</label>
-                <input type="text" id="telegram_chat_id" name="telegram_chat_id"
-                       value="{{ prefs.get('telegram_chat_id', '') }}" placeholder="123456789"
-                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
-                <p class="text-xs text-gray-400 mt-1">
+                <p class="text-xs text-gray-400 mb-2 mt-1">
                   Find your ID at
-                  <a href="https://t.me/userinfobot" target="_blank" rel="noopener" class="text-indigo-600 underline">@userinfobot</a>.
+                  <a href="https://t.me/userinfobot" target="_blank" rel="noopener" class="text-teal-600 underline">@userinfobot</a>.
                   Group chat IDs start with <code>-</code>.
                 </p>
+                <input type="text" id="telegram_chat_id" name="telegram_chat_id"
+                       value="{{ prefs.get('telegram_chat_id', '') }}" placeholder="123456789"
+                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2">
               </div>
 
               <div>
                 <label for="telegram_min_score" class="block text-sm font-medium text-gray-700 mb-1">Minimum Score for Alerts</label>
-                <input type="number" id="telegram_min_score" name="telegram_min_score" min="0" max="100"
+                <p class="text-xs text-gray-400 mb-2 mt-1">Only jobs at or above this score are sent to Telegram (default: 65)</p>
+            <input type="number" id="telegram_min_score" name="telegram_min_score" min="0" max="100"
                        value="{{ prefs.get('telegram_min_score', 65) }}"
-                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
-                <p class="text-xs text-gray-400 mt-1">Only jobs at or above this score are sent to Telegram (default: 65)</p>
+                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2">
               </div>
             </div>
           </div>
@@ -201,18 +225,18 @@
       </div>
 
       <!-- ── Section 3: Integrations ────────────────────────────────────── -->
-      <div class="bg-white rounded-lg shadow mb-5">
-        <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-          <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="bg-white rounded-xl border border-zinc-200 mb-5">
+        <div class="px-6 py-4 border-b border-zinc-100 flex items-center gap-2">
+          <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
           </svg>
           <h2 class="text-sm font-semibold text-gray-900">Integrations</h2>
         </div>
-        <div class="p-6 space-y-5">
-          <div>
+        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="col-span-1 md:col-span-2">
             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Apollo.io Contact Enrichment</h3>
             <p class="text-xs text-gray-400 mb-4">Adds recruiter/HR phone numbers and emails to job listings.
-              Get your API key from <a href="https://app.apollo.io/#/settings/integrations/api" target="_blank" rel="noopener" class="text-indigo-600 underline">Apollo.io Settings</a>.</p>
+              Get your API key from <a href="https://app.apollo.io/#/settings/integrations/api" target="_blank" rel="noopener" class="text-teal-600 underline">Apollo.io Settings</a>.</p>
 
             <label for="apollo_api_key" class="block text-sm font-medium text-gray-700 mb-1">Apollo API Key</label>
             {% if env_credentials.get('apollo_api_key') %}
@@ -220,11 +244,59 @@
               Set via environment variable (APOLLO_API_KEY)
             </div>
             {% else %}
-            <input type="password" id="apollo_api_key" name="apollo_api_key"
-                   value="{{ prefs.get('apollo_api_key', '') }}" placeholder="your-apollo-api-key"
-                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm border p-2">
+            <div class="relative md:w-1/2">
+              <input type="password" id="apollo_api_key" name="apollo_api_key"
+                     value="{{ prefs.get('apollo_api_key', '') }}" placeholder="your-apollo-api-key"
+                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2 pr-10">
+              <button type="button" onclick="togglePassword('apollo_api_key')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none">
+                <svg id="icon-apollo_api_key" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+            </div>
+            <p class="text-xs text-gray-400 mb-2 mt-1">When set, the scraper will automatically look up recruiter contacts for each company.</p>
             {% endif %}
-            <p class="text-xs text-gray-400 mt-1">When set, the scraper will automatically look up recruiter contacts for each company.</p>
+          </div>
+
+          <!-- LinkedIn credentials -->
+          <div class="pt-4 border-t border-zinc-100 col-span-1 md:col-span-2">
+            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">LinkedIn Hiring Manager</h3>
+            <p class="text-xs text-gray-400 mb-4">
+              When your LinkedIn credentials are set, the agent automatically identifies the hiring manager
+              from LinkedIn job postings ("Meet the hiring team" section) and also fills in missing job descriptions.
+              <strong class="text-gray-600">Use a secondary LinkedIn account if possible</strong> — scraping may
+              trigger LinkedIn's bot detection.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label for="linkedin_email" class="block text-sm font-medium text-gray-700 mb-1">LinkedIn Email</label>
+                <input type="email" id="linkedin_email" name="linkedin_email"
+                       value="{{ prefs.get('linkedin_email', '') }}" placeholder="you@example.com"
+                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2">
+              </div>
+              <div>
+                <label for="linkedin_password" class="block text-sm font-medium text-gray-700 mb-1">LinkedIn Password</label>
+                {% if env_credentials.get('linkedin_password') %}
+                <div class="w-full rounded-md bg-green-50 border border-green-200 text-green-700 text-sm p-2">
+                  Set via environment variable (LINKEDIN_PASSWORD)
+                </div>
+                {% else %}
+                <div class="relative">
+                  <input type="password" id="linkedin_password" name="linkedin_password"
+                         value="{{ prefs.get('linkedin_password', '') }}" placeholder="••••••••"
+                         class="w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-sm border p-2 pr-10">
+                  <button type="button" onclick="togglePassword('linkedin_password')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <svg id="icon-linkedin_password" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                </div>
+                <p class="text-xs text-gray-400 mb-2 mt-1">Stored securely. Leave blank to disable LinkedIn login (job descriptions still extracted).</p>
+                {% endif %}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -232,7 +304,7 @@
       <!-- Bottom Save -->
       <div class="flex justify-end">
         <button type="submit"
-                class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                class="btn-teal">
           Save Preferences
         </button>
       </div>
@@ -241,10 +313,10 @@
 
   <!-- Portal Status (read-only) -->
   <div>
-    <div class="bg-white rounded-lg shadow">
-      <div class="px-5 py-4 border-b border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-900">Portal Status</h2>
-        <p class="text-xs text-gray-400 mt-0.5">From config.json (read-only)</p>
+    <div class="bg-white rounded-xl border border-zinc-200">
+      <div class="px-5 py-4 border-b border-zinc-200">
+        <h2 class="text-base font-semibold text-zinc-900">Portal Status</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Select portals on the <a href="{{ url_for('scraper') }}" class="text-indigo-500 hover:underline">Run Scraper</a> page.</p>
       </div>
       <div class="p-5">
         <ul class="space-y-3">
@@ -252,13 +324,9 @@
           <li class="flex items-center justify-between">
             <span class="text-sm font-medium text-gray-700 capitalize">{{ name }}</span>
             {% if portal.get('enabled', false) %}
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                Enabled
-              </span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Enabled</span>
             {% else %}
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                Disabled
-              </span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Disabled</span>
             {% endif %}
           </li>
           {% endfor %}
@@ -271,10 +339,23 @@
 
 {% block scripts %}
 <script>
+function togglePassword(id) {
+  const el = document.getElementById(id);
+  const icon = document.getElementById('icon-' + id);
+  if (el.type === 'password') {
+    el.type = 'text';
+    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />';
+  } else {
+    el.type = 'password';
+    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />';
+  }
+}
+
 // Normalize digest time display: "11.00 AM" → "11:00 AM"
 const digestField = document.getElementById('digest_time');
 if (digestField && digestField.value) {
   digestField.value = digestField.value.replace(/(\d{1,2})\.(\d{2})/, '$1:$2');
 }
+
 </script>
 {% endblock %}

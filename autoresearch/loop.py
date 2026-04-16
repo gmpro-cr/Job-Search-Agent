@@ -49,6 +49,7 @@ def get_status() -> dict:
 
 def stop():
     _stop_event.set()
+    _status["running"] = False
 
 
 def _git(args: list, cwd: str = None) -> str:
@@ -151,7 +152,7 @@ def run_loop(
 
     cv_data   = load_cv_data() or {}
     cv_skills = ", ".join((cv_data.get("skills") or [])[:20])
-    cv_summary = (cv_data.get("raw_text") or "")[:600]
+    cv_summary = (cv_data.get("raw_text") or "")[:200]
 
     # Establish or load baseline
     if os.path.exists(BASELINE_PATH):

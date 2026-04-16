@@ -2,62 +2,112 @@
 {% block title %}Run Scraper - Job Search Agent{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-  <h1 class="text-2xl font-bold text-gray-900">Run Scraper</h1>
-  <p class="text-gray-500 mt-1">Scrape all enabled portals, analyze jobs, and generate a digest</p>
+<div class="mb-8 pl-1">
+  <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Run Scraper</h1>
+  <p class="text-sm text-gray-500 mt-1 font-medium">Scrape all enabled portals, analyze jobs, and generate a digest.</p>
 </div>
 
 <div class="max-w-2xl">
   <!-- Start Button -->
-  <div id="start-section" class="bg-white rounded-lg shadow p-6 text-center">
-    <p class="text-gray-600 mb-4">This will scrape all enabled job portals, score jobs with AI, store them in the database, and generate a new digest. This usually takes 5-10 minutes.</p>
-    <button id="start-btn" onclick="startScraper()"
-            class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 text-lg">
-      Run Scraper Now
-    </button>
-    <p id="last-run-info" class="hidden mt-3 text-sm text-gray-400"></p>
-    <p id="next-run-info" class="hidden mt-1 text-sm text-gray-400"></p>
-    <div class="mt-4 pt-4 border-t border-gray-100">
+  <div id="start-section" class="bg-white rounded-2xl shadow-sm border border-gray-100/80 p-6">
+
+    <!-- Portal Selection -->
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold text-gray-800">Select Portals to Scrape</h3>
+        <div class="flex gap-2 text-xs">
+          <button type="button" onclick="selectAllPortals(true)"
+            class="text-indigo-600 hover:text-indigo-800 font-medium">All</button>
+          <span class="text-gray-300">|</span>
+          <button type="button" onclick="selectAllPortals(false)"
+            class="text-gray-500 hover:text-gray-700 font-medium">None</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        {% for name, portal in config.get('portals', {}).items() %}
+        <label class="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors
+          {% if portal.get('enabled', false) %}border-indigo-200 bg-indigo-50{% else %}border-gray-200 bg-gray-50{% endif %}
+          hover:border-indigo-300 group" id="portal-label-{{ name }}">
+          <input type="checkbox" class="portal-checkbox w-4 h-4 rounded accent-indigo-600"
+            value="{{ name }}"
+            {% if portal.get('enabled', false) %}checked{% endif %}
+            onchange="updatePortalLabel(this)">
+          <span class="text-sm font-medium text-gray-700 capitalize">{{ name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="text-center border-t border-gray-100 pt-5">
+      <p class="text-gray-500 text-sm mb-4 leading-relaxed">Scores jobs with AI, stores them in the database, and generates a digest. Usually takes 5–10 minutes.</p>
+      <button id="start-btn" onclick="startScraper()"
+        class="px-6 py-3 bg-gray-900 text-white font-bold tracking-wide rounded-xl hover:bg-gray-800 focus:outline-none transition-colors shadow-sm text-sm uppercase">
+        Run Scraper Now
+      </button>
+      <p id="last-run-info" class="hidden mt-3 text-sm text-gray-400"></p>
+      <p id="next-run-info" class="hidden mt-1 text-sm text-gray-400"></p>
+    </div>
+
+    <div class="mt-5 pt-5 border-t border-gray-100 text-left bg-gray-50 -mx-6 -mb-6 p-6 rounded-b-xl">
+      <h3 class="text-sm font-semibold text-gray-900 mb-1">Maintenance</h3>
+      <p class="text-xs text-gray-500 mb-3">Removes duplicate jobs keeping the highest-scoring copy.</p>
       <button onclick="runDedup()" id="dedup-btn"
-              class="px-4 py-2 bg-white text-gray-600 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50">
+        class="w-full px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 hover:text-gray-900 shadow-sm transition-colors flex justify-center items-center gap-2">
+        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
         Clean up duplicates
       </button>
-      <p class="text-xs text-gray-400 mt-1">Removes duplicate jobs keeping the highest-scoring copy</p>
-      <p id="dedup-result" class="hidden mt-2 text-sm text-green-600 font-medium"></p>
+      <p id="dedup-result"
+        class="hidden mt-3 text-sm text-green-700 bg-green-50 p-2 rounded-lg border border-green-200 text-center font-medium">
+      </p>
     </div>
   </div>
 
   <!-- Progress Section (hidden initially) -->
   <div id="progress-section" class="hidden">
-    <div class="bg-white rounded-lg shadow p-6">
-      <div class="flex items-center space-x-3 mb-4">
-        <svg id="spinner" class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <span id="phase-text" class="text-lg font-medium text-gray-900">Starting...</span>
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100/80 p-8">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-3">
+          <svg id="spinner" class="animate-spin h-5 w-5 text-zinc-600" xmlns="http://www.w3.org/2000/svg" fill="none"
+            viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
+          </svg>
+          <span id="phase-text" class="text-lg font-medium text-gray-900">Starting...</span>
+        </div>
+        <button id="stop-btn" onclick="stopScraper()"
+          class="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold rounded-lg border border-red-200 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+            <rect x="4" y="4" width="12" height="12" rx="1"/>
+          </svg>
+          Stop
+        </button>
       </div>
 
       <!-- Portal progress -->
       <div id="portal-list" class="space-y-2 mb-4"></div>
 
       <!-- Summary counters -->
-      <div id="summary" class="hidden mt-4 pt-4 border-t border-gray-200 grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <span class="text-gray-500">Total jobs scraped:</span>
-          <span id="stat-total" class="font-medium text-gray-900 ml-1">0</span>
+      <div id="summary" class="hidden mt-8 pt-6 border-t border-gray-200/60 grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-gray-50/80 rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center items-center text-center hover:shadow-md transition-shadow">
+          <span class="text-[10px] uppercase tracking-widest font-bold text-gray-400 mb-1">Total Scraped</span>
+          <span id="stat-total" class="text-2xl font-extrabold text-gray-800">0</span>
         </div>
-        <div>
-          <span class="text-gray-500">Qualified:</span>
-          <span id="stat-qualified" class="font-medium text-gray-900 ml-1">0</span>
+        <div class="bg-teal-50/50 rounded-xl p-4 border border-indigo-100 shadow-sm flex flex-col justify-center items-center text-center hover:shadow-md transition-shadow">
+          <span class="text-[10px] uppercase tracking-widest font-bold text-teal-400 mb-1">Qualified Matches</span>
+          <span id="stat-qualified" class="text-2xl font-extrabold text-teal-700">0</span>
         </div>
-        <div>
-          <span class="text-gray-500">New (inserted):</span>
-          <span id="stat-inserted" class="font-medium text-gray-900 ml-1">0</span>
+        <div class="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100 shadow-sm flex flex-col justify-center items-center text-center hover:shadow-md transition-shadow">
+          <span class="text-[10px] uppercase tracking-widest font-bold text-emerald-500 mb-1">New Insertions</span>
+          <span id="stat-inserted" class="text-2xl font-extrabold text-emerald-700">0</span>
         </div>
-        <div>
-          <span class="text-gray-500">Duplicates skipped:</span>
-          <span id="stat-skipped" class="font-medium text-gray-900 ml-1">0</span>
+        <div class="bg-gray-50/80 rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center items-center text-center hover:shadow-md transition-shadow">
+          <span class="text-[10px] uppercase tracking-widest font-bold text-gray-400 mb-1">Duplicates Skipped</span>
+          <span id="stat-skipped" class="text-2xl font-extrabold text-gray-500">0</span>
         </div>
       </div>
     </div>
@@ -66,13 +116,32 @@
     <div id="result-section" class="hidden mt-4 bg-green-50 rounded-lg shadow p-6 border border-green-200">
       <h3 class="text-lg font-semibold text-green-800 mb-3">Scraping Complete!</h3>
       <div class="flex flex-wrap gap-3">
-        <a href="{{ url_for('jobs') }}" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700">
+        <a href="{{ url_for('jobs') }}"
+          class="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-lg hover:bg-teal-800">
           View Jobs
         </a>
-        <a id="digest-link" href="#" class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
+        <a id="digest-link" href="#"
+          class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
           View Latest Digest
         </a>
-        <button onclick="location.reload()" class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
+        <button onclick="location.reload()"
+          class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
+          Run Again
+        </button>
+      </div>
+    </div>
+
+    <!-- Stopped section -->
+    <div id="stopped-section" class="hidden mt-4 bg-amber-50 rounded-lg shadow p-6 border border-amber-200">
+      <h3 class="text-lg font-semibold text-amber-800 mb-2">Scraping Stopped</h3>
+      <p class="text-sm text-amber-700 mb-3">Scraping was stopped. Any jobs collected before stopping have been saved.</p>
+      <div class="flex gap-3">
+        <a href="{{ url_for('jobs') }}"
+          class="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-lg hover:bg-teal-800">
+          View Jobs
+        </a>
+        <button onclick="location.reload()"
+          class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
           Run Again
         </button>
       </div>
@@ -82,7 +151,8 @@
     <div id="error-section" class="hidden mt-4 bg-red-50 rounded-lg shadow p-6 border border-red-200">
       <h3 class="text-lg font-semibold text-red-800 mb-2">Error</h3>
       <p id="error-text" class="text-sm text-red-700"></p>
-      <button onclick="location.reload()" class="mt-3 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
+      <button onclick="location.reload()"
+        class="mt-3 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
         Try Again
       </button>
     </div>
@@ -92,159 +162,225 @@
 
 {% block scripts %}
 <script>
-let pollInterval = null;
+  let pollInterval = null;
 
-const phaseLabels = {
-  starting: 'Starting pipeline...',
-  scraping: 'Scraping job portals...',
-  analyzing: 'Analyzing and scoring jobs...',
-  storing: 'Storing jobs in database...',
-  generating_digest: 'Generating digest...',
-  done: 'Complete!',
-  error: 'Error occurred',
-  idle: 'Idle',
-};
+  const phaseLabels = {
+    starting: 'Starting pipeline...',
+    scraping: 'Scraping job portals...',
+    analyzing: 'Analyzing and scoring jobs...',
+    storing: 'Storing jobs in database...',
+    generating_digest: 'Generating digest...',
+    done: 'Complete!',
+    stopping: 'Stopping — waiting for current portals to finish...',
+    stopped: 'Stopped.',
+    error: 'Error occurred',
+    idle: 'Idle',
+  };
 
-function startScraper() {
-  const btn = document.getElementById('start-btn');
-  btn.disabled = true;
-  btn.textContent = 'Starting...';
-  btn.classList.add('opacity-50');
+  function updatePortalLabel(cb) {
+    const label = document.getElementById('portal-label-' + cb.value);
+    if (cb.checked) {
+      label.classList.replace('border-gray-200', 'border-indigo-200');
+      label.classList.replace('bg-gray-50', 'bg-indigo-50');
+    } else {
+      label.classList.replace('border-indigo-200', 'border-gray-200');
+      label.classList.replace('bg-indigo-50', 'bg-gray-50');
+    }
+  }
 
-  fetch('/api/scraper/start', {method: 'POST'})
-    .then(r => r.json())
-    .then(data => {
-      if (data.ok) {
-        document.getElementById('start-section').classList.add('hidden');
-        document.getElementById('progress-section').classList.remove('hidden');
-        pollInterval = setInterval(pollStatus, 2000);
-        pollStatus();
-      } else {
-        btn.disabled = false;
-        btn.textContent = 'Run Scraper Now';
-        btn.classList.remove('opacity-50');
-        alert(data.error || 'Failed to start scraper');
-      }
-    })
-    .catch(err => {
+  function selectAllPortals(checked) {
+    document.querySelectorAll('.portal-checkbox').forEach(cb => {
+      cb.checked = checked;
+      updatePortalLabel(cb);
+    });
+  }
+
+  function startScraper() {
+    const btn = document.getElementById('start-btn');
+    btn.disabled = true;
+    btn.textContent = 'Starting...';
+    btn.classList.add('opacity-50');
+
+    const enabled = [...document.querySelectorAll('.portal-checkbox:checked')].map(cb => cb.value);
+    if (enabled.length === 0) {
+      alert('Please select at least one portal.');
       btn.disabled = false;
       btn.textContent = 'Run Scraper Now';
       btn.classList.remove('opacity-50');
-      alert('Network error: ' + err.message);
-    });
-}
+      return;
+    }
 
-function pollStatus() {
-  fetch('/api/scraper/status')
+    // Save portal selection first, then start scraper
+    fetch('/api/portals/update', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ enabled })
+    })
+    .then(() => fetch('/api/scraper/start', { method: 'POST' }))
     .then(r => r.json())
-    .then(s => {
-      // Phase
-      document.getElementById('phase-text').textContent = phaseLabels[s.phase] || s.phase;
+    .then(data => {
+        if (data.ok) {
+          document.getElementById('start-section').classList.add('hidden');
+          document.getElementById('progress-section').classList.remove('hidden');
+          pollInterval = setInterval(pollStatus, 2000);
+          pollStatus();
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'Run Scraper Now';
+          btn.classList.remove('opacity-50');
+          alert(data.error || 'Failed to start scraper');
+        }
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.textContent = 'Run Scraper Now';
+        btn.classList.remove('opacity-50');
+        alert('Network error: ' + err.message);
+      });
+  }
 
-      // Portal progress
-      const portalList = document.getElementById('portal-list');
-      const portals = Object.entries(s.portal_progress || {});
-      if (portals.length > 0) {
-        portalList.innerHTML = portals.map(([name, info]) => {
-          const icon = info.status === 'success'
-            ? '<span class="text-green-600 font-bold">&#10003;</span>'
-            : '<span class="text-red-500 font-bold">&#10007;</span>';
-          return `<div class="flex items-center justify-between text-sm py-1">
+  function pollStatus() {
+    fetch('/api/scraper/status')
+      .then(r => r.json())
+      .then(s => {
+        // Phase
+        document.getElementById('phase-text').textContent = phaseLabels[s.phase] || s.phase;
+
+        // Portal progress
+        const portalList = document.getElementById('portal-list');
+        const portals = Object.entries(s.portal_progress || {});
+        if (portals.length > 0) {
+          portalList.innerHTML = portals.map(([name, info]) => {
+            const icon = info.status === 'success'
+              ? '<span class="text-green-600 font-bold">&#10003;</span>'
+              : '<span class="text-red-500 font-bold">&#10007;</span>';
+            return `<div class="flex items-center justify-between text-sm py-1">
             <span class="flex items-center space-x-2">
               ${icon}
               <span class="capitalize text-gray-700">${name}</span>
             </span>
             <span class="text-gray-500">${info.count} jobs</span>
           </div>`;
-        }).join('');
-      }
-
-      // Show summary once we have data
-      if (s.total_jobs > 0 || s.phase === 'done') {
-        document.getElementById('summary').classList.remove('hidden');
-        document.getElementById('stat-total').textContent = s.total_jobs;
-        document.getElementById('stat-qualified').textContent = s.qualified_jobs;
-        document.getElementById('stat-inserted').textContent = s.inserted;
-        document.getElementById('stat-skipped').textContent = s.skipped;
-      }
-
-      // Done
-      if (s.phase === 'done') {
-        clearInterval(pollInterval);
-        document.getElementById('spinner').classList.add('hidden');
-        document.getElementById('result-section').classList.remove('hidden');
-        if (s.digest_path) {
-          document.getElementById('digest-link').href = '/digests/' + s.digest_path;
+          }).join('');
         }
-      }
 
-      // Error
-      if (s.phase === 'error') {
-        clearInterval(pollInterval);
-        document.getElementById('spinner').classList.add('hidden');
-        document.getElementById('error-section').classList.remove('hidden');
-        document.getElementById('error-text').textContent = s.error || 'Unknown error';
-      }
-    })
-    .catch(err => console.error('Poll error:', err));
-}
+        // Show summary once we have data
+        if (s.total_jobs > 0 || s.phase === 'done') {
+          document.getElementById('summary').classList.remove('hidden');
+          document.getElementById('stat-total').textContent = s.total_jobs;
+          document.getElementById('stat-qualified').textContent = s.qualified_jobs;
+          document.getElementById('stat-inserted').textContent = s.inserted;
+          document.getElementById('stat-skipped').textContent = s.skipped;
+        }
 
-function toRelative(isoStr) {
-  if (!isoStr) return null;
-  const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 60000);
-  if (diff < 1) return 'just now';
-  if (diff < 60) return `${diff} minute${diff === 1 ? '' : 's'} ago`;
-  const h = Math.floor(diff / 60);
-  if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`;
-  const d = Math.floor(h / 24);
-  return `${d} day${d === 1 ? '' : 's'} ago`;
-}
+        // Stopping — disable stop button to avoid double-click
+        if (s.phase === 'stopping') {
+          const stopBtn = document.getElementById('stop-btn');
+          if (stopBtn) { stopBtn.disabled = true; stopBtn.textContent = 'Stopping…'; }
+        }
 
-function runDedup() {
-  const btn = document.getElementById('dedup-btn');
-  const result = document.getElementById('dedup-result');
-  btn.disabled = true;
-  btn.textContent = 'Running...';
-  fetch('/api/admin/dedup', {method: 'POST'})
-    .then(r => r.json())
-    .then(data => {
-      btn.disabled = false;
-      btn.textContent = 'Clean up duplicates';
-      result.classList.remove('hidden');
-      result.textContent = data.deleted > 0
-        ? `Removed ${data.deleted} duplicate job${data.deleted !== 1 ? 's' : ''}.`
-        : 'No duplicates found.';
-    })
-    .catch(err => {
-      btn.disabled = false;
-      btn.textContent = 'Clean up duplicates';
-      alert('Error: ' + err.message);
-    });
-}
+        // Done
+        if (s.phase === 'done') {
+          clearInterval(pollInterval);
+          document.getElementById('spinner').classList.add('hidden');
+          document.getElementById('stop-btn').classList.add('hidden');
+          document.getElementById('result-section').classList.remove('hidden');
+          if (s.digest_path) {
+            document.getElementById('digest-link').href = '/digests/' + s.digest_path;
+          }
+        }
 
-// Check if already running on page load; show last-run and next-run info
-Promise.all([
-  fetch('/api/scraper/status').then(r => r.json()),
-  fetch('/api/scheduler/status').then(r => r.json()),
-]).then(([s, sched]) => {
-  if (s.running) {
-    document.getElementById('start-section').classList.add('hidden');
-    document.getElementById('progress-section').classList.remove('hidden');
-    pollInterval = setInterval(pollStatus, 2000);
-    pollStatus();
-  } else {
-    if (s.finished_at) {
-      const rel = toRelative(s.finished_at);
-      const el = document.getElementById('last-run-info');
-      el.textContent = `Last run: ${rel}`;
-      el.classList.remove('hidden');
-    }
-    if (sched.next_run_human) {
-      const el = document.getElementById('next-run-info');
-      el.textContent = `Next scheduled run: ${sched.next_run_human}`;
-      el.classList.remove('hidden');
-    }
+        // Stopped by user
+        if (s.phase === 'stopped') {
+          clearInterval(pollInterval);
+          document.getElementById('spinner').classList.add('hidden');
+          document.getElementById('stop-btn').classList.add('hidden');
+          document.getElementById('stopped-section').classList.remove('hidden');
+        }
+
+        // Error
+        if (s.phase === 'error') {
+          clearInterval(pollInterval);
+          document.getElementById('spinner').classList.add('hidden');
+          document.getElementById('stop-btn').classList.add('hidden');
+          document.getElementById('error-section').classList.remove('hidden');
+          document.getElementById('error-text').textContent = s.error || 'Unknown error';
+        }
+      })
+      .catch(err => console.error('Poll error:', err));
   }
-}).catch(() => {});
+
+  function toRelative(isoStr) {
+    if (!isoStr) return null;
+    const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 60000);
+    if (diff < 1) return 'just now';
+    if (diff < 60) return `${diff} minute${diff === 1 ? '' : 's'} ago`;
+    const h = Math.floor(diff / 60);
+    if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`;
+    const d = Math.floor(h / 24);
+    return `${d} day${d === 1 ? '' : 's'} ago`;
+  }
+
+  function stopScraper() {
+    const btn = document.getElementById('stop-btn');
+    btn.disabled = true;
+    btn.textContent = 'Stopping…';
+    fetch('/api/scraper/stop', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) {
+          btn.disabled = false;
+          btn.innerHTML = '&#9632; Stop';
+        }
+      })
+      .catch(() => { btn.disabled = false; });
+  }
+
+  function runDedup() {
+    const btn = document.getElementById('dedup-btn');
+    const result = document.getElementById('dedup-result');
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+    fetch('/api/admin/dedup', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        btn.disabled = false;
+        btn.textContent = 'Clean up duplicates';
+        result.classList.remove('hidden');
+        result.textContent = data.deleted > 0
+          ? `Removed ${data.deleted} duplicate job${data.deleted !== 1 ? 's' : ''}.`
+          : 'No duplicates found.';
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.textContent = 'Clean up duplicates';
+        alert('Error: ' + err.message);
+      });
+  }
+
+  // Check if already running on page load; show last-run and next-run info
+  Promise.all([
+    fetch('/api/scraper/status').then(r => r.json()),
+    fetch('/api/scheduler/status').then(r => r.json()),
+  ]).then(([s, sched]) => {
+    if (s.running) {
+      document.getElementById('start-section').classList.add('hidden');
+      document.getElementById('progress-section').classList.remove('hidden');
+      pollInterval = setInterval(pollStatus, 2000);
+      pollStatus();
+    } else {
+      if (s.finished_at) {
+        const rel = toRelative(s.finished_at);
+        const el = document.getElementById('last-run-info');
+        el.textContent = `Last run: ${rel}`;
+        el.classList.remove('hidden');
+      }
+      if (sched.next_run_human) {
+        const el = document.getElementById('next-run-info');
+        el.textContent = `Next scheduled run: ${sched.next_run_human}`;
+        el.classList.remove('hidden');
+      }
+    }
+  }).catch(() => { });
 </script>
 {% endblock %}
