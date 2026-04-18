@@ -7,7 +7,7 @@
     "max_jobs": 30,
     "email": "mahalegauravk@gmail.com",
     "enabled": true,
-    "last_sent": "2026-04-18T04:33:20.715419",
+    "last_sent": "2026-04-18T14:27:36.498316",
     "cv_data": {
       "skills": [
         "Product Strategy",
@@ -215,7 +215,11 @@
       "21d663004709a1b2",
       "2430085387a1a04b",
       "439b3faa21c325dd",
-      "958c0c1e1fb067f2"
+      "958c0c1e1fb067f2",
+      "811edc6f3f5ec01c",
+      "9cb1292422442a06",
+      "84694f16f6a412a7",
+      "11abf9b242f15a4a"
     ],
     "hr_email_hour": 11,
     "hr_email_minute": 0,
@@ -231,7 +235,7 @@
     "max_jobs": 30,
     "email": "purva.pilot57@gmail.com",
     "enabled": true,
-    "last_sent": "2026-04-18T04:33:22.070631",
+    "last_sent": "2026-04-18T14:27:37.571563",
     "cv_data": {
       "skills": [
         "Roadmap",
@@ -405,7 +409,9 @@
       "2430085387a1a04b",
       "d17609886193802c",
       "c40171962db84469",
-      "1ec27707670f34ff"
+      "1ec27707670f34ff",
+      "79cf7c6a94adb018",
+      "af6388c6f9d505d3"
     ],
     "hr_email_enabled": true,
     "hr_email_hour": 11,
