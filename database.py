@@ -212,9 +212,9 @@ def insert_job(job):
                  company_type, date_found, date_posted, applied_status,
                  experience_min, experience_max, salary_min, salary_max,
                  company_size, company_funding_stage, company_glassdoor_rating,
-                 cv_score)
+                 cv_score, llm_reason)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0,
-                    ?, ?, ?, ?, ?, ?, ?, ?)
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job_id,
@@ -239,6 +239,7 @@ def insert_job(job):
                 job.get("company_funding_stage"),
                 job.get("company_glassdoor_rating"),
                 job.get("cv_score", 0),
+                job.get("llm_reason", ""),
             ),
         )
         conn.commit()
@@ -472,12 +473,15 @@ def get_best_matching_categories(limit=5):
 
 
 def get_application_activity(days=30):
-    """Get daily application counts for the last N days."""
+    """Get daily job counts for the last N days."""
     conn = get_connection()
     cursor = conn.cursor()
     cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
     cursor.execute("""
-        SELECT DATE(date_found) as day, COUNT(*) as found,
+        SELECT DATE(date_found) as day,
+               COUNT(*) as found,
+               SUM(CASE WHEN relevance_score >= 65 THEN 1 ELSE 0 END) as high_score,
+               SUM(CASE WHEN applied_status = 1 THEN 1 ELSE 0 END) as applied,
                SUM(CASE WHEN applied_status >= 1 THEN 1 ELSE 0 END) as acted_on
         FROM job_listings
         WHERE date_found >= ?

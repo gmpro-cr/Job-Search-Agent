@@ -1383,6 +1383,9 @@
       return;
     }
 
+    // Close score panel if open
+    const scorePanel = document.getElementById('score-panel-' + jobId);
+    if (scorePanel) scorePanel.classList.add('hidden');
     panel.classList.remove('hidden');
     if (content.dataset.loaded) return;
 
@@ -1488,12 +1491,26 @@
   }
 
   // ── Notes ─────────────────────────────────────────────────────────────────────
+  function toggleScorePanel(jobId) {
+    const panel = document.getElementById('score-panel-' + jobId);
+    if (!panel) return;
+    // Close other expandable panels on this card
+    ['gap-', 'notes-'].forEach(prefix => {
+      const other = document.getElementById(prefix + jobId);
+      if (other && !other.classList.contains('hidden')) other.classList.add('hidden');
+    });
+    panel.classList.toggle('hidden');
+  }
+
   function toggleNotes(jobId) {
     const panel = document.getElementById('notes-' + jobId);
     if (!panel.classList.contains('hidden')) {
       panel.classList.add('hidden');
       return;
     }
+    // Close score panel if open
+    const scorePanel = document.getElementById('score-panel-' + jobId);
+    if (scorePanel) scorePanel.classList.add('hidden');
     panel.classList.remove('hidden');
     panel.querySelector('textarea').focus();
   }

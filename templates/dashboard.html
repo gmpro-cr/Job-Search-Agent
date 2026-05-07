@@ -273,15 +273,19 @@
   </div>
 </div>
 
-<!-- Application Activity -->
+<!-- 14-Day Pipeline Trends -->
 {% if activity %}
 <div class="mt-8 glass-panel overflow-hidden mb-10">
-  <div class="glass-panel-header flex items-center gap-2">
-    <h2 class="text-sm font-bold tracking-wide text-gray-900 uppercase">Recent Activity</h2>
-    <span class="text-[10px] text-gray-400 font-medium uppercase tracking-wider">(Last 14 Days)</span>
+  <div class="glass-panel-header flex items-center justify-between">
+    <h2 class="text-sm font-bold tracking-wide text-gray-900 uppercase">14-Day Pipeline Trends</h2>
+    <div class="flex items-center gap-5 text-[11px] font-semibold text-gray-500">
+      <span class="flex items-center gap-1.5"><span class="inline-block w-5 h-0.5 bg-gray-300 rounded"></span>Scraped</span>
+      <span class="flex items-center gap-1.5"><span class="inline-block w-5 h-0.5 bg-gray-700 rounded"></span>High-score</span>
+      <span class="flex items-center gap-1.5"><span class="inline-block w-5 h-px border-t-2 border-dashed border-gray-500"></span>Applied</span>
+    </div>
   </div>
   <div class="px-6 py-6">
-    <div class="w-full h-[300px] relative">
+    <div class="w-full h-[220px] relative">
       <canvas id="activityChart"></canvas>
     </div>
   </div>
@@ -343,49 +347,67 @@ document.addEventListener('DOMContentLoaded', function() {
 
   {% if activity %}
   const actCtx = document.getElementById('activityChart').getContext('2d');
-  const actData = {
-    labels: [
-      {% for day in activity | reverse %}
-      '{{ day.day[5:] }}'{% if not loop.last %},{% endif %}
-      {% endfor %}
-    ],
-    datasets: [
-      {
-        label: 'Acted On',
-        data: [
-          {% for day in activity | reverse %}
-          {{ day.acted_on }}{% if not loop.last %},{% endif %}
-          {% endfor %}
-        ],
-        backgroundColor: '#333333',
-        borderRadius: 4,
-        stack: 'Stack 0'
-      },
-      {
-        label: 'Found',
-        data: [
-          {% for day in activity | reverse %}
-          {{ day.found - day.acted_on }}{% if not loop.last %},{% endif %}
-          {% endfor %}
-        ],
-        backgroundColor: '#E5E7EB',
-        borderRadius: 4,
-        stack: 'Stack 0'
-      }
-    ]
-  };
   new Chart(actCtx, {
-    type: 'bar',
-    data: actData,
+    type: 'line',
+    data: {
+      labels: [{% for day in activity | reverse %}'{{ day.day[5:] }}'{% if not loop.last %},{% endif %}{% endfor %}],
+      datasets: [
+        {
+          label: 'Scraped',
+          data: [{% for day in activity | reverse %}{{ day.found }}{% if not loop.last %},{% endif %}{% endfor %}],
+          borderColor: '#D1D5DB',
+          backgroundColor: 'rgba(209,213,219,0.08)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#D1D5DB',
+          tension: 0.35,
+          fill: false,
+        },
+        {
+          label: 'High-score',
+          data: [{% for day in activity | reverse %}{{ day.high_score }}{% if not loop.last %},{% endif %}{% endfor %}],
+          borderColor: '#111111',
+          backgroundColor: 'rgba(17,17,17,0.06)',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: '#111111',
+          tension: 0.35,
+          fill: true,
+        },
+        {
+          label: 'Applied',
+          data: [{% for day in activity | reverse %}{{ day.applied }}{% if not loop.last %},{% endif %}{% endfor %}],
+          borderColor: '#6B7280',
+          borderWidth: 2,
+          borderDash: [5, 4],
+          pointRadius: 3,
+          pointBackgroundColor: '#6B7280',
+          tension: 0.35,
+          fill: false,
+        }
+      ]
+    },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { position: 'bottom' }
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#fff',
+          borderColor: '#E5E7EB',
+          borderWidth: 1,
+          titleColor: '#111',
+          bodyColor: '#6B7280',
+          padding: 10,
+          callbacks: {
+            title: (items) => items[0].label,
+          }
+        }
       },
       scales: {
-        x: { stacked: true, grid: { display: false } },
-        y: { stacked: true, beginAtZero: true, border: { dash: [4, 4] } }
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: { beginAtZero: true, border: { dash: [4, 4] }, ticks: { precision: 0, font: { size: 11 } } }
       }
     }
   });
