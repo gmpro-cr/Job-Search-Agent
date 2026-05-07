@@ -386,71 +386,75 @@ def keyword_score(job, preferences):
 
 
 # =============================================================================
-# Ollama-based scoring
+# LLM-based scoring (Ollama → OpenRouter fallback via agent/llm.py)
 # =============================================================================
 
-def ollama_score(job, preferences, config):
+_SCORING_PROMPT_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "autoresearch", "scoring_prompt.md"
+)
+_scoring_prompt_cache: str | None = None
+
+
+def _load_scoring_prompt() -> str:
+    global _scoring_prompt_cache
+    if _scoring_prompt_cache is None:
+        try:
+            with open(_SCORING_PROMPT_PATH, "r", encoding="utf-8") as f:
+                _scoring_prompt_cache = f.read()
+        except FileNotFoundError:
+            # Minimal fallback — should never happen in normal operation
+            _scoring_prompt_cache = (
+                'Score this job for the candidate 0-100.\n'
+                'Role: {role}\nCompany: {company}\nDescription: {jd}\n'
+                'Skills: {cv_skills}\nBackground: {cv_summary}\n'
+                'Return JSON: {"score": <int>, "reason": "<str>"}'
+            )
+    return _scoring_prompt_cache
+
+
+def llm_score(job: dict, cv_data: dict) -> dict | None:
     """
-    Use Ollama (mistral) to score a job and generate analysis.
-    Returns (score, analysis_text) or None if Ollama fails.
+    Score a job using the shared scoring_prompt.md via call_llm_json.
+    Tries Ollama first, falls back to OpenRouter automatically.
+    Returns dict with score, reason, remote_status, company_type — or None on failure.
     """
     try:
-        import ollama as ollama_client
+        from agent.llm import call_llm_json
     except ImportError:
-        logger.warning("ollama package not installed, falling back to keyword scoring")
+        logger.warning("agent.llm not importable, falling back to keyword scoring")
         return None
 
-    model = config.get("scoring", {}).get("ollama_model", "mistral")
-    timeout = config.get("scoring", {}).get("ollama_timeout", 60)
+    cv_skills = ", ".join((cv_data.get("skills") or [])[:25])
+    cv_summary = (cv_data.get("raw_text") or "")[:400]
 
-    transferable = preferences.get("transferable_skills", [])
-    transferable_text = f"\n- Transferable skills from banking: {', '.join(transferable)}" if transferable else ""
+    if not cv_skills:
+        logger.warning("No CV skills found — LLM scoring will be generic")
 
-    prompt = f"""Analyze this job posting and score it 0-100 for a candidate with the following profile:
-- Career transitioner from banking/financial services to Product Management
-- Looking for roles: {', '.join(preferences.get('job_titles', ['Product Manager']))}
-- Preferred locations: {', '.join(preferences.get('locations', ['Remote']))}
-- Industries of interest: {', '.join(preferences.get('industries', ['Fintech']))}{transferable_text}
+    template = _load_scoring_prompt()
+    role = job.get("role", "")
+    company = job.get("company", "")
+    jd = (job.get("job_description") or "")[:600]
 
-Job Details:
-- Title: {job.get('role', 'Unknown')}
-- Company: {job.get('company', 'Unknown')}
-- Location: {job.get('location', 'Unknown')}
-- Salary: {job.get('salary', 'Not specified')}
-- Description: {job.get('job_description', 'No description available')[:500]}
-
-Score based on:
-1. Role match with preferred titles (0-25 points)
-2. Location match (0-15 points)
-3. Remote/hybrid flexibility (0-15 points)
-4. Domain relevance - banking/fintech background advantage (0-15 points)
-5. Career growth potential for PM transition (0-15 points)
-6. Company type suitability - startup vs corporate (0-15 points)
-
-Respond ONLY with valid JSON in this exact format:
-{{"score": <number 0-100>, "remote_status": "<remote|hybrid|on-site>", "company_type": "<startup|corporate>", "reason": "<one sentence explanation>"}}"""
+    prompt = template
+    for key, val in [("role", role), ("company", company), ("jd", jd),
+                     ("cv_skills", cv_skills), ("cv_summary", cv_summary)]:
+        prompt = prompt.replace("{" + key + "}", str(val))
 
     try:
-        response = ollama_client.chat(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            options={"temperature": 0.1},
-        )
-        content = response["message"]["content"].strip()
-
-        # Extract JSON from response
-        json_match = re.search(r'\{[^}]+\}', content)
-        if json_match:
-            result = json.loads(json_match.group())
-            return result
-        else:
-            logger.warning("Ollama returned non-JSON response: %s", content[:200])
+        result = call_llm_json(prompt)
+        if not result or "score" not in result:
+            logger.warning("LLM returned no score for %s @ %s", role, company)
             return None
-    except ConnectionError:
-        logger.warning("Ollama not running. Falling back to keyword scoring.")
-        return None
+        score = max(0, min(100, int(result["score"])))
+        return {
+            "score": score,
+            "reason": result.get("reason", ""),
+            # Derive remote_status and company_type from text since the new prompt doesn't ask for them
+            "remote_status": None,
+            "company_type": None,
+        }
     except Exception as e:
-        logger.warning("Ollama scoring failed: %s. Falling back to keyword scoring.", e)
+        logger.warning("LLM scoring failed for %s @ %s: %s", role, company, e)
         return None
 
 
@@ -558,32 +562,18 @@ Respond with ONLY a JSON array of strings, like: ["point 1", "point 2", ...]"""
 
 def analyze_jobs(jobs, preferences, config, progress_callback=None):
     """
-    Analyze and score all jobs. Uses Ollama if available, falls back to keywords.
+    Analyze and score all jobs using LLM (Ollama → OpenRouter fallback) with
+    keyword scoring as emergency fallback. CV data drives scoring for accuracy.
     Returns list of jobs enriched with relevance_score, remote_status,
     company_type, skills, and application_email.
     """
-    use_ollama = config.get("scoring", {}).get("use_ollama", True)
     min_score = config.get("scoring", {}).get("min_relevance_score", 65)
-    ollama_available = False
 
-    if use_ollama:
-        try:
-            import ollama as ollama_client
-            # Check that both Ollama is running AND the model exists
-            model = config.get("scoring", {}).get("ollama_model", "mistral")
-            models = ollama_client.list()
-            model_names = [m.model.split(":")[0] for m in models.models] if hasattr(models, "models") else []
-            if model in model_names:
-                ollama_available = True
-                logger.info("Ollama is available with model '%s', using AI-based scoring", model)
-            else:
-                logger.warning(
-                    "Ollama is running but model '%s' not found (available: %s). "
-                    "Using keyword-based scoring. Run 'ollama pull %s' to enable AI scoring.",
-                    model, model_names, model,
-                )
-        except Exception:
-            logger.warning("Ollama is not available, using keyword-based scoring fallback")
+    # Load CV once for the whole batch
+    cv_data = load_cv_data() or {}
+    llm_available = bool(cv_data.get("skills"))
+    if not llm_available:
+        logger.warning("No CV uploaded — falling back to keyword scoring. Upload CV at /cv for better accuracy.")
 
     analyzed = []
     total = len(jobs)
@@ -595,19 +585,18 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
             job.get("location", ""),
         ])
 
-        # Try Ollama first, fall back to keywords
-        if ollama_available:
-            result = ollama_score(job, preferences, config)
+        # Try LLM scoring (Ollama → OpenRouter) first, keyword fallback if it fails
+        scored = False
+        if llm_available:
+            result = llm_score(job, cv_data)
             if result:
-                job["relevance_score"] = min(max(int(result.get("score", 0)), 0), 100)
-                job["remote_status"] = result.get("remote_status", detect_remote_status(text))
-                job["company_type"] = result.get("company_type", detect_company_type(text))
-            else:
-                # Ollama failed for this job, use keywords
-                job["relevance_score"] = keyword_score(job, preferences)
-                job["remote_status"] = detect_remote_status(text)
-                job["company_type"] = detect_company_type(text)
-        else:
+                job["relevance_score"] = result["score"]
+                job["llm_reason"] = result.get("reason", "")
+                job["remote_status"] = result.get("remote_status") or detect_remote_status(text)
+                job["company_type"] = result.get("company_type") or detect_company_type(text)
+                scored = True
+
+        if not scored:
             job["relevance_score"] = keyword_score(job, preferences)
             job["remote_status"] = detect_remote_status(text)
             job["company_type"] = detect_company_type(text)

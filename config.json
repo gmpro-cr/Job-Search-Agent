@@ -91,7 +91,7 @@
     "min_relevance_score": 65,
     "ollama_model": "llama3.2:3b",
     "ollama_timeout": 60,
-    "use_ollama": false
+    "use_ollama": true
   },
   "digest": {
     "open_in_browser": true,

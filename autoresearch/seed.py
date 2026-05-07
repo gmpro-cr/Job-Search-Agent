@@ -49,16 +49,36 @@ def _sample_jobs(n: int) -> list:
     return jobs
 
 
-def _ground_truth_score(job: dict, cv_skills: str, cv_summary: str) -> dict:
+def _load_profile() -> dict:
+    """Load profile.yml for richer ground truth context."""
+    profile_path = os.path.join(
+        os.path.dirname(_BASE), "tmp_career_ops", "config", "profile.yml"
+    )
+    try:
+        import yaml
+        with open(profile_path, "r") as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
+
+def _ground_truth_score(job: dict, cv_skills: str, cv_summary: str, profile: dict) -> dict:
     """Score one job with a detailed LLM prompt to establish ground truth."""
-    from agent.llm import call_llm_json
+    from agent.llm import call_llm_json as call_llm_json_fast  # Ollama → OpenRouter fallback
 
     role    = job.get("role", "")
     company = job.get("company", "")
-    jd      = (job.get("job_description") or "")[:1000]
+    jd      = (job.get("job_description") or "")[:1200]
 
-    prompt = f"""You are an expert career advisor. Rate how well this job matches the candidate's CV.
-Be precise and use the full 0-100 range. Penalise hard mismatches (wrong domain, seniority gap) heavily.
+    # Build richer candidate context from profile
+    target_roles = profile.get("target_roles", {})
+    primary_roles = ", ".join(target_roles.get("primary", ["Product Manager"]))
+    locations = ", ".join((target_roles.get("locations") or {}).get("preferred", ["Remote"]))
+    industries = ", ".join(profile.get("target_roles", {}).get("industries", ["Fintech"]))
+    headline = profile.get("narrative", {}).get("headline", "")
+
+    prompt = f"""You are a senior recruiter and career advisor. Score how well this job fits this candidate on 0-100.
+Use the FULL range — do not cluster near 50. A perfect match is 90+. A hard mismatch is under 20.
 
 JOB:
 Role: {role}
@@ -66,13 +86,24 @@ Company: {company}
 Description: {jd}
 
 CANDIDATE:
+Headline: {headline}
+Target roles: {primary_roles}
+Preferred locations: {locations}
+Target industries: {industries}
 Skills: {cv_skills}
 Background: {cv_summary}
 
-Return ONLY valid JSON:
-{{"score": <integer 0-100>, "reason": "<2 sentences explaining the rating>"}}"""
+SCORING CRITERIA:
+- Role function match (PM vs BA vs engineer vs unrelated): 0-35 pts
+- Domain fit (fintech/lending/AI vs general tech vs unrelated): 0-25 pts
+- Seniority match (senior PM vs PM vs APM vs director): 0-20 pts
+- Location/remote fit: 0-10 pts
+- AI/tech leverage: 0-10 pts
 
-    result = call_llm_json(prompt)
+Return ONLY valid JSON:
+{{"score": <integer 0-100>, "reason": "<2 sentences: why it matches or doesn't>"}}"""
+
+    result = call_llm_json_fast(prompt)
     score  = max(0, min(100, int(result.get("score", 50))))
     return {"score": score, "reason": result.get("reason", "")}
 
@@ -85,8 +116,9 @@ def seed(n: int = 30, force: bool = False) -> str:
 
     from analyzer import load_cv_data
     cv_data    = load_cv_data() or {}
-    cv_skills  = ", ".join((cv_data.get("skills") or [])[:20])
-    cv_summary = (cv_data.get("raw_text") or "")[:600]
+    cv_skills  = ", ".join((cv_data.get("skills") or [])[:25])
+    cv_summary = (cv_data.get("raw_text") or "")[:800]
+    profile    = _load_profile()
 
     if not cv_skills:
         logger.error("No CV data found. Upload your CV first at /cv")
@@ -98,7 +130,7 @@ def seed(n: int = 30, force: bool = False) -> str:
     for i, job in enumerate(jobs, 1):
         logger.info("[%d/%d] Scoring: %s @ %s", i, len(jobs), job["role"], job["company"])
         try:
-            gt = _ground_truth_score(job, cv_skills, cv_summary)
+            gt = _ground_truth_score(job, cv_skills, cv_summary, profile)
         except Exception as e:
             logger.warning("  Failed: %s — skipping", e)
             continue

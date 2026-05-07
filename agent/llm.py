@@ -33,18 +33,20 @@ def call_llm(prompt: str, system: str = "") -> str:
 
 def _call_ollama(prompt: str, system: str) -> str:
     """Call local Ollama instance."""
-    # Read model from config if available
     try:
         with open(os.path.join(os.path.dirname(__file__), "..", "config.json")) as f:
-            model = json.load(f).get("scoring", {}).get("ollama_model", "llama3.2:3b")
+            cfg = json.load(f).get("scoring", {})
+            model = cfg.get("ollama_model", "llama3.2:3b")
+            timeout = cfg.get("ollama_timeout", 60)
     except Exception:
         model = "llama3.2:3b"
+        timeout = 60
 
     full_prompt = f"{system}\n\n{prompt}" if system else prompt
     resp = requests.post(
         OLLAMA_URL,
         json={"model": model, "prompt": full_prompt, "stream": False},
-        timeout=OLLAMA_TIMEOUT,
+        timeout=timeout,
     )
     resp.raise_for_status()
     return resp.json().get("response", "").strip()
