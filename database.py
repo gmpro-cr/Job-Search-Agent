@@ -743,7 +743,7 @@ _CITY_PATTERNS = {
     "Pune": ["pune", "hinjewadi", "kharadi", "hadapsar", "baner", "wakad", "magarpatta"],
     "Mumbai": ["mumbai", "navi mumbai", "thane", "andheri", "bandra", "powai", "goregaon",
                "malad", "worli", "lower parel", "bkc", "airoli", "vashi"],
-    "Bengaluru": ["bengaluru", "bangalore", "whitefield", "koramangala", "indiranagar",
+    "Bangalore": ["bengaluru", "bangalore", "whitefield", "koramangala", "indiranagar",
                   "electronic city", "marathahalli", "sarjapur", "bellandur", "hsr layout"],
     "Delhi / NCR": ["delhi", "noida", "gurgaon", "gurugram", "ghaziabad", "greater noida",
                     "faridabad", "manesar", "dwarka", "connaught place", "aerocity"],

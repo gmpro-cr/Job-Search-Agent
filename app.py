@@ -1049,14 +1049,26 @@ def _build_jobs_query(filters):
         conditions.append("company_type = ?")
         params.append(company_type)
     if location:
-        city_patterns = _CITY_PATTERNS.get(location)
-        if city_patterns:
-            like_clauses = ["location LIKE ?" for _ in city_patterns]
-            conditions.append("(" + " OR ".join(like_clauses) + ")")
-            params.extend([f"%{p}%" for p in city_patterns])
+        if location == "Others":
+            # Exclude the 4 pinned cities; show remaining non-null locations
+            _pinned = ["Pune", "Mumbai", "Bangalore", "Hyderabad"]
+            excl_patterns = []
+            for city in _pinned:
+                excl_patterns.extend(_CITY_PATTERNS.get(city, []))
+            not_clauses = " AND ".join("location NOT LIKE ?" for _ in excl_patterns)
+            conditions.append(
+                f"(location IS NOT NULL AND location != '' AND ({not_clauses}))"
+            )
+            params.extend([f"%{p}%" for p in excl_patterns])
         else:
-            conditions.append("location LIKE ?")
-            params.append(f"%{location}%")
+            city_patterns = _CITY_PATTERNS.get(location)
+            if city_patterns:
+                like_clauses = ["location LIKE ?" for _ in city_patterns]
+                conditions.append("(" + " OR ".join(like_clauses) + ")")
+                params.extend([f"%{p}%" for p in city_patterns])
+            else:
+                conditions.append("location LIKE ?")
+                params.append(f"%{location}%")
     if recency:
         recency_map = {
             "24h": timedelta(hours=24),
@@ -1207,16 +1219,13 @@ def jobs():
     portals = [r["portal"] for r in cur2.fetchall()]
     conn2.close()
 
-    # Get normalized locations for filter dropdown (canonical name + count)
-    normalized_locs = get_normalized_locations()
-
     _internal_keys = {"cv_uploaded", "show_hidden", "show_international"}
     clean_filters = {k: v for k, v in filters.items() if v and v != "0" and k not in _internal_keys}
 
     return render_template(
         "jobs.html",
         jobs=rows, total=total,
-        portals=portals, locations=normalized_locs,
+        portals=portals,
         filters=filters, clean_filters=clean_filters,
         cv_uploaded=cv_uploaded,
     )

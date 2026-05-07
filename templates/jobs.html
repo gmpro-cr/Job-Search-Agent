@@ -380,52 +380,46 @@
   .option-pill {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 11.5px;
-    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.18s ease;
-    border: 1px solid rgba(209,213,219,0.45);
-    background: rgba(255,255,255,0.50);
+    transition: all 0.15s ease;
+    border: 1px solid #E5E7EB;
+    background: #ffffff;
     color: #6b7280;
     white-space: nowrap;
+    line-height: 1.4;
   }
   .option-pill:hover {
-    background: rgba(255,255,255,0.85);
-    border-color: rgba(0,0,0,0.08);
+    background: #F9FAFB;
+    border-color: #D1D5DB;
     color: #111111;
   }
   .option-pill.active {
-    background: linear-gradient(135deg, #111111, #333333);
+    background: #111111;
     color: #fff;
-    border-color: transparent;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border-color: #111111;
   }
   .option-pill.active:hover {
-    background: linear-gradient(135deg, #111111, #333333);
+    background: #333333;
+    border-color: #333333;
   }
 
   /* Filter options panel */
-  .filter-options-panel {
-    display: none;
-    animation: slideDown 0.2s ease;
-  }
-  /* Sort panel stays as a flex row */
-  #sort-options {
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
-  }
+  .filter-options-panel { display: none; animation: slideDown 0.2s ease; }
+  /* Sort panel: inline flex row */
+  #sort-options { flex-wrap: wrap; gap: 5px; align-items: center; }
   #sort-options.visible { display: flex; }
-  /* Filter panel is a vertical stack of rows */
+  /* Filter panel: full-width column below the toolbar row */
   #filter-options {
     flex-direction: column;
-    gap: 2px;
-    border-top: 1px solid rgba(0,0,0,0.05);
+    gap: 1px;
+    width: 100%;
+    border-top: 1px solid rgba(0,0,0,0.06);
     margin-top: 10px;
-    padding-top: 8px;
+    padding-top: 10px;
   }
   #filter-options.visible { display: flex; }
   @keyframes slideDown {
@@ -437,23 +431,23 @@
   .filter-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 4px 0;
+    gap: 8px;
+    padding: 3px 0;
   }
   .filter-row-label {
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #9ca3af;
-    min-width: 62px;
+    letter-spacing: 0.06em;
+    color: #c4c9d4;
+    min-width: 72px;
     flex-shrink: 0;
     text-align: right;
   }
   .filter-row-pills {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 4px;
   }
 
   /* NLP loading spinner */
@@ -581,7 +575,7 @@
       </div>
 
       <!-- Filter Toggle + Options -->
-      <div class="toolbar-group" id="filter-group" style="flex:1;">
+      <div class="toolbar-group" id="filter-group" style="flex:1; flex-wrap:wrap;">
         <button type="button" class="toolbar-toggle-btn" id="filter-toggle-btn" onclick="toggleToolbarSection('filter')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
@@ -634,16 +628,16 @@
               <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'rejected' else '' }}" onclick="applyFilter('applied','rejected')">Rejected</button>
             </div>
           </div>
-          {% if locations %}
           <div class="filter-row">
             <span class="filter-row-label">Location</span>
             <div class="filter-row-pills">
-              {% for loc in locations[:8] %}
-              <button type="button" class="option-pill {{ 'active' if filters and filters.location == loc.name else '' }}" onclick="applyFilter('location','{{ loc.name }}')">{{ loc.name }}</button>
-              {% endfor %}
+              <button type="button" class="option-pill {{ 'active' if filters and filters.location == 'Pune' else '' }}" onclick="applyFilter('location','Pune')">Pune</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.location == 'Mumbai' else '' }}" onclick="applyFilter('location','Mumbai')">Mumbai</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.location == 'Bangalore' else '' }}" onclick="applyFilter('location','Bangalore')">Bangalore</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.location == 'Hyderabad' else '' }}" onclick="applyFilter('location','Hyderabad')">Hyderabad</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.location == 'Others' else '' }}" onclick="applyFilter('location','Others')">Others</button>
             </div>
           </div>
-          {% endif %}
           {% if portals %}
           <div class="filter-row">
             <span class="filter-row-label">Portal</span>
