@@ -267,30 +267,6 @@
           </svg>
           My Profile
         </a>
-        <a href="{{ url_for('how_it_works') }}"
-          class="sidebar-link {% if request.endpoint == 'how_it_works' %}active{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-          </svg>
-          How it Works
-        </a>
-        <a href="{{ url_for('reminders') }}"
-          class="sidebar-link {% if request.endpoint in ['reminders', 'reminders_create', 'reminders_delete', 'reminders_toggle'] %}active{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          Reminders
-        </a>
-        <a href="{{ url_for('prd_library') }}"
-          class="sidebar-link {% if request.endpoint in ['prd_library', 'prd_detail'] %}active{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          PRD Library
-        </a>
       </div>
 
     </nav>
@@ -316,14 +292,6 @@
       Jobs
     </a>
 
-    <a href="{{ url_for('reminders') }}"
-      class="flex-1 flex flex-col items-center py-3 text-xs {% if request.endpoint in ['reminders', 'reminders_create'] %}text-white font-semibold{% else %}text-white/40{% endif %}">
-      <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-      </svg>
-      Reminders
-    </a>
     <button onclick="document.getElementById('mobileMenu').classList.toggle('hidden')"
       class="flex-1 flex flex-col items-center py-3 text-xs text-white/40 hover:text-white">
       <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -376,10 +344,6 @@
           <div class="space-y-1">
             <a href="{{ url_for('preferences') }}"
               class="block px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'preferences' %}font-semibold text-white{% else %}text-white/50 hover:text-white/80 hover:bg-white/5{% endif %}">Settings</a>
-            <a href="{{ url_for('reminders') }}"
-              class="block px-3 py-2 rounded-lg text-sm {% if request.endpoint in ['reminders', 'reminders_create'] %}font-semibold text-white{% else %}text-white/50 hover:text-white/80 hover:bg-white/5{% endif %}">Reminders</a>
-            <a href="{{ url_for('prd_library') }}"
-              class="block px-3 py-2 rounded-lg text-sm {% if request.endpoint in ['prd_library', 'prd_detail'] %}font-semibold text-white{% else %}text-white/50 hover:text-white/80 hover:bg-white/5{% endif %}">PRD Library</a>
           </div>
         </div>
       </div>
