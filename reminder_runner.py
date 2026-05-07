@@ -110,18 +110,62 @@ def run_reminders(preferences: dict) -> None:
         if not reminder.get("enabled", True):
             continue
 
-        keyword = (reminder.get("keyword") or "").strip()
-        if not keyword:
-            logger.warning("Reminder '%s' has no keyword, skipping", reminder.get("name"))
-            continue
-
-        min_score = max(0, min(100, int(reminder.get("min_score", 65))))
+        rem_type = (reminder.get("type") or "jobs").lower()
         recipient = (reminder.get("email") or "").strip()
-        name = reminder.get("name", "Job Alert")
+        name = reminder.get("name", "Reminder")
 
         if not recipient:
             logger.warning("Reminder '%s' has no email, skipping", name)
             continue
+
+        # ── PRD reminder ──────────────────────────────────────────────────
+        if rem_type == "prd":
+            prd_hour = int(reminder.get("prd_hour") or 8)
+            now_hour = datetime.now().hour
+            # Only fire within the same scheduled hour window
+            if now_hour != prd_hour:
+                logger.info("Reminder '%s' (PRD): not the scheduled hour (%d != %d)", name, now_hour, prd_hour)
+                continue
+            # Guard: skip if already sent today
+            last_sent = reminder.get("last_sent") or ""
+            if last_sent.startswith(datetime.now().strftime("%Y-%m-%d")):
+                logger.info("Reminder '%s' (PRD): already sent today", name)
+                continue
+            try:
+                from prd_generator import generate_daily_prd, build_prd_email_html
+                import smtplib
+                from email.mime.multipart import MIMEMultipart
+                from email.mime.text import MIMEText
+
+                prd = generate_daily_prd()
+                html_body = build_prd_email_html(prd)
+                subject = f"📋 Daily PRD: {prd['product']['name']} ({prd['date']})"
+
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = subject
+                msg["From"] = gmail_address
+                msg["To"] = recipient
+                msg.attach(MIMEText(html_body, "html"))
+
+                with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
+                    server.ehlo(); server.starttls(); server.ehlo()
+                    server.login(gmail_address, gmail_app_password)
+                    server.sendmail(gmail_address, [recipient], msg.as_string())
+
+                reminder["last_sent"] = datetime.now().isoformat()
+                updated = True
+                logger.info("Reminder '%s' (PRD): sent '%s' to %s", name, prd["product"]["name"], recipient)
+            except Exception as e:
+                logger.error("Reminder '%s' (PRD): send failed: %s", name, e)
+            continue
+
+        # ── Job-alert reminder (default) ──────────────────────────────────
+        keyword = (reminder.get("keyword") or "").strip()
+        if not keyword:
+            logger.warning("Reminder '%s' has no keyword, skipping", name)
+            continue
+
+        min_score = max(0, min(100, int(reminder.get("min_score", 65))))
 
         jobs = score_jobs_for_cv_reminder(reminder)
         if not jobs:

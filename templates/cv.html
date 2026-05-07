@@ -14,19 +14,19 @@
   .skill-bar {
     height: 6px;
     border-radius: 999px;
-    background: #e4e4e7;
+    background: #E5E7EB;
     overflow: hidden;
   }
 
   .skill-bar-fill {
     height: 100%;
     border-radius: 999px;
-    background: #18181b;
+    background: #111111;
     transition: width .4s;
   }
 
   .skill-bar-fill.in-cv {
-    background: #10b981;
+    background: #555555;
   }
 
   .profile-ring {
@@ -63,8 +63,8 @@
       <div class="flex items-center gap-4 mb-4">
         <div class="relative profile-ring flex-shrink-0">
           <svg viewBox="0 0 80 80" class="w-20 h-20 -rotate-90">
-            <circle cx="40" cy="40" r="34" fill="none" stroke="#e4e4e7" stroke-width="8" />
-            <circle cx="40" cy="40" r="34" fill="none" stroke="#18181b" stroke-width="8" stroke-dasharray="213.6"
+            <circle cx="40" cy="40" r="34" fill="none" stroke="#E5E7EB" stroke-width="8" />
+            <circle cx="40" cy="40" r="34" fill="none" stroke="#111111" stroke-width="8" stroke-dasharray="213.6"
               stroke-dashoffset="213.6" id="score-ring" stroke-linecap="round" />
           </svg>
           <div class="absolute inset-0 flex items-center justify-center">
@@ -80,16 +80,16 @@
     <div class="hub-card">
       <h2 class="text-base font-semibold text-gray-900 mb-4">Your CV</h2>
       {% if cv_data %}
-      <div class="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg mb-4">
+      <div class="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg mb-4">
         <div>
-          <p class="text-sm font-medium text-green-800">✓ CV uploaded — {{ cv_data.skills | length }} skills</p>
-          <p class="text-xs text-green-600 mt-0.5">Updated: {{ cv_data.uploaded_at[:10] }}</p>
+          <p class="text-sm font-medium text-gray-800">✓ CV uploaded — {{ cv_data.skills | length }} skills</p>
+          <p class="text-xs text-gray-700 mt-0.5">Updated: {{ cv_data.uploaded_at[:10] }}</p>
         </div>
         <div class="flex flex-col items-end gap-2">
           <button onclick="document.getElementById('cv-replace-zone').classList.toggle('hidden')"
-            class="text-xs text-green-700 hover:text-green-900 font-medium underline">Replace</button>
+            class="text-xs text-gray-700 hover:text-gray-900 font-medium underline">Replace</button>
           <button onclick="rescoreJobs()" id="rescore-btn"
-            class="text-xs px-2.5 py-1 bg-green-700 text-white font-semibold rounded hover:bg-green-800 transition shadow-sm">
+            class="text-xs px-2.5 py-1 bg-gray-800 text-white font-semibold rounded hover:bg-gray-900 transition">
             Re-score Jobs
           </button>
         </div>
@@ -190,7 +190,7 @@
       const breakdown = document.getElementById('score-breakdown');
       breakdown.innerHTML = data.breakdown.map(item => `
       <div class="flex items-center gap-2">
-        <span class="${item.done ? 'text-green-500' : 'text-gray-300'} flex-shrink-0">${item.done ? '✓' : '○'}</span>
+        <span class="${item.done ? 'text-gray-600' : 'text-gray-300'} flex-shrink-0">${item.done ? '✓' : '○'}</span>
         <span class="${item.done ? 'text-gray-700' : 'text-gray-400'} text-xs">${item.label}</span>
         <span class="ml-auto text-xs font-semibold ${item.done ? 'text-zinc-600' : 'text-gray-300'}">+${item.points}</span>
       </div>
@@ -215,7 +215,7 @@
       container.innerHTML = data.skills.slice(0, 25).map(item => `
       <div class="flex items-center gap-3">
         <div class="w-28 flex-shrink-0 flex items-center gap-1.5">
-          <span class="${item.in_cv ? 'text-green-500' : 'text-red-400'} text-xs flex-shrink-0">${item.in_cv ? '✓' : '✗'}</span>
+          <span class="${item.in_cv ? 'text-gray-600' : 'text-gray-500'} text-xs flex-shrink-0">${item.in_cv ? '✓' : '✗'}</span>
           <span class="text-xs text-gray-700 truncate" title="${item.skill}">${item.skill}</span>
         </div>
         <div class="flex-1 skill-bar">
@@ -245,7 +245,7 @@
       }
       const maxCount = data.keywords[0].count;
       const PALETTE = [
-        '#6366f1', '#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#f97316'
+        '#333333', '#555555', '#444444', '#555555', '#666666', '#777777', '#555555', '#666666'
       ];
       container.innerHTML = data.keywords.map((item, i) => {
         const intensity = item.count / maxCount;
@@ -306,26 +306,26 @@
         btn.disabled = false; btn.textContent = 'Re-score Jobs';
         if (data.ok) {
           status.textContent = `✓ ${data.updated} jobs re-scored.`;
-          status.className = 'mb-4 text-sm text-green-700 p-2 border border-green-200 bg-green-50 rounded';
+          status.className = 'mb-4 text-sm text-gray-700 p-2 border border-gray-200 bg-gray-50 rounded';
         } else {
           status.textContent = `Error: ${data.error}`;
-          status.className = 'mb-4 text-sm text-red-600 p-2 border border-red-200 bg-red-50 rounded';
+          status.className = 'mb-4 text-sm text-red-600 p-2 border border-red-200 bg-gray-50 rounded';
         }
       })
       .catch(err => {
         btn.disabled = false; btn.textContent = 'Re-score Jobs';
         status.classList.remove('hidden');
         status.textContent = `Error: ${err.message}`;
-        status.className = 'mb-4 text-sm text-red-600 p-2 border border-red-200 bg-red-50 rounded';
+        status.className = 'mb-4 text-sm text-red-600 p-2 border border-red-200 bg-gray-50 rounded';
       });
   }
 
   function showStatus(id, msg, type) {
     const el = document.getElementById(id);
     el.classList.remove('hidden');
-    el.className = `mt-3 p-3 rounded-lg text-sm ${type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
-      type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
-        'bg-blue-50 text-blue-700 border border-blue-200'}`;
+    el.className = `mt-3 p-3 rounded-lg text-sm ${type === 'success' ? 'bg-gray-50 text-gray-800 border border-gray-200' :
+      type === 'error' ? 'bg-gray-50 text-red-700 border border-red-200' :
+        'bg-gray-50 text-gray-800 border border-gray-200'}`;
     el.textContent = msg;
   }
 
@@ -348,9 +348,9 @@
     if (!fallback) return;
     fallback.innerHTML = '';
     [
-      { key: 'tech', label: 'Technical', pillClass: 'bg-blue-50 text-blue-700 border-blue-100' },
-      { key: 'ai_product', label: 'Analytics & Product', pillClass: 'bg-violet-50 text-violet-700 border-violet-100' },
-      { key: 'domain', label: 'Domain & Industry', pillClass: 'bg-purple-50 text-purple-700 border-purple-100' },
+      { key: 'tech', label: 'Technical', pillClass: 'bg-gray-50 text-gray-800 border-gray-200' },
+      { key: 'ai_product', label: 'Analytics & Product', pillClass: 'bg-gray-50 text-gray-700 border-gray-200' },
+      { key: 'domain', label: 'Domain & Industry', pillClass: 'bg-gray-50 text-gray-700 border-gray-200' },
       { key: 'other', label: 'Other', pillClass: 'bg-gray-50 text-gray-600 border-gray-200' },
     ].forEach(({ key, label, pillClass }) => {
       const items = groups[key];

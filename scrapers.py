@@ -1293,6 +1293,309 @@ def scrape_instahyre(job_titles, locations, config):
 
 
 # =============================================================================
+# New community / open sources
+# =============================================================================
+
+def scrape_remoteok(job_titles, locations, config):
+    """Scrape RemoteOK via their public JSON API (no auth required)."""
+    portal_config = config.get("portals", {}).get("remoteok", {})
+    if not portal_config.get("enabled", True):
+        return []
+
+    jobs = []
+    timeout = portal_config.get("timeout", 20)
+    headers = {
+        "User-Agent": random_ua(),
+        "Accept": "application/json",
+    }
+
+    for title in job_titles:
+        tag = title.lower().replace(" ", "-")
+        url = f"https://remoteok.com/api?tags={quote_plus(tag)}&limit=50"
+        try:
+            resp = requests.get(url, headers=headers, timeout=timeout)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            logger.warning("RemoteOK: request failed for '%s': %s", title, e)
+            random_delay(config)
+            continue
+
+        # First element is a legal notice dict, skip it
+        for item in data:
+            if not isinstance(item, dict) or "position" not in item:
+                continue
+            role = (item.get("position") or "").strip()
+            company = (item.get("company") or "").strip()
+            if not role or not company:
+                continue
+            loc = item.get("location") or "Remote"
+            description = BeautifulSoup(
+                item.get("description") or "", "html.parser"
+            ).get_text(" ", strip=True)[:800]
+            apply_url = item.get("url") or item.get("apply_url") or ""
+            salary = ""
+            sal_min = item.get("salary_min")
+            sal_max = item.get("salary_max")
+            if sal_min or sal_max:
+                salary = f"{sal_min or ''}-{sal_max or ''}".strip("-")
+            jobs.append({
+                "portal": "remoteok",
+                "company": company,
+                "role": role,
+                "salary": salary,
+                "salary_currency": "USD",
+                "location": loc,
+                "job_description": description,
+                "apply_url": apply_url,
+            })
+        random_delay(config)
+
+    logger.info("RemoteOK: scraped %d jobs", len(jobs))
+    return jobs
+
+
+def scrape_remotive(job_titles, locations, config):
+    """Scrape Remotive.com via their public JSON API (no auth required)."""
+    portal_config = config.get("portals", {}).get("remotive", {})
+    if not portal_config.get("enabled", True):
+        return []
+
+    jobs = []
+    timeout = portal_config.get("timeout", 20)
+    headers = {"User-Agent": random_ua(), "Accept": "application/json"}
+
+    for title in job_titles:
+        url = f"https://remotive.com/api/remote-jobs?search={quote_plus(title)}&limit=50"
+        try:
+            resp = requests.get(url, headers=headers, timeout=timeout)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            logger.warning("Remotive: request failed for '%s': %s", title, e)
+            random_delay(config)
+            continue
+
+        for item in data.get("jobs", []):
+            role = (item.get("title") or "").strip()
+            company = (item.get("company_name") or "").strip()
+            if not role or not company:
+                continue
+            loc = item.get("candidate_required_location") or "Remote"
+            description = BeautifulSoup(
+                item.get("description") or "", "html.parser"
+            ).get_text(" ", strip=True)[:800]
+            salary = item.get("salary") or ""
+            jobs.append({
+                "portal": "remotive",
+                "company": company,
+                "role": role,
+                "salary": salary,
+                "salary_currency": "USD",
+                "location": loc,
+                "job_description": description,
+                "apply_url": item.get("url") or "",
+            })
+        random_delay(config)
+
+    logger.info("Remotive: scraped %d jobs", len(jobs))
+    return jobs
+
+
+def scrape_reddit(job_titles, locations, config):
+    """Scrape r/forhire and r/cscareerquestions hiring posts via Reddit JSON API."""
+    portal_config = config.get("portals", {}).get("reddit", {})
+    if not portal_config.get("enabled", True):
+        return []
+
+    jobs = []
+    timeout = portal_config.get("timeout", 20)
+    subreddits = portal_config.get("subreddits", ["forhire", "cscareerquestions"])
+    headers = {
+        "User-Agent": "job-search-agent/1.0 (personal tool)",
+        "Accept": "application/json",
+    }
+
+    for title in job_titles:
+        for sub in subreddits:
+            url = (
+                f"https://www.reddit.com/r/{sub}/search.json"
+                f"?q={quote_plus(title)}+hiring&restrict_sr=1&sort=new&limit=25&t=month"
+            )
+            try:
+                resp = requests.get(url, headers=headers, timeout=timeout)
+                resp.raise_for_status()
+                data = resp.json()
+            except Exception as e:
+                logger.warning("Reddit/%s: request failed for '%s': %s", sub, title, e)
+                random_delay(config)
+                continue
+
+            posts = data.get("data", {}).get("children", [])
+            for post in posts:
+                d = post.get("data", {})
+                post_title = d.get("title", "")
+                # Only include posts that look like job listings
+                if not any(kw in post_title.lower() for kw in ["hiring", "[hiring]", "h:", "seeking"]):
+                    continue
+                flair = (d.get("link_flair_text") or "").lower()
+                if sub == "forhire" and "for hire" in flair:
+                    continue  # skip "for hire" (person looking for work), keep "hiring"
+
+                body = d.get("selftext", "")[:600]
+                permalink = "https://www.reddit.com" + d.get("permalink", "")
+                # Try to extract company from title: "[Hiring] Company | Role | ..."
+                company, role = "", post_title
+                for sep in ["|", "-", "—"]:
+                    if sep in post_title:
+                        parts = post_title.split(sep)
+                        company = parts[0].replace("[Hiring]", "").replace("Hiring:", "").strip()
+                        role = parts[1].strip() if len(parts) > 1 else post_title
+                        break
+                jobs.append({
+                    "portal": "reddit",
+                    "company": company,
+                    "role": role.strip(),
+                    "salary": "",
+                    "salary_currency": "",
+                    "location": "Remote / Various",
+                    "job_description": body,
+                    "apply_url": permalink,
+                })
+            random_delay(config)
+
+    logger.info("Reddit: scraped %d jobs", len(jobs))
+    return jobs
+
+
+def scrape_hackernews(job_titles, locations, config):
+    """Scrape HackerNews 'Ask HN: Who is hiring?' monthly thread via Algolia API."""
+    portal_config = config.get("portals", {}).get("hackernews", {})
+    if not portal_config.get("enabled", True):
+        return []
+
+    jobs = []
+    timeout = portal_config.get("timeout", 20)
+    headers = {"User-Agent": random_ua(), "Accept": "application/json"}
+
+    # Find the latest "Who is hiring" story
+    try:
+        search_url = (
+            "https://hn.algolia.com/api/v1/search?tags=ask_hn&query=who+is+hiring"
+            "&hitsPerPage=1&numericFilters=num_comments>50"
+        )
+        resp = requests.get(search_url, headers=headers, timeout=timeout)
+        resp.raise_for_status()
+        hits = resp.json().get("hits", [])
+        if not hits:
+            return []
+        story_id = hits[0]["objectID"]
+    except Exception as e:
+        logger.warning("HackerNews: failed to find hiring story: %s", e)
+        return []
+
+    # Fetch comments for that story
+    try:
+        story_url = f"https://hn.algolia.com/api/v1/items/{story_id}"
+        resp = requests.get(story_url, headers=headers, timeout=30)
+        resp.raise_for_status()
+        story = resp.json()
+        children = story.get("children", [])
+    except Exception as e:
+        logger.warning("HackerNews: failed to fetch story comments: %s", e)
+        return []
+
+    for comment in children[:200]:
+        text = comment.get("text") or ""
+        if not text:
+            continue
+        text_clean = BeautifulSoup(text, "html.parser").get_text(" ", strip=True)
+
+        # Each comment is typically: "Company | Role | Location | ..."
+        # Filter by job_titles keywords
+        text_lower = text_clean.lower()
+        if not any(t.lower() in text_lower for t in job_titles):
+            continue
+
+        lines = [l.strip() for l in text_clean.split("\n") if l.strip()]
+        first_line = lines[0] if lines else text_clean[:120]
+
+        company, role, loc = "", first_line, "Remote / Various"
+        if "|" in first_line:
+            parts = [p.strip() for p in first_line.split("|")]
+            company = parts[0] if parts else ""
+            role = parts[1] if len(parts) > 1 else first_line
+            loc = parts[2] if len(parts) > 2 else "Remote / Various"
+
+        hn_url = f"https://news.ycombinator.com/item?id={comment.get('id', story_id)}"
+        jobs.append({
+            "portal": "hackernews",
+            "company": company,
+            "role": role,
+            "salary": "",
+            "salary_currency": "",
+            "location": loc,
+            "job_description": text_clean[:600],
+            "apply_url": hn_url,
+        })
+
+    logger.info("HackerNews: scraped %d matching jobs", len(jobs))
+    return jobs
+
+
+def scrape_twitter(job_titles, locations, config):
+    """Search X/Twitter for hiring posts using DuckDuckGo (no API key needed)."""
+    try:
+        from ddgs import DDGS
+    except ImportError:
+        logger.warning("Twitter scraper: ddgs not installed")
+        return []
+
+    portal_config = config.get("portals", {}).get("twitter", {})
+    if not portal_config.get("enabled", True):
+        return []
+
+    jobs = []
+    max_results = portal_config.get("max_results", 15)
+
+    for title in job_titles:
+        query = f'site:x.com "{title}" (hiring OR "we are hiring" OR "job opening") -retweet'
+        try:
+            with DDGS() as ddgs:
+                results = list(ddgs.text(query, max_results=max_results))
+        except Exception as e:
+            logger.warning("Twitter/X: DDG search failed for '%s': %s", title, e)
+            random_delay(config)
+            continue
+
+        for r in results:
+            url = r.get("href", "")
+            if "x.com" not in url and "twitter.com" not in url:
+                continue
+            snippet = r.get("body", "")
+            page_title = r.get("title", "")
+            # Extract handle/company from URL: x.com/{handle}/status/...
+            company = ""
+            parts = url.replace("https://x.com/", "").replace("https://twitter.com/", "").split("/")
+            if parts:
+                company = f"@{parts[0]}"
+            jobs.append({
+                "portal": "twitter",
+                "company": company,
+                "role": title,
+                "salary": "",
+                "salary_currency": "",
+                "location": "Remote / Various",
+                "job_description": snippet[:600],
+                "apply_url": url,
+            })
+        random_delay(config)
+
+    logger.info("Twitter/X: scraped %d job posts", len(jobs))
+    return jobs
+
+
+# =============================================================================
 # Orchestrator
 # =============================================================================
 
@@ -1305,6 +1608,11 @@ SCRAPER_MAP = {
     "iimjobs": scrape_iimjobs,
     "cutshort": scrape_cutshort,
     "instahyre": scrape_instahyre,
+    "remoteok": scrape_remoteok,
+    "remotive": scrape_remotive,
+    "reddit": scrape_reddit,
+    "hackernews": scrape_hackernews,
+    "twitter": scrape_twitter,
 }
 
 

@@ -17,7 +17,7 @@
         <h3 class="text-sm font-semibold text-gray-800">Select Portals to Scrape</h3>
         <div class="flex gap-2 text-xs">
           <button type="button" onclick="selectAllPortals(true)"
-            class="text-indigo-600 hover:text-indigo-800 font-medium">All</button>
+            class="text-gray-700 hover:text-gray-900 font-medium">All</button>
           <span class="text-gray-300">|</span>
           <button type="button" onclick="selectAllPortals(false)"
             class="text-gray-500 hover:text-gray-700 font-medium">None</button>
@@ -26,9 +26,9 @@
       <div class="grid grid-cols-2 gap-2">
         {% for name, portal in config.get('portals', {}).items() %}
         <label class="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors
-          {% if portal.get('enabled', false) %}border-indigo-200 bg-indigo-50{% else %}border-gray-200 bg-gray-50{% endif %}
-          hover:border-indigo-300 group" id="portal-label-{{ name }}">
-          <input type="checkbox" class="portal-checkbox w-4 h-4 rounded accent-indigo-600"
+          {% if portal.get('enabled', false) %}border-gray-200 bg-gray-50{% else %}border-gray-200 bg-gray-50{% endif %}
+          hover:border-gray-300 group" id="portal-label-{{ name }}">
+          <input type="checkbox" class="portal-checkbox w-4 h-4 rounded accent-gray-900"
             value="{{ name }}"
             {% if portal.get('enabled', false) %}checked{% endif %}
             onchange="updatePortalLabel(this)">
@@ -41,7 +41,7 @@
     <div class="text-center border-t border-gray-100 pt-5">
       <p class="text-gray-500 text-sm mb-4 leading-relaxed">Scores jobs with AI, stores them in the database, and generates a digest. Usually takes 5–10 minutes.</p>
       <button id="start-btn" onclick="startScraper()"
-        class="px-6 py-3 bg-gray-900 text-white font-bold tracking-wide rounded-xl hover:bg-gray-800 focus:outline-none transition-colors shadow-sm text-sm uppercase">
+        class="px-6 py-3 bg-gray-900 text-white font-bold tracking-wide rounded-xl hover:bg-gray-800 focus:outline-none transition-colors text-sm uppercase">
         Run Scraper Now
       </button>
       <p id="last-run-info" class="hidden mt-3 text-sm text-gray-400"></p>
@@ -52,7 +52,7 @@
       <h3 class="text-sm font-semibold text-gray-900 mb-1">Maintenance</h3>
       <p class="text-xs text-gray-500 mb-3">Removes duplicate jobs keeping the highest-scoring copy.</p>
       <button onclick="runDedup()" id="dedup-btn"
-        class="w-full px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 hover:text-gray-900 shadow-sm transition-colors flex justify-center items-center gap-2">
+        class="w-full px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 hover:text-gray-900 transition-colors flex justify-center items-center gap-2">
         <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -60,7 +60,7 @@
         Clean up duplicates
       </button>
       <p id="dedup-result"
-        class="hidden mt-3 text-sm text-green-700 bg-green-50 p-2 rounded-lg border border-green-200 text-center font-medium">
+        class="hidden mt-3 text-sm text-gray-700 bg-gray-50 p-2 rounded-lg border border-gray-200 text-center font-medium">
       </p>
     </div>
   </div>
@@ -80,7 +80,7 @@
           <span id="phase-text" class="text-lg font-medium text-gray-900">Starting...</span>
         </div>
         <button id="stop-btn" onclick="stopScraper()"
-          class="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold rounded-lg border border-red-200 transition-colors">
+          class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg border border-gray-300 transition-colors">
           <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
             <rect x="4" y="4" width="12" height="12" rx="1"/>
           </svg>
@@ -97,13 +97,13 @@
           <span class="text-[10px] uppercase tracking-widest font-bold text-gray-400 mb-1">Total Scraped</span>
           <span id="stat-total" class="text-2xl font-extrabold text-gray-800">0</span>
         </div>
-        <div class="bg-teal-50/50 rounded-xl p-4 border border-indigo-100 shadow-sm flex flex-col justify-center items-center text-center hover:shadow-md transition-shadow">
-          <span class="text-[10px] uppercase tracking-widest font-bold text-teal-400 mb-1">Qualified Matches</span>
-          <span id="stat-qualified" class="text-2xl font-extrabold text-teal-700">0</span>
+        <div class="bg-gray-50/50 rounded-xl p-4 border border-gray-200 shadow-sm flex flex-col justify-center items-center text-center hover:shadow-md transition-shadow">
+          <span class="text-[10px] uppercase tracking-widest font-bold text-gray-400 mb-1">Qualified Matches</span>
+          <span id="stat-qualified" class="text-2xl font-extrabold text-gray-800">0</span>
         </div>
-        <div class="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100 shadow-sm flex flex-col justify-center items-center text-center hover:shadow-md transition-shadow">
-          <span class="text-[10px] uppercase tracking-widest font-bold text-emerald-500 mb-1">New Insertions</span>
-          <span id="stat-inserted" class="text-2xl font-extrabold text-emerald-700">0</span>
+        <div class="bg-gray-50/50 rounded-xl p-4 border border-gray-200 shadow-sm flex flex-col justify-center items-center text-center hover:shadow-md transition-shadow">
+          <span class="text-[10px] uppercase tracking-widest font-bold text-gray-600 mb-1">New Insertions</span>
+          <span id="stat-inserted" class="text-2xl font-extrabold text-gray-800">0</span>
         </div>
         <div class="bg-gray-50/80 rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center items-center text-center hover:shadow-md transition-shadow">
           <span class="text-[10px] uppercase tracking-widest font-bold text-gray-400 mb-1">Duplicates Skipped</span>
@@ -113,11 +113,11 @@
     </div>
 
     <!-- Result section (after completion) -->
-    <div id="result-section" class="hidden mt-4 bg-green-50 rounded-lg shadow p-6 border border-green-200">
-      <h3 class="text-lg font-semibold text-green-800 mb-3">Scraping Complete!</h3>
+    <div id="result-section" class="hidden mt-4 bg-gray-50 rounded-lg shadow p-6 border border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-800 mb-3">Scraping Complete!</h3>
       <div class="flex flex-wrap gap-3">
         <a href="{{ url_for('jobs') }}"
-          class="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-lg hover:bg-teal-800">
+          class="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-900">
           View Jobs
         </a>
         <a id="digest-link" href="#"
@@ -132,12 +132,12 @@
     </div>
 
     <!-- Stopped section -->
-    <div id="stopped-section" class="hidden mt-4 bg-amber-50 rounded-lg shadow p-6 border border-amber-200">
-      <h3 class="text-lg font-semibold text-amber-800 mb-2">Scraping Stopped</h3>
-      <p class="text-sm text-amber-700 mb-3">Scraping was stopped. Any jobs collected before stopping have been saved.</p>
+    <div id="stopped-section" class="hidden mt-4 bg-gray-50 rounded-lg shadow p-6 border border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-800 mb-2">Scraping Stopped</h3>
+      <p class="text-sm text-gray-700 mb-3">Scraping was stopped. Any jobs collected before stopping have been saved.</p>
       <div class="flex gap-3">
         <a href="{{ url_for('jobs') }}"
-          class="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-lg hover:bg-teal-800">
+          class="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-900">
           View Jobs
         </a>
         <button onclick="location.reload()"
@@ -148,8 +148,8 @@
     </div>
 
     <!-- Error section -->
-    <div id="error-section" class="hidden mt-4 bg-red-50 rounded-lg shadow p-6 border border-red-200">
-      <h3 class="text-lg font-semibold text-red-800 mb-2">Error</h3>
+    <div id="error-section" class="hidden mt-4 bg-gray-50 rounded-lg shadow p-6 border border-red-200">
+      <h3 class="text-lg font-semibold text-gray-800 mb-2">Error</h3>
       <p id="error-text" class="text-sm text-red-700"></p>
       <button onclick="location.reload()"
         class="mt-3 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50">
@@ -179,12 +179,13 @@
 
   function updatePortalLabel(cb) {
     const label = document.getElementById('portal-label-' + cb.value);
+    if (!label) return;
     if (cb.checked) {
-      label.classList.replace('border-gray-200', 'border-indigo-200');
-      label.classList.replace('bg-gray-50', 'bg-indigo-50');
+      label.classList.add('ring-1', 'ring-gray-400', 'bg-white');
+      label.classList.remove('bg-gray-50');
     } else {
-      label.classList.replace('border-indigo-200', 'border-gray-200');
-      label.classList.replace('bg-indigo-50', 'bg-gray-50');
+      label.classList.remove('ring-1', 'ring-gray-400', 'bg-white');
+      label.classList.add('bg-gray-50');
     }
   }
 
@@ -252,8 +253,8 @@
         if (portals.length > 0) {
           portalList.innerHTML = portals.map(([name, info]) => {
             const icon = info.status === 'success'
-              ? '<span class="text-green-600 font-bold">&#10003;</span>'
-              : '<span class="text-red-500 font-bold">&#10007;</span>';
+              ? '<span class="text-gray-700 font-bold">&#10003;</span>'
+              : '<span class="text-gray-500 font-bold">&#10007;</span>';
             return `<div class="flex items-center justify-between text-sm py-1">
             <span class="flex items-center space-x-2">
               ${icon}

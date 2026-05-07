@@ -10,105 +10,90 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
   <style>
-    /* ══════════════════════════════════════════
-       ELECTRIC TEAL DESIGN SYSTEM
-       Primary:  #00CED1  (electric teal)
-       Dark:     #00A8AB  (hover / pressed)
-       Deepest:  #002D2F  (sidebar)
-       Light:    #80EAEC  (borders, accents)
-       XLight:   #E0FAFB  (backgrounds)
-    ══════════════════════════════════════════ */
     :root {
-      --et:           #00CED1;   /* electric teal */
-      --et-dark:      #00A8AB;
-      --et-darker:    #007F82;
-      --et-glow:      rgba(0, 206, 209, 0.30);
-      --et-light:     #80EAEC;
-      --et-xlight:    #E0FAFB;
-      --sidebar-bg:   #002D2F;
-      --sidebar-border: rgba(0,206,209,0.12);
-      --glass:        rgba(255,255,255,0.75);
-      --glass-border: rgba(0,206,209,0.20);
-      --glass-shadow: 0 8px 32px -4px rgba(0,206,209,0.10), 0 2px 8px rgba(0,0,0,0.04);
-      --accent:       #00CED1;
-      --accent-2:     #00A8AB;
+      --et:             #111111;
+      --et-dark:        #333333;
+      --et-darker:      #555555;
+      --et-glow:        rgba(0,0,0,0.10);
+      --et-light:       #D1D5DB;
+      --et-xlight:      #F9FAFB;
+      --sidebar-bg:     #111111;
+      --sidebar-border: rgba(255,255,255,0.07);
+      --glass:          #FFFFFF;
+      --glass-border:   #E5E7EB;
+      --glass-shadow:   0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+      --accent:         #111111;
+      --accent-2:       #333333;
+      --mute:           #6B7280;
+      --ink:            #111111;
     }
 
     *, *::before, *::after { box-sizing: border-box; }
 
     body {
       font-family: 'Outfit', sans-serif;
-      background: linear-gradient(145deg, #E0FAFB 0%, #ffffff 55%, #EBF9FA 100%);
+      background: #F9FAFB;
       min-height: 100vh;
     }
 
-    /* ── Background orbs ── */
-    .bg-orb {
-      position: fixed; border-radius: 50%;
-      filter: blur(90px); pointer-events: none; z-index: 0;
-    }
-    .bg-orb-1 { width:520px; height:520px; background:#00CED1; opacity:0.12; top:-160px; left:-120px; }
-    .bg-orb-2 { width:420px; height:420px; background:#00A8AB; opacity:0.08; bottom:60px; right:80px; }
-    .bg-orb-3 { width:300px; height:300px; background:#80EAEC; opacity:0.14; top:50%; left:52%; transform:translate(-50%,-50%); }
+    /* hide legacy orbs */
+    .bg-orb { display: none; }
 
     /* ── Sidebar ── */
     .sidebar-link {
       display: flex; align-items: center; gap: 0.75rem;
-      padding: 0.5rem 0.875rem; border-radius: 0.625rem;
+      padding: 0.5rem 0.875rem; border-radius: 0.5rem;
       font-size: 0.875rem; font-weight: 500;
-      color: rgba(255,255,255,0.55);
-      transition: all 0.2s ease; text-decoration: none;
+      color: rgba(255,255,255,0.50);
+      transition: all 0.15s ease; text-decoration: none;
     }
-    .sidebar-link:hover  { background: rgba(0,206,209,0.12); color: rgba(255,255,255,0.95); }
+    .sidebar-link:hover  { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.90); }
     .sidebar-link.active {
-      background: linear-gradient(135deg, rgba(0,206,209,0.30) 0%, rgba(0,168,171,0.22) 100%);
+      background: rgba(255,255,255,0.12);
       color: #fff; font-weight: 600;
-      box-shadow: inset 0 0 0 1px rgba(0,206,209,0.40), 0 2px 8px rgba(0,206,209,0.22);
     }
-    .sidebar-link svg        { opacity: 0.45; transition: opacity 0.2s; }
+    .sidebar-link svg        { opacity: 0.45; transition: opacity 0.15s; }
     .sidebar-link.active svg { opacity: 1; }
-    .sidebar-link:hover  svg { opacity: 0.90; }
+    .sidebar-link:hover  svg { opacity: 0.85; }
 
     .nav-group-label {
       font-size: 0.60rem; font-weight: 600; letter-spacing: 0.10em;
-      color: rgba(0,206,209,0.35); text-transform: uppercase;
+      color: rgba(255,255,255,0.25); text-transform: uppercase;
       padding: 0.25rem 0.875rem; margin-top: 1.5rem; margin-bottom: 0.5rem;
     }
 
-    /* ── Glass cards ── */
+    /* ── Cards & panels ── */
     .stat-card {
-      background: var(--glass); border: 1px solid var(--glass-border);
-      border-radius: 1.125rem; padding: 1.5rem;
-      box-shadow: var(--glass-shadow);
-      backdrop-filter: blur(20px) saturate(150%);
-      -webkit-backdrop-filter: blur(20px) saturate(150%);
-      transition: all 0.22s ease;
+      background: #FFFFFF; border: 1px solid #E5E7EB;
+      border-radius: 1rem; padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
     }
     .stat-card:hover {
-      box-shadow: 0 16px 40px -8px rgba(0,206,209,0.16), 0 4px 12px rgba(0,0,0,0.05);
-      transform: translateY(-2px); border-color: rgba(0,206,209,0.35);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      transform: translateY(-1px);
     }
 
     .glass-panel {
-      background: var(--glass); border: 1px solid var(--glass-border);
-      border-radius: 1.25rem; box-shadow: var(--glass-shadow);
-      backdrop-filter: blur(20px) saturate(150%);
-      -webkit-backdrop-filter: blur(20px) saturate(150%); overflow: hidden;
+      background: #FFFFFF; border: 1px solid #E5E7EB;
+      border-radius: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      overflow: hidden;
     }
     .glass-panel-header {
       padding: 1.25rem 1.5rem;
-      background: rgba(224,250,251,0.60);
-      border-bottom: 1px solid rgba(0,206,209,0.12);
+      background: #F9FAFB;
+      border-bottom: 1px solid #E5E7EB;
     }
 
     /* ── Flash messages ── */
-    .flash-success { background: rgba(0,206,209,0.12); border:1px solid rgba(0,206,209,0.30); backdrop-filter: blur(12px); }
-    .flash-error   { background: rgba(254,226,226,0.80); backdrop-filter: blur(12px); }
-    .flash-info    { background: rgba(0,206,209,0.08);   backdrop-filter: blur(12px); }
+    .flash-success { background: #F3F4F6; border: 1px solid #D1D5DB; color: #111111; }
+    .flash-error   { background: #F9FAFB; border: 1px solid #D1D5DB; color: #111111; }
+    .flash-info    { background: #F9FAFB; border: 1px solid #E5E7EB; color: #374151; }
 
     /* ── Skeleton Loader ── */
     .skeleton-loader {
-      background: linear-gradient(-90deg, #E0FAFB 0%, #B2F0F2 50%, #E0FAFB 100%);
+      background: linear-gradient(-90deg, #F3F4F6 0%, #E5E7EB 50%, #F3F4F6 100%);
       background-size: 400% 400%;
       animation: skeleton-pulse 1.2s ease-in-out infinite; border-radius: 0.5rem;
     }
@@ -117,64 +102,84 @@
       100% { background-position: -135% 0%; }
     }
 
-    /* ── Electric teal button ── */
+    /* ── Primary / legacy buttons → black ── */
     .btn-teal {
-      background: var(--et);
+      background: #111111;
       color: #ffffff; font-weight: 700;
       border-radius: 0.5rem; padding: 0.5rem 1.25rem; font-size: 0.875rem;
-      transition: background 0.18s, box-shadow 0.18s; border: none; cursor: pointer;
+      transition: background 0.15s; border: none; cursor: pointer;
       display: inline-flex; align-items: center; gap: 0.375rem;
-      letter-spacing: 0.01em;
     }
-    .btn-teal:hover {
-      background: var(--et-dark);
-      box-shadow: 0 4px 18px rgba(0,206,209,0.40);
+    .btn-teal:hover { background: #333333; box-shadow: none; }
+
+    /* ── Secondary / ghost button classes ── */
+    .gloss-btn-secondary {
+      background: #111111; color: #ffffff; font-weight: 600;
+      border-radius: 0.5rem; padding: 0.45rem 1.1rem; font-size: 0.8125rem;
+      border: none; cursor: pointer; transition: background 0.15s;
+      display: inline-flex; align-items: center; gap: 0.375rem;
     }
+    .gloss-btn-secondary:hover { background: #333333; }
+    .gloss-btn-ghost {
+      background: transparent; color: #111111; font-weight: 600;
+      border-radius: 0.5rem; padding: 0.45rem 1.1rem; font-size: 0.8125rem;
+      border: 1px solid #D1D5DB; cursor: pointer; transition: all 0.15s;
+      display: inline-flex; align-items: center; gap: 0.375rem;
+    }
+    .gloss-btn-ghost:hover { background: #111111; color: #ffffff; border-color: #111111; }
+    .gloss-input {
+      width: 100%; border: 1px solid #E5E7EB; border-radius: 8px;
+      padding: 0.55rem 0.85rem; font-size: 0.875rem; color: #111111;
+      background: #ffffff; transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .gloss-input:focus {
+      outline: none; border-color: #111111;
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+    }
+
+    /* ── Ensure bg-gray-900 renders as true black ── */
+    .bg-gray-900 { background-color: #111111 !important; }
+    .hover\:bg-gray-800:hover { background-color: #222222 !important; }
+    .hover\:bg-gray-700:hover { background-color: #333333 !important; }
 
     /* ── Form inputs ── */
     input:focus, textarea:focus, select:focus {
       outline: none !important;
-      border-color: #00CED1 !important;
-      box-shadow: 0 0 0 3px rgba(0,206,209,0.18) !important;
+      border-color: #111111 !important;
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.08) !important;
     }
 
-    /* ══ Tailwind override: inject missing electric teal utility classes ══
-       (Tailwind CSS is pre-compiled without teal; these classes were used in templates) */
-    .bg-teal-50   { background-color: #E0FAFB !important; }
-    .bg-teal-100  { background-color: #B2F0F2 !important; }
-    .bg-teal-500  { background-color: #00CED1 !important; }
-    .bg-teal-600  { background-color: #00CED1 !important; }
-    .bg-teal-700  { background-color: #00A8AB !important; }
-    .bg-teal-800  { background-color: #007F82 !important; }
-    .bg-teal-900  { background-color: #002D2F !important; }
-    .text-teal-400 { color: #80EAEC !important; }
-    .text-teal-500 { color: #00CED1 !important; }
-    .text-teal-600 { color: #00CED1 !important; }
-    .text-teal-700 { color: #00A8AB !important; }
-    .border-teal-500 { border-color: #00CED1 !important; }
-    .border-teal-600 { border-color: #00CED1 !important; }
-    .hover\:bg-teal-800:hover { background-color: #007F82 !important; }
-    .focus\:border-teal-500:focus { border-color: #00CED1 !important; }
-    .focus\:ring-teal-500:focus { --tw-ring-color: rgba(0,206,209,0.40) !important; }
-    .ring-teal-500 { --tw-ring-color: rgba(0,206,209,0.40) !important; }
+    /* ── Teal utility class overrides → black/gray ── */
+    .bg-teal-50   { background-color: #F9FAFB !important; }
+    .bg-teal-100  { background-color: #F3F4F6 !important; }
+    .bg-teal-500  { background-color: #111111 !important; }
+    .bg-teal-600  { background-color: #111111 !important; }
+    .bg-teal-700  { background-color: #333333 !important; }
+    .bg-teal-800  { background-color: #333333 !important; }
+    .bg-teal-900  { background-color: #111111 !important; }
+    .text-teal-400 { color: #9CA3AF !important; }
+    .text-teal-500 { color: #374151 !important; }
+    .text-teal-600 { color: #111111 !important; }
+    .text-teal-700 { color: #111111 !important; }
+    .border-teal-500 { border-color: #D1D5DB !important; }
+    .border-teal-600 { border-color: #D1D5DB !important; }
+    .hover\:bg-teal-800:hover { background-color: #333333 !important; }
+    .focus\:border-teal-500:focus { border-color: #111111 !important; }
+    .focus\:ring-teal-500:focus { --tw-ring-color: rgba(0,0,0,0.10) !important; }
+    .ring-teal-500 { --tw-ring-color: rgba(0,0,0,0.10) !important; }
   </style>
   {% block head %}{% endblock %}
 </head>
 
 <body class="min-h-screen font-sans">
 
-  <!-- Background orbs -->
-  <div class="bg-orb bg-orb-1" aria-hidden="true"></div>
-  <div class="bg-orb bg-orb-2" aria-hidden="true"></div>
-  <div class="bg-orb bg-orb-3" aria-hidden="true"></div>
-
   <!-- Sidebar (desktop) -->
   <aside class="hidden md:flex flex-col w-64 min-h-screen fixed left-0 top-0 z-20"
     style="background:var(--sidebar-bg); border-right:1px solid var(--sidebar-border);">
-    <div class="px-5 py-6 flex items-center gap-3" style="border-bottom:1px solid rgba(0,206,209,0.12);">
-      <div class="w-8 h-8 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0"
-        style="background:linear-gradient(135deg,#00CED1,#00A8AB); box-shadow:0 4px 14px rgba(0,206,209,0.50);">
-        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="px-5 py-6 flex items-center gap-3" style="border-bottom:1px solid rgba(255,255,255,0.07);">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+        style="background:#FFFFFF;">
+        <svg class="w-4 h-4" style="color:#111111" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2" />
         </svg>
@@ -208,24 +213,16 @@
 
       <a href="{{ url_for('pipeline') }}"
         class="sidebar-link {% if request.endpoint == 'pipeline' %}active{% endif %}"
-        style="margin-top:12px;background:{% if request.endpoint == 'pipeline' %}linear-gradient(135deg,rgba(0,206,209,0.30),rgba(0,168,171,0.22)){% else %}rgba(0,206,209,0.08){% endif %};border:1px solid rgba(0,206,209,0.20);">
+        style="margin-top:12px; border:1px solid rgba(255,255,255,0.15);">
         <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
         </svg>
-        <span style="color:{% if request.endpoint == 'pipeline' %}#fff{% else %}#00CED1{% endif %};">Agent Pipeline</span>
+        Agent Pipeline
       </a>
 
       <!-- Tools group -->
       <div class="nav-group-label">Tools</div>
       <div class="space-y-1">
-        <a href="{{ url_for('reminders') }}"
-          class="sidebar-link {% if request.endpoint in ['reminders', 'reminders_create', 'reminders_delete', 'reminders_toggle'] %}active{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          Reminders
-        </a>
         <a href="{{ url_for('scraper') }}" class="sidebar-link {% if request.endpoint == 'scraper' %}active{% endif %}">
           <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -246,19 +243,6 @@
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           My CV
-        </a>
-      </div>
-
-      <!-- Learning group -->
-      <div class="nav-group-label">Learning</div>
-      <div class="space-y-1">
-        <a href="{{ url_for('prd_library') }}"
-          class="sidebar-link {% if request.endpoint in ['prd_library', 'prd_detail'] %}active{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          PRD Library
         </a>
       </div>
 
@@ -290,6 +274,22 @@
               d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
           </svg>
           How it Works
+        </a>
+        <a href="{{ url_for('reminders') }}"
+          class="sidebar-link {% if request.endpoint in ['reminders', 'reminders_create', 'reminders_delete', 'reminders_toggle'] %}active{% endif %}">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          Reminders
+        </a>
+        <a href="{{ url_for('prd_library') }}"
+          class="sidebar-link {% if request.endpoint in ['prd_library', 'prd_detail'] %}active{% endif %}">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          PRD Library
         </a>
       </div>
 
@@ -336,7 +336,7 @@
   <!-- Mobile Drawer Menu -->
   <div id="mobileMenu"
     class="hidden md:hidden fixed inset-0 z-40 flex justify-end transition-opacity"
-    style="background:rgba(2,26,24,0.55); backdrop-filter:blur(4px);">
+    style="background:rgba(0,0,0,0.55); backdrop-filter:blur(4px);">
     <div class="w-64 h-full flex flex-col"
       style="background:var(--sidebar-bg); border-left:1px solid rgba(255,255,255,0.07); box-shadow:-8px 0 32px rgba(0,0,0,0.4);">
       <div class="p-5 flex justify-between items-center" style="border-bottom:1px solid rgba(255,255,255,0.07);">
@@ -363,8 +363,6 @@
         <div>
           <div class="text-[10px] font-bold uppercase tracking-wider mb-2 px-3" style="color:rgba(255,255,255,0.25);">Tools</div>
           <div class="space-y-1">
-            <a href="{{ url_for('reminders') }}"
-              class="block px-3 py-2 rounded-lg text-sm {% if request.endpoint in ['reminders', 'reminders_create'] %}font-semibold text-white{% else %}text-white/50 hover:text-white/80 hover:bg-white/5{% endif %}">Reminders</a>
             <a href="{{ url_for('scraper') }}"
               class="block px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'scraper' %}font-semibold text-white{% else %}text-white/50 hover:text-white/80 hover:bg-white/5{% endif %}">Run Scraper</a>
             <a href="{{ url_for('autoresearch_page') }}"
@@ -378,6 +376,10 @@
           <div class="space-y-1">
             <a href="{{ url_for('preferences') }}"
               class="block px-3 py-2 rounded-lg text-sm {% if request.endpoint == 'preferences' %}font-semibold text-white{% else %}text-white/50 hover:text-white/80 hover:bg-white/5{% endif %}">Settings</a>
+            <a href="{{ url_for('reminders') }}"
+              class="block px-3 py-2 rounded-lg text-sm {% if request.endpoint in ['reminders', 'reminders_create'] %}font-semibold text-white{% else %}text-white/50 hover:text-white/80 hover:bg-white/5{% endif %}">Reminders</a>
+            <a href="{{ url_for('prd_library') }}"
+              class="block px-3 py-2 rounded-lg text-sm {% if request.endpoint in ['prd_library', 'prd_detail'] %}font-semibold text-white{% else %}text-white/50 hover:text-white/80 hover:bg-white/5{% endif %}">PRD Library</a>
           </div>
         </div>
       </div>
@@ -391,10 +393,10 @@
     {% if messages %}
     <div class="px-8 pt-6">
       {% for category, message in messages %}
-      <div class="rounded-xl px-5 py-3.5 mb-3 text-sm shadow-sm flex items-center gap-3
-              {% if category == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-100
-              {% elif category == 'error' %}bg-rose-50 text-rose-800 border border-rose-100
-              {% else %}bg-blue-50 text-blue-800 border border-blue-100{% endif %}">
+      <div class="rounded-xl px-5 py-3.5 mb-3 text-sm flex items-center gap-3
+              {% if category == 'success' %}flash-success
+              {% elif category == 'error' %}flash-error
+              {% else %}flash-info{% endif %}">
         {% if category == 'success' %}
         <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

@@ -1,54 +1,140 @@
 {% extends "base.html" %}
 {% block title %}Reminders — Job Agent{% endblock %}
 
+{% block head %}
+<style>
+  .rem-card {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.95),
+      0 8px 28px -6px rgba(17,24,39,0.10),
+      0 2px 6px rgba(17,24,39,0.04);
+    transition: box-shadow 0.22s ease, transform 0.22s ease;
+  }
+  .rem-card:hover {
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.95),
+      0 14px 36px -6px rgba(17,17,17,0.06),
+      0 4px 10px rgba(17,24,39,0.05);
+    transform: translateY(-1px);
+  }
+  .rem-divider { background: rgba(0,0,0,0.06); height: 1px; border: 0; }
+  .seg {
+    display: inline-flex;
+    padding: 4px;
+    gap: 4px;
+    background: rgba(245,245,247,0.85);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 12px;
+    backdrop-filter: blur(20px) saturate(180%);
+  }
+  .seg-btn {
+    padding: 0.4rem 0.95rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--mute);
+    border-radius: 8px;
+    border: none; background: transparent;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    letter-spacing: -0.005em;
+  }
+  .seg-btn:hover { color: var(--ink); }
+  .seg-btn.active {
+    background: #ffffff;
+    color: var(--ink); font-weight: 600;
+    box-shadow: 0 1px 2px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.10);
+  }
+  .field-label { display:block; font-size: 0.72rem; font-weight: 600; color: var(--mute); margin-bottom: 5px; letter-spacing: -0.005em; }
+  .pill-badge {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.18rem 0.6rem;
+    font-size: 0.6875rem; font-weight: 600;
+    border-radius: 980px;
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+  }
+  .pill-active { background: linear-gradient(180deg, rgba(17,17,17,0.08), rgba(17,17,17,0.04)); color: #444444; border-color: rgba(17,17,17,0.15); }
+  .pill-paused { background: rgba(245,245,247,0.85); color: var(--mute); }
+  .pill-prd    { background: linear-gradient(180deg, rgba(17,17,17,0.06), rgba(17,17,17,0.04)); color: #333333; border-color: rgba(17,17,17,0.15); }
+  .pill-jobs   { background: linear-gradient(180deg, rgba(17,17,17,0.05), rgba(17,17,17,0.03)); color: #555555; border-color: rgba(17,17,17,0.12); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-4xl mx-auto">
   <div class="mb-6">
-    <h1 class="text-xl font-semibold text-gray-900">Job Reminders</h1>
-    <p class="text-sm text-gray-500 mt-1">Create alerts that email you matching jobs after each scrape (7 AM &amp; 7 PM daily).</p>
+    <h1 class="text-2xl font-bold tracking-tight">Reminders</h1>
+    <p class="text-sm mt-1" style="color:var(--mute);">Scheduled emails — job alerts after each scrape (7 AM &amp; 7 PM) and daily PRD digests.</p>
   </div>
 
   <!-- Create form -->
-  <div class="bg-white border border-gray-200 rounded-xl p-5 mb-6">
-    <h2 class="text-sm font-semibold text-gray-700 mb-4">New Reminder</h2>
-    <form method="POST" action="{{ url_for('reminders_create') }}" enctype="multipart/form-data">
+  <div class="rem-card p-6 mb-6">
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+      <h2 class="text-base font-semibold">New Reminder</h2>
+      <div class="seg" role="tablist" aria-label="Reminder type">
+        <button type="button" class="seg-btn active" id="seg-jobs" onclick="setRemType('jobs')">Job alert</button>
+        <button type="button" class="seg-btn" id="seg-prd" onclick="setRemType('prd')">Daily PRD</button>
+      </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('reminders_create') }}" enctype="multipart/form-data" id="create-rem-form">
+      <input type="hidden" name="type" id="rem-type-input" value="jobs">
+
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
         <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Alert name</label>
-          <input type="text" name="name" placeholder="e.g. PM jobs Bangalore" required
-                 class="w-full text-sm rounded-lg border border-gray-200 focus:border-zinc-400 focus:ring-zinc-400 py-2 px-3">
+          <label class="field-label">Alert name</label>
+          <input type="text" name="name" placeholder="e.g. PM jobs Bangalore" required class="gloss-input">
         </div>
+
+        <div data-rem-type="jobs">
+          <label class="field-label">Job title keyword</label>
+          <input type="text" name="keyword" placeholder="e.g. Product Manager" class="gloss-input">
+        </div>
+
         <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Job title keyword</label>
-          <input type="text" name="keyword" placeholder="e.g. Product Manager" required
-                 class="w-full text-sm rounded-lg border border-gray-200 focus:border-zinc-400 focus:ring-zinc-400 py-2 px-3">
+          <label class="field-label">Recipient email</label>
+          <input type="email" name="email" placeholder="you@gmail.com" required class="gloss-input">
         </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Recipient email</label>
-          <input type="email" name="email" placeholder="you@gmail.com" required
-                 class="w-full text-sm rounded-lg border border-gray-200 focus:border-zinc-400 focus:ring-zinc-400 py-2 px-3">
+
+        <div data-rem-type="jobs">
+          <label class="field-label">Min match score (0–100)</label>
+          <input type="number" name="min_score" value="65" min="0" max="100" class="gloss-input">
         </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Min match score (0–100)</label>
-          <input type="number" name="min_score" value="65" min="0" max="100"
-                 class="w-full text-sm rounded-lg border border-gray-200 focus:border-zinc-400 focus:ring-zinc-400 py-2 px-3">
+
+        <div data-rem-type="jobs">
+          <label class="field-label">Max jobs per email (1–50)</label>
+          <input type="number" name="max_jobs" value="20" min="1" max="50" class="gloss-input">
         </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Max jobs per email (1–50)</label>
-          <input type="number" name="max_jobs" value="20" min="1" max="50"
-                 class="w-full text-sm rounded-lg border border-gray-200 focus:border-zinc-400 focus:ring-zinc-400 py-2 px-3">
+
+        <div data-rem-type="prd" class="hidden">
+          <label class="field-label">Domain hint (optional)</label>
+          <input type="text" name="prd_domain" placeholder="e.g. fintech, healthcare" class="gloss-input">
         </div>
-        <div class="sm:col-span-2 lg:col-span-3">
-          <label class="block text-xs font-medium text-gray-600 mb-1">Your CV / Resume <span class="text-red-500">*</span></label>
-          <input type="file" name="cv_file" accept=".pdf,.docx,.txt" required
-                 class="w-full text-sm rounded-lg border border-gray-200 focus:border-zinc-400 py-2 px-3 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200">
-          <p class="text-xs text-gray-400 mt-1">PDF, DOCX, or TXT — used to score job matches for this alert.</p>
+
+        <div data-rem-type="prd" class="hidden">
+          <label class="field-label">Send hour (0–23)</label>
+          <input type="number" name="prd_hour" value="8" min="0" max="23" class="gloss-input">
+        </div>
+
+        <div class="sm:col-span-2 lg:col-span-3" data-rem-type="jobs">
+          <label class="field-label">Your CV / Resume <span class="text-gray-500">*</span></label>
+          <input type="file" name="cv_file" accept=".pdf,.docx,.txt"
+                 class="gloss-input file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200">
+          <p class="text-xs mt-1" style="color:var(--mute);">PDF, DOCX, or TXT — used to score job matches.</p>
+        </div>
+
+        <div class="sm:col-span-2 lg:col-span-3 hidden" data-rem-type="prd">
+          <p class="text-xs" style="color:var(--mute);">A daily PRD will be generated by the AI and emailed to you at the chosen hour.</p>
         </div>
       </div>
-      <button type="submit"
-              class="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold rounded-lg transition-colors">
-        + Create Reminder
-      </button>
+
+      <button type="submit" class="btn-teal">+ Create Reminder</button>
     </form>
   </div>
 
@@ -56,208 +142,202 @@
   {% if reminders %}
   <div class="space-y-3">
     {% for r in reminders %}
-    <div class="bg-white border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-      <!-- Info -->
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 mb-1">
-          <span class="font-semibold text-gray-900 text-sm">{{ r.name }}</span>
-          {% if r.enabled %}
-          <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Active</span>
-          {% else %}
-          <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">Paused</span>
+    {% set rtype = r.type or 'jobs' %}
+    <div class="rem-card p-5">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+        <!-- Info -->
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap items-center gap-2 mb-1.5">
+            <span class="font-semibold text-[15px]">{{ r.name }}</span>
+            {% if rtype == 'prd' %}
+              <span class="pill-badge pill-prd">📋 Daily PRD</span>
+            {% else %}
+              <span class="pill-badge pill-jobs">💼 Job alert</span>
+            {% endif %}
+            {% if r.enabled %}
+              <span class="pill-badge pill-active">Active</span>
+            {% else %}
+              <span class="pill-badge pill-paused">Paused</span>
+            {% endif %}
+          </div>
+          <div class="text-xs flex flex-wrap gap-x-4 gap-y-1" style="color:var(--mute);">
+            {% if rtype == 'prd' %}
+              {% if r.prd_domain %}<span>Domain: <strong style="color:var(--ink);">{{ r.prd_domain }}</strong></span>{% endif %}
+              <span>Send hour: <strong style="color:var(--ink);">{{ r.prd_hour if r.prd_hour is not none else 8 }}:00</strong></span>
+            {% else %}
+              <span>Keyword: <strong style="color:var(--ink);">{{ r.keyword }}</strong></span>
+              <span>Score ≥ <strong style="color:var(--ink);">{{ r.min_score }}</strong></span>
+              <span>Max <strong style="color:var(--ink);">{{ r.max_jobs }}</strong> jobs</span>
+            {% endif %}
+            <span>→ <strong style="color:var(--ink);">{{ r.email }}</strong></span>
+            <span>Last sent: <strong style="color:var(--ink);">
+              {% if r.last_sent %}{{ r.last_sent[:16].replace('T', ' ') }}{% else %}Never{% endif %}
+            </strong></span>
+          </div>
+          {% if rtype != 'prd' %}
+          <div class="mt-1.5">
+            {% if r.cv_data %}
+            <span class="pill-badge" style="background:rgba(245,245,247,0.85);">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              CV uploaded · {{ r.cv_data.skills | length }} skills
+            </span>
+            {% else %}
+            <span class="pill-badge" style="background:rgba(17,17,17,0.06); color:#555555; border-color:rgba(17,17,17,0.15);">
+              No CV — using relevance score
+            </span>
+            {% endif %}
+          </div>
           {% endif %}
         </div>
-        <div class="text-xs text-gray-500 flex flex-wrap gap-3">
-          <span>Keyword: <strong class="text-gray-700">{{ r.keyword }}</strong></span>
-          <span>Score ≥ <strong class="text-gray-700">{{ r.min_score }}</strong></span>
-          <span>Max <strong class="text-gray-700">{{ r.max_jobs }}</strong> jobs</span>
-          <span>→ <strong class="text-gray-700">{{ r.email }}</strong></span>
-          <span>Last sent: <strong class="text-gray-700">
-            {% if r.last_sent %}{{ r.last_sent[:16].replace('T', ' ') }}{% else %}Never{% endif %}
-          </strong></span>
-        </div>
-        <div class="mt-1.5">
-          {% if r.cv_data %}
-          <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 font-medium">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            CV uploaded · {{ r.cv_data.skills | length }} skills
-          </span>
-          {% else %}
-          <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            No CV — using relevance score
-          </span>
+
+        <!-- Actions -->
+        <div class="flex items-center gap-2 flex-shrink-0 flex-wrap">
+          <form method="POST" action="{{ url_for('reminders_send', reminder_id=r.id) }}">
+            <button type="submit" class="btn-teal" style="padding:0.45rem 1rem;">
+              {% if rtype == 'prd' %}Send PRD Now{% else %}Send Now{% endif %}
+            </button>
+          </form>
+          {% if rtype != 'prd' %}
+          <button type="button"
+            onclick="document.getElementById('hr-{{ r.id }}').classList.toggle('hidden'); document.getElementById('edit-{{ r.id }}').classList.add('hidden')"
+            class="gloss-btn-secondary">
+            {% if r.hr_email_enabled %}HR Email ✓{% else %}HR Email{% endif %}
+          </button>
           {% endif %}
-        </div>
-      </div>
-      <!-- Actions -->
-      <div class="flex items-center gap-2 flex-shrink-0">
-        <form method="POST" action="{{ url_for('reminders_send', reminder_id=r.id) }}">
-          <button type="submit"
-                  class="text-xs px-3 py-1.5 rounded-lg bg-teal-700 text-white font-medium hover:bg-zinc-800 transition-colors shadow-sm">
-            Send Now
-          </button>
-        </form>
-        <button type="button"
-                onclick="document.getElementById('hr-{{ r.id }}').classList.toggle('hidden'); document.getElementById('edit-{{ r.id }}').classList.add('hidden')"
-                class="text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors bg-white
-                  {% if r.hr_email_enabled %}border-indigo-300 text-teal-700{% else %}border-indigo-200 text-teal-600 hover:bg-teal-50{% endif %}">
-          {% if r.hr_email_enabled %}HR Email ✓{% else %}HR Email{% endif %}
-        </button>
-
-        <!-- Dropdown for secondary actions -->
-        <div class="relative">
-          <button type="button" onclick="document.getElementById('dropdown-{{ r.id }}').classList.toggle('hidden')" class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
-          </button>
-          <div id="dropdown-{{ r.id }}" onmouseleave="this.classList.add('hidden')" class="hidden absolute right-0 mt-2 w-40 bg-white border border-gray-100 rounded-xl shadow-lg z-10 py-1">
-             <!-- Edit -->
-             <button type="button" onclick="document.getElementById('edit-{{ r.id }}').classList.toggle('hidden'); document.getElementById('hr-{{ r.id }}').classList.add('hidden'); document.getElementById('dropdown-{{ r.id }}').classList.add('hidden')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50">Edit Settings</button>
-             <!-- Update CV -->
-             <form method="POST" action="{{ url_for('reminders_update_cv', reminder_id=r.id) }}" enctype="multipart/form-data">
-               <label class="block w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 cursor-pointer">
-                 {% if r.cv_data %}Update CV{% else %}Upload CV{% endif %}
-                 <input type="file" name="cv_file" accept=".pdf,.docx,.txt" class="hidden" onchange="this.form.submit()">
-               </label>
-             </form>
-             <!-- Pause/Enable -->
-             <form method="POST" action="{{ url_for('reminders_toggle', reminder_id=r.id) }}">
-               <button type="submit" class="w-full text-left px-4 py-2 text-xs {% if r.enabled %}text-amber-600{% else %}text-green-600{% endif %} hover:bg-gray-50">
-                 {% if r.enabled %}Pause Alert{% else %}Enable Alert{% endif %}
-               </button>
-             </form>
-             <hr class="my-1 border-gray-100">
-             <!-- Delete -->
-             <form method="POST" action="{{ url_for('reminders_delete', reminder_id=r.id) }}" onsubmit="return confirm('Delete reminder?')">
-               <button type="submit" class="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-red-50">Delete</button>
-             </form>
+          <div class="relative">
+            <button type="button" onclick="document.getElementById('dropdown-{{ r.id }}').classList.toggle('hidden')" class="gloss-btn-ghost" aria-label="More">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+              </svg>
+            </button>
+            <div id="dropdown-{{ r.id }}" onmouseleave="this.classList.add('hidden')"
+                 class="hidden absolute right-0 mt-2 w-44 z-30"
+                 style="background: rgba(255,255,255,0.92); border:1px solid rgba(0,0,0,0.06); border-radius:14px; box-shadow:0 16px 40px -8px rgba(17,24,39,0.18), 0 4px 12px rgba(17,24,39,0.06); backdrop-filter:blur(28px) saturate(180%); padding:6px;">
+              {% if rtype != 'prd' %}
+              <button type="button" onclick="document.getElementById('edit-{{ r.id }}').classList.toggle('hidden'); document.getElementById('hr-{{ r.id }}').classList.add('hidden'); document.getElementById('dropdown-{{ r.id }}').classList.add('hidden')"
+                      class="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-zinc-100" style="color:var(--ink);">Edit Settings</button>
+              <form method="POST" action="{{ url_for('reminders_update_cv', reminder_id=r.id) }}" enctype="multipart/form-data">
+                <label class="block w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-zinc-100 cursor-pointer" style="color:var(--ink);">
+                  {% if r.cv_data %}Update CV{% else %}Upload CV{% endif %}
+                  <input type="file" name="cv_file" accept=".pdf,.docx,.txt" class="hidden" onchange="this.form.submit()">
+                </label>
+              </form>
+              {% endif %}
+              <form method="POST" action="{{ url_for('reminders_toggle', reminder_id=r.id) }}">
+                <button type="submit" class="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-zinc-100" style="color:{% if r.enabled %}#444444{% else %}#444444{% endif %};">
+                  {% if r.enabled %}Pause{% else %}Enable{% endif %}
+                </button>
+              </form>
+              <hr class="rem-divider my-1">
+              <form method="POST" action="{{ url_for('reminders_delete', reminder_id=r.id) }}" onsubmit="return confirm('Delete reminder?')">
+                <button type="submit" class="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-gray-50" style="color:#777777;">Delete</button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    <!-- Edit panel -->
-    <div id="edit-{{ r.id }}" class="hidden mt-1 bg-white border border-gray-200 rounded-xl p-4 shadow-sm z-10 relative">
-      <h3 class="text-xs font-semibold text-gray-600 mb-3">Edit Reminder</h3>
-      <form method="POST" action="{{ url_for('reminders_edit', reminder_id=r.id) }}">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Alert name</label>
-            <input type="text" name="name" value="{{ r.name | e }}" required
-                   class="w-full text-sm rounded-lg border border-gray-200 focus:border-zinc-400 focus:ring-zinc-400 py-2 px-3">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Job title keyword</label>
-            <input type="text" name="keyword" value="{{ r.keyword | e }}" required
-                   class="w-full text-sm rounded-lg border border-gray-200 focus:border-zinc-400 focus:ring-zinc-400 py-2 px-3">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Recipient email</label>
-            <input type="email" name="email" value="{{ r.email | e }}" required
-                   class="w-full text-sm rounded-lg border border-gray-200 focus:border-zinc-400 focus:ring-zinc-400 py-2 px-3">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Min match score (0–100)</label>
-            <input type="number" name="min_score" value="{{ r.min_score }}" min="0" max="100"
-                   class="w-full text-sm rounded-lg border border-gray-200 focus:border-zinc-400 focus:ring-zinc-400 py-2 px-3">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Max jobs per email (1–50)</label>
-            <input type="number" name="max_jobs" value="{{ r.max_jobs }}" min="1" max="50"
-                   class="w-full text-sm rounded-lg border border-gray-200 focus:border-zinc-400 focus:ring-zinc-400 py-2 px-3">
-          </div>
-        </div>
-        <div class="flex gap-2">
-          <button type="submit"
-                  class="px-4 py-1.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold rounded-lg transition-colors">
-            Save
-          </button>
-          <button type="button"
-                  onclick="document.getElementById('edit-{{ r.id }}').classList.add('hidden')"
-                  class="px-4 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-medium transition-colors">
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
 
-    <!-- HR Email panel -->
-    <div id="hr-{{ r.id }}" class="hidden mt-1 border rounded-xl p-4 bg-white shadow-sm z-10 relative"
-         style="border-color:rgba(99,102,241,0.18);">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-xs font-semibold" style="color:#4338ca;">Daily Hiring Manager Email</h3>
-        <span class="text-xs px-2 py-0.5 rounded-full font-medium
-          {% if r.hr_email_enabled %}bg-teal-50 text-teal-700{% else %}bg-gray-100 text-gray-500{% endif %}">
-          {% if r.hr_email_enabled %}Enabled{% else %}Disabled{% endif %}
-        </span>
-      </div>
-      <p class="text-xs text-gray-500 mb-4">
-        Searches LinkedIn daily for TA/HR recruiters hiring for
-        <strong>{{ r.keyword }}</strong> and emails the list to <strong>{{ r.email }}</strong>.
-        {% if r.last_hr_sent %}Last sent: <strong>{{ r.last_hr_sent }}</strong>.{% endif %}
-      </p>
-
-      <!-- Toggle + send now row -->
-      <div class="flex flex-wrap gap-2 mb-4">
-        <form method="POST" action="{{ url_for('reminders_hr_toggle', reminder_id=r.id) }}">
-          <button type="submit"
-                  class="text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors
-                    {% if r.hr_email_enabled %}border-amber-200 text-amber-700 hover:bg-amber-50
-                    {% else %}border-indigo-200 text-teal-700 hover:bg-teal-50{% endif %}">
-            {% if r.hr_email_enabled %}Disable Daily Email{% else %}Enable Daily Email{% endif %}
-          </button>
-        </form>
-        <form method="POST" action="{{ url_for('reminders_hr_send', reminder_id=r.id) }}">
-          <button type="submit"
-                  class="text-xs px-3 py-1.5 rounded-lg border border-green-200 text-green-700 hover:bg-green-50 font-medium transition-colors">
-            Send HR Email Now
-          </button>
+      {% if rtype != 'prd' %}
+      <!-- Edit panel -->
+      <div id="edit-{{ r.id }}" class="hidden mt-4 pt-4" style="border-top:1px solid rgba(0,0,0,0.06);">
+        <h3 class="text-xs font-semibold mb-3" style="color:var(--mute);">EDIT REMINDER</h3>
+        <form method="POST" action="{{ url_for('reminders_edit', reminder_id=r.id) }}">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+            <div>
+              <label class="field-label">Alert name</label>
+              <input type="text" name="name" value="{{ r.name | e }}" required class="gloss-input">
+            </div>
+            <div>
+              <label class="field-label">Job title keyword</label>
+              <input type="text" name="keyword" value="{{ r.keyword | e }}" required class="gloss-input">
+            </div>
+            <div>
+              <label class="field-label">Recipient email</label>
+              <input type="email" name="email" value="{{ r.email | e }}" required class="gloss-input">
+            </div>
+            <div>
+              <label class="field-label">Min match score</label>
+              <input type="number" name="min_score" value="{{ r.min_score }}" min="0" max="100" class="gloss-input">
+            </div>
+            <div>
+              <label class="field-label">Max jobs per email</label>
+              <input type="number" name="max_jobs" value="{{ r.max_jobs }}" min="1" max="50" class="gloss-input">
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="btn-teal" style="padding:0.45rem 1rem;">Save</button>
+            <button type="button" onclick="document.getElementById('edit-{{ r.id }}').classList.add('hidden')" class="gloss-btn-secondary">Cancel</button>
+          </div>
         </form>
       </div>
 
-      <!-- Schedule settings -->
-      <form method="POST" action="{{ url_for('reminders_hr_schedule', reminder_id=r.id) }}">
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Hour (0–23)</label>
-            <input type="number" name="hr_hour" min="0" max="23"
-                   value="{{ r.hr_email_hour if r.hr_email_hour is defined else 11 }}"
-                   class="w-full text-sm rounded-lg border border-gray-200 py-2 px-3 font-mono text-center">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Minute</label>
-            <input type="number" name="hr_minute" min="0" max="59"
-                   value="{{ r.hr_email_minute if r.hr_email_minute is defined else 0 }}"
-                   class="w-full text-sm rounded-lg border border-gray-200 py-2 px-3 font-mono text-center">
-          </div>
-          <div class="sm:col-span-2">
-            <label class="block text-xs font-medium text-gray-600 mb-1">Location filter (e.g. Pune, Bangalore)</label>
-            <input type="text" name="hr_location"
-                   value="{{ r.hr_location or '' }}"
-                   placeholder="India"
-                   class="w-full text-sm rounded-lg border border-gray-200 py-2 px-3">
-          </div>
+      <!-- HR Email panel -->
+      <div id="hr-{{ r.id }}" class="hidden mt-4 pt-4" style="border-top:1px solid rgba(0,0,0,0.06);">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h3 class="text-xs font-semibold" style="color:#333333;">DAILY HIRING-MANAGER EMAIL</h3>
+          <span class="pill-badge {% if r.hr_email_enabled %}pill-prd{% else %}pill-paused{% endif %}">
+            {% if r.hr_email_enabled %}Enabled{% else %}Disabled{% endif %}
+          </span>
         </div>
-        <div class="mt-3 flex gap-2">
-          <button type="submit"
-                  class="text-xs px-4 py-1.5 rounded-lg bg-teal-700 text-white hover:bg-teal-800 font-semibold transition-colors">
-            Save Schedule
-          </button>
-          <button type="button"
-                  onclick="document.getElementById('hr-{{ r.id }}').classList.add('hidden')"
-                  class="text-xs px-4 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium transition-colors">
-            Close
-          </button>
+        <p class="text-xs mb-4" style="color:var(--mute);">
+          Searches LinkedIn daily for TA/HR recruiters hiring for
+          <strong style="color:var(--ink);">{{ r.keyword }}</strong> and emails the list to <strong style="color:var(--ink);">{{ r.email }}</strong>.
+          {% if r.last_hr_sent %}Last sent: <strong style="color:var(--ink);">{{ r.last_hr_sent }}</strong>.{% endif %}
+        </p>
+        <div class="flex flex-wrap gap-2 mb-4">
+          <form method="POST" action="{{ url_for('reminders_hr_toggle', reminder_id=r.id) }}">
+            <button type="submit" class="gloss-btn-secondary">{% if r.hr_email_enabled %}Disable Daily Email{% else %}Enable Daily Email{% endif %}</button>
+          </form>
+          <form method="POST" action="{{ url_for('reminders_hr_send', reminder_id=r.id) }}">
+            <button type="submit" class="gloss-btn-secondary">Send HR Email Now</button>
+          </form>
         </div>
-      </form>
+        <form method="POST" action="{{ url_for('reminders_hr_schedule', reminder_id=r.id) }}">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label class="field-label">Hour (0–23)</label>
+              <input type="number" name="hr_hour" min="0" max="23"
+                     value="{{ r.hr_email_hour if r.hr_email_hour is defined else 11 }}" class="gloss-input text-center">
+            </div>
+            <div>
+              <label class="field-label">Minute</label>
+              <input type="number" name="hr_minute" min="0" max="59"
+                     value="{{ r.hr_email_minute if r.hr_email_minute is defined else 0 }}" class="gloss-input text-center">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="field-label">Location filter</label>
+              <input type="text" name="hr_location" value="{{ r.hr_location or '' }}" placeholder="India" class="gloss-input">
+            </div>
+          </div>
+          <div class="mt-3 flex gap-2">
+            <button type="submit" class="btn-teal" style="padding:0.45rem 1rem;">Save Schedule</button>
+            <button type="button" onclick="document.getElementById('hr-{{ r.id }}').classList.add('hidden')" class="gloss-btn-secondary">Close</button>
+          </div>
+        </form>
+      </div>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <div class="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-400 text-sm">
-    No reminders yet. Create one above.
+  <div class="rem-card p-12 text-center">
+    <p class="text-sm" style="color:var(--mute);">No reminders yet. Create one above.</p>
   </div>
   {% endif %}
 </div>
+
+<script>
+  function setRemType(t) {
+    document.getElementById('rem-type-input').value = t;
+    document.getElementById('seg-jobs').classList.toggle('active', t === 'jobs');
+    document.getElementById('seg-prd').classList.toggle('active', t === 'prd');
+    document.querySelectorAll('[data-rem-type="jobs"]').forEach(el => el.classList.toggle('hidden', t !== 'jobs'));
+    document.querySelectorAll('[data-rem-type="prd"]').forEach(el => el.classList.toggle('hidden', t !== 'prd'));
+    // toggle required attributes for hidden fields so the form submits cleanly
+    const cv = document.querySelector('input[name="cv_file"]');
+    const kw = document.querySelector('input[name="keyword"]');
+    if (cv) cv.required = (t === 'jobs');
+    if (kw) kw.required = (t === 'jobs');
+  }
+</script>
 {% endblock %}

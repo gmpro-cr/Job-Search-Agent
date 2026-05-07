@@ -58,11 +58,35 @@ from git_sync import sync_from_scrape
 _IS_VERCEL = bool(os.environ.get("VERCEL"))
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET", "job-search-agent-dev-key")
+app.secret_key = os.environ.get("FLASK_SECRET", "job-search-agent-dev-key-v2")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Auth setup
+# ---------------------------------------------------------------------------
+from authlib.integrations.flask_client import OAuth
+from functools import wraps
+from flask import session
+
+oauth = OAuth(app)
+google = oauth.register(
+    name='google',
+    client_id=os.environ.get("GOOGLE_CLIENT_ID"),
+    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
+
+@app.before_request
+def require_login():
+    allowed_routes = ['login', 'auth_google', 'auth_callback', 'auth_demo', 'static']
+    # Skip auth for API routes for now if they are called by background workers, 
+    # but since this is a UI app, we'll protect everything except allowed routes.
+    if request.endpoint and request.endpoint not in allowed_routes:
+        if dict(session).get('user') is None:
+            return redirect(url_for('login', next=request.url))
 # Initialize the database on startup
 try:
     init_db()
@@ -611,10 +635,13 @@ def _run_scraper_pipeline():
         with scraper_lock:
             scraper_status["phase"] = "storing"
 
+        _cv_data = load_cv_data()
         for job in all_analyzed:
             job["job_id"] = generate_job_id(
                 job["portal"], job["company"], job["role"], job.get("location", ""),
             )
+            if _cv_data:
+                job["cv_score"] = cv_score(job, _cv_data)
         inserted, skipped = insert_jobs_bulk(all_analyzed)
 
         with scraper_lock:
@@ -755,10 +782,13 @@ def _run_live_search(query, location):
         with live_search_lock:
             live_search_status["phase"] = "storing"
 
+        _cv_data = load_cv_data()
         for job in all_analyzed:
             job["job_id"] = generate_job_id(
                 job["portal"], job["company"], job["role"], job.get("location", ""),
             )
+            if _cv_data:
+                job["cv_score"] = cv_score(job, _cv_data)
         inserted, skipped = insert_jobs_bulk(all_analyzed)
         result_ids = [j["job_id"] for j in all_analyzed if j.get("job_id")]
 
@@ -887,9 +917,50 @@ if _should_start_background_tasks():
 # Routes
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Auth Routes
+# ---------------------------------------------------------------------------
+
+@app.route('/login')
+def login():
+    if dict(session).get('user') is not None:
+        return redirect(url_for('dashboard'))
+    return render_template('login.html')
+
+@app.route('/auth/google')
+def auth_google():
+    if not os.environ.get("GOOGLE_CLIENT_ID"):
+        flash("Google OAuth is not configured. Please use Demo Login.", "error")
+        return redirect(url_for('login'))
+    redirect_uri = url_for('auth_callback', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+@app.route('/auth/callback')
+def auth_callback():
+    try:
+        token = google.authorize_access_token()
+        userinfo = token.get('userinfo')
+        if userinfo:
+            session['user'] = userinfo
+    except Exception as e:
+        logger.error(f"OAuth callback error: {e}")
+        flash("Authentication failed.", "error")
+        return redirect(url_for('login'))
+    return redirect(url_for('dashboard'))
+
+@app.route('/auth/demo', methods=['POST'])
+def auth_demo():
+    session['user'] = {'email': 'demo@example.com', 'name': 'Demo User', 'picture': ''}
+    return redirect(url_for('dashboard'))
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect(url_for('login'))
+
 @app.route("/")
 def index():
-    return redirect(url_for("dashboard"))
+    return redirect(url_for("login"))
 
 
 @app.route("/favicon.ico")
@@ -1048,13 +1119,17 @@ def _build_jobs_query(filters):
         params.append(company_stage)
 
     sort_map = {
-        "score_desc": "relevance_score DESC",
-        "score_asc": "relevance_score ASC",
+        "score_desc": "relevance_score DESC, date_found DESC",
+        "score_asc": "relevance_score ASC, date_found DESC",
         "date_desc": "date_found DESC",
         "date_asc": "date_found ASC",
         "company_asc": "company ASC",
-        "cv_score_desc": "cv_score DESC",
+        "cv_score_desc": "cv_score DESC, relevance_score DESC, date_found DESC",
+        "cv_score_asc": "cv_score ASC, relevance_score ASC, date_found DESC",
     }
+    # When CV is uploaded, "score" sorts should use cv_score (the displayed score)
+    if filters.get("cv_uploaded") and sort in ("score_desc", "score_asc"):
+        sort = "cv_score_desc" if sort == "score_desc" else "cv_score_asc"
     order = sort_map.get(sort, "date_found DESC")
 
     return conditions, params, order
@@ -1062,6 +1137,9 @@ def _build_jobs_query(filters):
 
 @app.route("/jobs")
 def jobs():
+    cv_data = load_cv_data()
+    cv_uploaded = cv_data is not None
+
     # Read filter params
     filters = {
         "search": request.args.get("search", "").strip(),
@@ -1077,6 +1155,7 @@ def jobs():
         "salary_min": request.args.get("salary_min", ""),
         "salary_max": request.args.get("salary_max", ""),
         "company_stage": request.args.get("company_stage", ""),
+        "cv_uploaded": cv_uploaded,
     }
     conditions, params, order = _build_jobs_query(filters)
     where = " WHERE " + " AND ".join(conditions) if conditions else ""
@@ -1105,8 +1184,6 @@ def jobs():
     conn.close()
 
     # Attach inline gap data if CV is uploaded
-    cv_data = load_cv_data()
-    cv_uploaded = cv_data is not None
     if cv_uploaded:
         # Dynamic missing skills analysis ONLY (score already pre-computed or we just rely on cv_score)
         for job in rows:
@@ -1287,17 +1364,32 @@ def preferences():
         return redirect(url_for("preferences"))
 
     prefs = load_preferences() or DEFAULT_PREFS.copy()
-    # Pre-populate transferable_skills from defaults if the user hasn't set them yet
     if not prefs.get("transferable_skills"):
         prefs["transferable_skills"] = DEFAULT_PREFS["transferable_skills"]
-    # Tell the template which credential fields are set via env vars
     env_credentials = {
         "gmail_app_password": bool(os.environ.get("GMAIL_APP_PASSWORD")),
         "telegram_bot_token": bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
         "apollo_api_key": bool(os.environ.get("APOLLO_API_KEY")),
         "linkedin_password": bool(os.environ.get("LINKEDIN_PASSWORD")),
     }
-    return render_template("preferences.html", prefs=prefs, config=config, env_credentials=env_credentials)
+    from reminder_runner import load_reminders
+    all_reminders = load_reminders()
+    user_email = dict(session).get('user', {}).get('email')
+    if user_email:
+        all_reminders = [r for r in all_reminders if not r.get('owner_email') or r.get('owner_email') == user_email]
+    prds = []
+    today_prd = None
+    try:
+        from prd_generator import list_prds, generate_daily_prd
+        prds = list_prds()
+        today_prd = generate_daily_prd()
+    except Exception:
+        pass
+    return render_template(
+        "preferences.html",
+        prefs=prefs, config=config, env_credentials=env_credentials,
+        reminders=all_reminders, prds=prds, today_prd=today_prd,
+    )
 
 
 @app.route("/api/jobs/<job_id>/tailored-points")
@@ -1339,6 +1431,7 @@ def import_jobs():
         return jsonify({"ok": False, "error": "Missing or invalid 'jobs' array"}), 400
 
     # Generate job IDs and insert
+    _cv_data = load_cv_data()
     for job in jobs:
         job["job_id"] = generate_job_id(
             job.get("portal", "unknown"),
@@ -1346,6 +1439,8 @@ def import_jobs():
             job.get("role", ""),
             job.get("location", ""),
         )
+        if _cv_data:
+            job["cv_score"] = cv_score(job, _cv_data)
     inserted, skipped = insert_jobs_bulk(jobs)
     logger.info("Import API: inserted=%d, skipped=%d (total submitted=%d)", inserted, skipped, len(jobs))
 
@@ -1576,11 +1671,40 @@ def upload_cv():
     save_cv_data(cv_data)
     logger.info("CV uploaded: %d skills detected", len(cv_data["skills"]))
 
+    # Rescore all existing jobs so sort-by-score reflects the new CV immediately
+    updated = _rescore_all_jobs(cv_data)
+
     return jsonify({
         "ok": True,
         "skills_count": len(cv_data["skills"]),
         "skills": cv_data["skills"],
+        "rescored": updated,
     })
+
+
+def _rescore_all_jobs(cv_data):
+    """Score every job in the DB against cv_data and persist. Returns count updated."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT job_id, role, job_description FROM job_listings")
+    jobs = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+
+    if not jobs:
+        return 0
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    for job in jobs:
+        score = cv_score(job, cv_data)
+        cursor.execute(
+            "UPDATE job_listings SET cv_score = ? WHERE job_id = ?",
+            (score, job["job_id"]),
+        )
+    conn.commit()
+    conn.close()
+    logger.info("Re-scored %d jobs against CV", len(jobs))
+    return len(jobs)
 
 
 @app.route("/api/cv/rescore", methods=["POST"])
@@ -1589,30 +1713,9 @@ def rescore_jobs():
     cv_data = load_cv_data()
     if not cv_data:
         return jsonify({"ok": False, "error": "No CV uploaded yet"}), 400
-
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT job_id, role, job_description FROM job_listings")
-    jobs = [dict(r) for r in cursor.fetchall()]
-    conn.close()
-
-    if not jobs:
+    updated = _rescore_all_jobs(cv_data)
+    if updated == 0:
         return jsonify({"ok": True, "updated": 0, "message": "No jobs in database"})
-
-    conn = get_connection()
-    cursor = conn.cursor()
-    updated = 0
-    for job in jobs:
-        score = cv_score(job, cv_data)
-        cursor.execute(
-            "UPDATE job_listings SET cv_score = ? WHERE job_id = ?",
-            (score, job["job_id"]),
-        )
-        updated += 1
-    conn.commit()
-    conn.close()
-
-    logger.info("Re-scored %d jobs against CV", updated)
     return jsonify({"ok": True, "updated": updated})
 
 
@@ -1910,21 +2013,60 @@ def reminders():
     """List all reminders and show create form."""
     from reminder_runner import load_reminders
     all_reminders = load_reminders()
+    user_email = dict(session).get('user', {}).get('email')
+    if user_email:
+        all_reminders = [r for r in all_reminders if not r.get('owner_email') or r.get('owner_email') == user_email]
     return render_template("reminders.html", reminders=all_reminders)
 
 
 @app.route("/reminders/create", methods=["POST"])
 def reminders_create():
-    """Create a new reminder with a mandatory CV upload."""
+    """Create a new reminder. Supports type='jobs' (default) or type='prd'."""
     from reminder_runner import load_reminders, save_reminders
+    rem_type = (request.form.get("type") or "jobs").strip().lower()
+    if rem_type not in ("jobs", "prd"):
+        rem_type = "jobs"
+
     name = request.form.get("name", "").strip()
-    keyword = request.form.get("keyword", "").strip()
     email_addr = request.form.get("email", "").strip()
-    if not name or not keyword or not email_addr:
-        flash("Name, keyword, and email are required.", "error")
+    if not name or not email_addr:
+        flash("Name and email are required.", "error")
         return redirect(url_for("reminders"))
     if "@" not in email_addr or "." not in email_addr.split("@")[-1]:
         flash("Please enter a valid email address.", "error")
+        return redirect(url_for("reminders"))
+
+    if rem_type == "prd":
+        try:
+            prd_hour = max(0, min(23, int(request.form.get("prd_hour", 8))))
+        except (ValueError, TypeError):
+            prd_hour = 8
+        prd_domain = (request.form.get("prd_domain") or "").strip()
+        user_email = dict(session).get('user', {}).get('email')
+        all_reminders = load_reminders()
+        all_reminders.append({
+            "id": uuid.uuid4().hex[:8],
+            "owner_email": user_email,
+            "type": "prd",
+            "name": name,
+            "email": email_addr,
+            "enabled": True,
+            "last_sent": None,
+            "prd_hour": prd_hour,
+            "prd_domain": prd_domain,
+        })
+        try:
+            save_reminders(all_reminders)
+        except OSError as e:
+            flash(f"Failed to save reminder: {e}", "error")
+            return redirect(url_for("reminders"))
+        flash(f"PRD reminder '{name}' created — daily PRD will be emailed at {prd_hour:02d}:00.", "success")
+        return redirect(url_for("reminders"))
+
+    # type == 'jobs' (legacy path)
+    keyword = request.form.get("keyword", "").strip()
+    if not keyword:
+        flash("Keyword is required for job alerts.", "error")
         return redirect(url_for("reminders"))
     try:
         min_score = max(0, min(100, int(request.form.get("min_score", 65))))
@@ -1935,7 +2077,7 @@ def reminders_create():
 
     cv_file = request.files.get("cv_file")
     if not cv_file or not cv_file.filename:
-        flash("A CV/resume file is required to create a reminder.", "error")
+        flash("A CV/resume file is required to create a job-alert reminder.", "error")
         return redirect(url_for("reminders"))
     try:
         cv_text = _extract_cv_text(cv_file)
@@ -1943,10 +2085,13 @@ def reminders_create():
         flash(str(e), "error")
         return redirect(url_for("reminders"))
     cv_data = parse_cv_text(cv_text)
+    user_email = dict(session).get('user', {}).get('email')
 
     all_reminders = load_reminders()
     all_reminders.append({
         "id": uuid.uuid4().hex[:8],
+        "owner_email": user_email,
+        "type": "jobs",
         "name": name,
         "keyword": keyword,
         "min_score": min_score,
@@ -2020,11 +2165,45 @@ def reminders_send(reminder_id):
         flash("Reminder not found.", "error")
         return redirect(url_for("reminders"))
 
+    recipient = (reminder.get("email") or "").strip()
+    name = reminder.get("name", "Reminder")
+
+    # PRD branch: generate today's PRD and email it via SMTP.
+    if (reminder.get("type") or "jobs").lower() == "prd":
+        try:
+            from prd_generator import generate_daily_prd, build_prd_email_html
+            import smtplib
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
+
+            prd = generate_daily_prd()
+            html_body = build_prd_email_html(prd)
+            subject = f"📋 Daily PRD: {prd['product']['name']} ({prd['date']})"
+
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = gmail_address
+            msg["To"] = recipient
+            msg.attach(MIMEText(html_body, "html"))
+
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(gmail_address, gmail_app_password)
+                server.sendmail(gmail_address, [recipient], msg.as_string())
+
+            reminder["last_sent"] = datetime.now().isoformat()
+            save_reminders(all_reminders)
+            flash(f"Sent PRD '{prd['product']['name']}' to {recipient}.", "success")
+        except Exception as e:
+            logger.exception("PRD reminder send failed: %s", e)
+            flash(f"PRD send failed: {e}", "error")
+        return redirect(url_for("reminders"))
+
     keyword = (reminder.get("keyword") or "").strip()
     min_score = max(0, min(100, int(reminder.get("min_score", 65))))
     max_jobs = max(1, min(50, int(reminder.get("max_jobs", 20))))
-    recipient = (reminder.get("email") or "").strip()
-    name = reminder.get("name", "Job Alert")
 
     from reminder_runner import score_jobs_for_cv_reminder
     jobs = score_jobs_for_cv_reminder(reminder)
@@ -2602,4 +2781,4 @@ if __name__ == "__main__":
     # Default to debug=True only when not set (i.e. manual terminal run).
     import os as _os
     _debug = _os.environ.get("FLASK_DEBUG", "1") == "1"
-    app.run(debug=_debug, port=5001)
+    app.run(debug=_debug, port=5002)

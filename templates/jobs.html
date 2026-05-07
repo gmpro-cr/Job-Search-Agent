@@ -25,13 +25,13 @@
     display: flex;
     flex-direction: column;
     position: relative;
-    box-shadow: 0 4px 24px -4px rgba(99,88,220,0.09), 0 1px 4px rgba(0,0,0,0.04);
+    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.04);
     backdrop-filter: blur(20px) saturate(140%);
     -webkit-backdrop-filter: blur(20px) saturate(140%);
   }
 
   .job-card:hover {
-    box-shadow: 0 12px 36px -6px rgba(99,88,220,0.15), 0 4px 12px rgba(0,0,0,0.05);
+    box-shadow: 0 12px 36px -6px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05);
     border-color: rgba(255,255,255,0.75);
     transform: translateY(-3px);
   }
@@ -48,38 +48,38 @@
   }
 
   .job-card[data-status="1"] .status-dot {
-    color: #10b981;
-    background: #10b981;
+    color: #111111;
+    background: #111111;
   }
 
   /* Applied */
   .job-card[data-status="2"] .status-dot {
-    color: #3b82f6;
-    background: #3b82f6;
+    color: #111111;
+    background: #111111;
   }
 
   /* Saved */
   .job-card[data-status="3"] .status-dot {
-    color: #06b6d4;
-    background: #06b6d4;
+    color: #333333;
+    background: #333333;
   }
 
   /* Phone Screen */
   .job-card[data-status="4"] .status-dot {
-    color: #8b5cf6;
-    background: #8b5cf6;
+    color: #333333;
+    background: #333333;
   }
 
   /* Interview */
   .job-card[data-status="5"] .status-dot {
-    color: #10b981;
-    background: #10b981;
+    color: #111111;
+    background: #111111;
   }
 
   /* Offer */
   .job-card[data-status="6"] .status-dot {
-    color: #f43f5e;
-    background: #f43f5e;
+    color: #111111;
+    background: #111111;
   }
 
   /* Rejected */
@@ -100,16 +100,16 @@
   }
 
   .score-high {
-    background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.10));
-    color: #059669;
-    border: 1px solid rgba(16,185,129,0.25);
-    box-shadow: 0 0 10px rgba(16,185,129,0.15);
+    background: #F3F4F6;
+    color: #444444;
+    border: 1px solid #D1D5DB;
+    box-shadow: none;
   }
 
   .score-mid {
-    background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(217,119,6,0.10));
-    color: #d97706;
-    border: 1px solid rgba(245,158,11,0.25);
+    background: #F9FAFB;
+    color: #555555;
+    border: 1px solid #E5E7EB;
   }
 
   .score-low {
@@ -127,7 +127,7 @@
     background: rgba(255, 255, 255, 0.88);
     border: 1px solid rgba(255,255,255,0.70);
     border-radius: 14px;
-    box-shadow: 0 16px 40px -8px rgba(99,88,220,0.18), 0 4px 12px rgba(0,0,0,0.08);
+    box-shadow: 0 16px 40px -8px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.08);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     padding: 6px;
@@ -150,16 +150,16 @@
 
   .card-more-menu button:hover {
     background: #f3f4f6;
-    color: #111827;
+    color: #111111;
   }
 
   .card-more-menu .menu-danger {
-    color: #e11d48;
+    color: #777777;
   }
 
   .card-more-menu .menu-danger:hover {
-    background: #fff1f2;
-    color: #be123c;
+    background: #F3F4F6;
+    color: #666666;
   }
 
   .card-more-menu .menu-divider {
@@ -175,8 +175,8 @@
   }
 
   .persona-tab.active {
-    color: #6366f1;
-    border-bottom-color: #6366f1;
+    color: #111111;
+    border-bottom-color: #111111;
   }
 
   .persona-tab:not(.active) {
@@ -189,29 +189,29 @@
 
   /* Buttons */
   .apply-btn {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, #111111, #333333);
     color: #ffffff;
     transition: all 0.22s ease;
     border-radius: 9px;
-    box-shadow: 0 2px 8px rgba(99,102,241,0.30);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
 
   .apply-btn:hover {
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    background: linear-gradient(135deg, #111111, #333333);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(99,102,241,0.38);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.10);
   }
 
   .filter-submit {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, #111111, #333333);
     color: #ffffff;
     transition: all 0.22s ease;
-    box-shadow: 0 2px 8px rgba(99,102,241,0.28);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
   }
 
   .filter-submit:hover {
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
-    box-shadow: 0 4px 14px rgba(99,102,241,0.38);
+    background: linear-gradient(135deg, #111111, #333333);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
   }
 
   /* Card grid layout */
@@ -234,14 +234,14 @@
     border-radius: 20px;
     backdrop-filter: blur(20px) saturate(140%);
     -webkit-backdrop-filter: blur(20px) saturate(140%);
-    box-shadow: 0 4px 24px -4px rgba(99,88,220,0.09), 0 1px 4px rgba(0,0,0,0.04);
+    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.04);
     padding: 20px;
     margin-bottom: 20px;
     transition: all 0.22s ease;
   }
   .search-toolbar:focus-within {
-    border-color: rgba(99,102,241,0.35);
-    box-shadow: 0 8px 32px -6px rgba(99,88,220,0.14), 0 2px 8px rgba(0,0,0,0.05);
+    border-color: rgba(0,0,0,0.10);
+    box-shadow: 0 8px 32px -6px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.05);
   }
   .search-input-wrap {
     position: relative;
@@ -257,7 +257,7 @@
     padding: 12px 16px 12px 44px;
     font-size: 14px;
     font-weight: 500;
-    color: #111827;
+    color: #111111;
     outline: none;
     transition: all 0.2s ease;
     font-family: 'Outfit', sans-serif;
@@ -267,8 +267,8 @@
     font-weight: 400;
   }
   .search-input-wrap input:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    border-color: #111111;
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.05);
     background: rgba(255,255,255,0.90);
   }
   .search-icon {
@@ -282,10 +282,10 @@
   }
   .search-input-wrap input:focus ~ .search-icon,
   .search-input-wrap:focus-within .search-icon {
-    color: #6366f1;
+    color: #111111;
   }
   .search-submit-btn {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, #111111, #333333);
     color: #fff;
     border: none;
     border-radius: 12px;
@@ -294,15 +294,15 @@
     font-weight: 700;
     cursor: pointer;
     transition: all 0.22s ease;
-    box-shadow: 0 2px 8px rgba(99,102,241,0.30);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
     flex-shrink: 0;
     font-family: 'Outfit', sans-serif;
     letter-spacing: 0.02em;
   }
   .search-submit-btn:hover {
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    background: linear-gradient(135deg, #111111, #333333);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(99,102,241,0.38);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.10);
   }
   .search-submit-btn:disabled {
     opacity: 0.5;
@@ -315,13 +315,13 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: linear-gradient(135deg, rgba(99,102,241,0.10), rgba(139,92,246,0.08));
-    border: 1px solid rgba(99,102,241,0.20);
+    background: #F3F4F6;
+    border: 1px solid rgba(0,0,0,0.08);
     border-radius: 8px;
     padding: 3px 10px;
     font-size: 11px;
     font-weight: 600;
-    color: #6366f1;
+    color: #111111;
     letter-spacing: 0.02em;
   }
 
@@ -361,9 +361,9 @@
     color: #374151;
   }
   .toolbar-toggle-btn.active {
-    background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08));
-    border-color: rgba(99,102,241,0.25);
-    color: #6366f1;
+    background: linear-gradient(135deg, rgba(0,0,0,0.05), rgba(0,0,0,0.03));
+    border-color: rgba(0,0,0,0.08);
+    color: #111111;
   }
   .toolbar-toggle-btn svg {
     width: 14px;
@@ -394,17 +394,17 @@
   }
   .option-pill:hover {
     background: rgba(255,255,255,0.85);
-    border-color: rgba(99,102,241,0.30);
-    color: #4f46e5;
+    border-color: rgba(0,0,0,0.08);
+    color: #111111;
   }
   .option-pill.active {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, #111111, #333333);
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 2px 8px rgba(99,102,241,0.30);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
   .option-pill.active:hover {
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    background: linear-gradient(135deg, #111111, #333333);
   }
 
   /* Filter options panel */
@@ -447,14 +447,14 @@
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: #6366f1;
+    color: #111111;
     font-weight: 500;
   }
   .nlp-spinner.visible { display: flex; }
   .nlp-spinner .dot {
     width: 5px; height: 5px;
     border-radius: 50%;
-    background: #6366f1;
+    background: #111111;
     animation: nlpBounce 1.2s infinite ease-in-out;
   }
   .nlp-spinner .dot:nth-child(2) { animation-delay: 0.2s; }
@@ -471,11 +471,11 @@
     gap: 8px;
     margin-top: 10px;
     padding: 8px 14px;
-    background: rgba(99,102,241,0.06);
-    border: 1px solid rgba(99,102,241,0.12);
+    background: rgba(0,0,0,0.03);
+    border: 1px solid rgba(0,0,0,0.05);
     border-radius: 12px;
     font-size: 12px;
-    color: #4f46e5;
+    color: #111111;
     font-weight: 500;
   }
   .nlp-hint-strip.visible { display: flex; }
@@ -487,7 +487,7 @@
     font-weight: 600;
     transition: color 0.15s;
   }
-  .nlp-hint-strip .clear-btn:hover { color: #ef4444; }
+  .nlp-hint-strip .clear-btn:hover { color: #777777; }
 
   /* Active filter count badge */
   .filter-count-badge {
@@ -495,7 +495,7 @@
     min-width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #6366f1;
+    background: #111111;
     color: #fff;
     font-size: 10px;
     font-weight: 700;
@@ -642,13 +642,13 @@
       <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.06em;">Active:</span>
       {% for k, v in clean_filters.items() %}
       {% if k != 'sort' %}
-      <span style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; background:rgba(99,102,241,0.08); color:#6366f1; border:1px solid rgba(99,102,241,0.15);">
+      <span style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; background:rgba(17,17,17,0.06); color:#111111; border:1px solid rgba(17,17,17,0.12);">
         {{ k }}:{{ v }}
         <span style="cursor:pointer; margin-left:2px; font-size:10px; opacity:0.6;" onclick="removeFilter('{{ k }}')" title="Remove">✕</span>
       </span>
       {% endif %}
       {% endfor %}
-      <span style="font-size:11px; font-weight:600; color:#ef4444; cursor:pointer; margin-left:4px;" onclick="clearAllFilters()">Clear all</span>
+      <span style="font-size:11px; font-weight:600; color:#777777; cursor:pointer; margin-left:4px;" onclick="clearAllFilters()">Clear all</span>
     </div>
     {% endif %}
   </form>
@@ -672,7 +672,7 @@
   {% endif %}
 
   {% if jobs %}
-  {% set avatar_colors = ['#3b82f6','#0ea5e9','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316'] %}
+  {% set avatar_colors = ['#111111','#333333','#555555','#777777','#444444','#666666','#222222','#999999'] %}
   <div class="job-grid" id="job-list">
     {% include "_job_card_list.html" %}
   </div>
@@ -680,7 +680,7 @@
   {% if total > jobs|length %}
   <!-- Load More Trigger -->
   <div id="load-more-trigger" class="flex justify-center py-8">
-    <button id="load-more-btn" onclick="loadMoreJobs()" class="px-6 py-2 bg-white border border-gray-200 rounded-full text-sm font-semibold text-teal-600 hover:bg-gray-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
+    <button id="load-more-btn" onclick="loadMoreJobs()" class="px-6 py-2 bg-white border border-gray-200 rounded-full text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">
       Load More Jobs
     </button>
   </div>
@@ -788,12 +788,12 @@
 
         <!-- Read-only view -->
         <div id="qap-msg-view"
-          class="bg-blue-50/60 border border-blue-100 rounded-xl p-4 text-sm text-gray-700 whitespace-pre-wrap min-h-[120px]">
+          class="bg-gray-50/60 border border-gray-200 rounded-xl p-4 text-sm text-gray-700 whitespace-pre-wrap min-h-[120px]">
         </div>
 
         <!-- Edit mode -->
         <textarea id="qap-msg-edit" rows="8"
-          class="hidden w-full bg-white border border-blue-300 rounded-xl p-4 text-sm text-gray-700 resize-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"></textarea>
+          class="hidden w-full bg-white border border-gray-300 rounded-xl p-4 text-sm text-gray-700 resize-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400"></textarea>
         <div id="qap-msg-edit-actions" class="hidden flex gap-2">
           <button onclick="qapSaveDraft('linkedin')"
             class="flex-1 text-sm font-semibold bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-700">Save</button>
@@ -812,7 +812,7 @@
             Copy
           </button>
           <a id="qap-li-link" href="#" target="_blank" rel="noopener"
-            class="flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold bg-[#0a66c2] text-white px-4 py-2.5 rounded-xl hover:bg-[#004182] transition-colors">
+            class="flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold bg-[#333333] text-white px-4 py-2.5 rounded-xl hover:bg-[#111111] transition-colors">
             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path
                 d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
@@ -1122,7 +1122,7 @@
         if (portals.length > 0) {
           portalList.innerHTML = portals.map(([name, info]) => {
             const icon = info.status === 'success' ? '✓' : '✗';
-            const color = info.status === 'success' ? 'text-green-600' : 'text-red-500';
+            const color = info.status === 'success' ? 'text-gray-700' : 'text-gray-500';
             return `<div class="flex justify-between text-xs py-0.5">
             <span class="${color} flex items-center gap-1">${icon} <span class="text-gray-700">${name}</span></span>
             <span class="text-gray-400">${info.count} jobs</span>
@@ -1177,12 +1177,12 @@
   // Status metadata for in-place card updates
   const STATUS_META = {
     0: { label: 'New', badge: 'bg-gray-100 text-gray-500', border: 'border-l-gray-300' },
-    1: { label: 'Applied', badge: 'bg-green-100 text-green-700', border: 'border-l-green-400' },
-    2: { label: 'Saved', badge: 'bg-blue-100 text-blue-700', border: 'border-l-blue-400' },
-    3: { label: 'Phone Screen', badge: 'bg-cyan-100 text-cyan-700', border: 'border-l-cyan-400' },
-    4: { label: 'Interview', badge: 'bg-orange-100 text-orange-700', border: 'border-l-orange-400' },
-    5: { label: 'Offer', badge: 'bg-emerald-100 text-emerald-700', border: 'border-l-emerald-500' },
-    6: { label: 'Rejected', badge: 'bg-red-100 text-red-600', border: 'border-l-red-400' },
+    1: { label: 'Applied', badge: 'bg-gray-100 text-gray-700', border: 'border-l-gray-400' },
+    2: { label: 'Saved', badge: 'bg-gray-200 text-gray-700', border: 'border-l-gray-500' },
+    3: { label: 'Phone Screen', badge: 'bg-gray-100 text-gray-600', border: 'border-l-gray-400' },
+    4: { label: 'Interview', badge: 'bg-gray-100 text-gray-600', border: 'border-l-gray-400' },
+    5: { label: 'Offer', badge: 'bg-gray-100 text-gray-700', border: 'border-l-gray-500' },
+    6: { label: 'Rejected', badge: 'bg-gray-200 text-gray-500', border: 'border-l-gray-400' },
   };
 
   function updateJobStatus(jobId, statusVal, selectEl) {
@@ -1297,7 +1297,7 @@
     if (p.get('recency')) parts.push(p.get('recency'));
     if (parts.length) {
       document.getElementById('nlp-hint-text').textContent = 'Filtered by: ' + parts.join(' · ');
-      document.getElementById('nlp-hint').classList.remove('hidden');
+      document.getElementById('nlp-hint').classList.add('visible');
     }
   })();
 
@@ -1391,46 +1391,46 @@
       .then(data => {
         content.dataset.loaded = '1';
         if (!data.ok) {
-          content.innerHTML = `<span class="text-red-500">${escapeHtml(data.error || 'Failed to load')}</span>`;
+          content.innerHTML = `<span class="text-gray-500">${escapeHtml(data.error || 'Failed to load')}</span>`;
           return;
         }
 
         const cvPct = data.cv_score || 0;
         scoreEl.textContent = `${cvPct}% match`;
-        scoreEl.className = `text-xs font-bold ${cvPct >= 70 ? 'text-green-600' : cvPct >= 40 ? 'text-amber-600' : 'text-gray-400'}`;
+        scoreEl.className = `text-xs font-bold ${cvPct >= 70 ? 'text-gray-700' : cvPct >= 40 ? 'text-gray-600' : 'text-gray-400'}`;
 
         const matchedHtml = (data.matched_skills || []).length > 0
           ? `<div class="mb-2">
-            <p class="font-semibold text-green-700 mb-1">✓ Matched (${data.matched_skills.length})</p>
+            <p class="font-semibold text-gray-700 mb-1">✓ Matched (${data.matched_skills.length})</p>
             <div class="flex flex-wrap gap-1">${data.matched_skills.map(s =>
-            `<span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">${escapeHtml(s)}</span>`
+            `<span class="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded">${escapeHtml(s)}</span>`
           ).join('')}</div>
            </div>`
           : '';
 
         const missingHtml = (data.missing_skills || []).length > 0
           ? `<div class="mb-2">
-            <p class="font-semibold text-red-600 mb-1">✗ Missing (${data.missing_skills.length})</p>
+            <p class="font-semibold text-gray-700 mb-1">✗ Missing (${data.missing_skills.length})</p>
             <div class="flex flex-wrap gap-1">${data.missing_skills.map(s =>
-            `<span class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded border border-red-100">${escapeHtml(s)}</span>`
+            `<span class="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded border border-gray-200">${escapeHtml(s)}</span>`
           ).join('')}</div>
            </div>`
           : '';
 
         const tipsHtml = (data.action_steps || []).length > 0
           ? `<div>
-            <p class="font-semibold text-slate-600 mb-1">→ Action Steps</p>
+            <p class="font-semibold text-gray-700 mb-1">→ Action Steps</p>
             <ul class="space-y-1">${data.action_steps.map(t =>
-            `<li class="text-slate-500">${t.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-700">$1</strong>')}</li>`
+            `<li class="text-gray-500">${t.replace(/\*\*(.*?)\*\*/g, '<strong class="text-gray-700">$1</strong>')}</li>`
           ).join('')}</ul>
            </div>`
           : '';
 
         content.innerHTML = matchedHtml + missingHtml + tipsHtml ||
-          '<span class="text-slate-400">Upload your CV to see gap analysis.</span>';
+          '<span class="text-gray-400">Upload your CV to see gap analysis.</span>';
       })
       .catch(err => {
-        content.innerHTML = `<span class="text-red-500">Error: ${escapeHtml(err.message)}</span>`;
+        content.innerHTML = `<span class="text-gray-500">Error: ${escapeHtml(err.message)}</span>`;
       });
   }
 
@@ -1521,7 +1521,7 @@
           if (notes.trim()) {
             if (!dot) {
               const d = document.createElement('span');
-              d.className = 'w-1.5 h-1.5 rounded-full bg-yellow-400';
+              d.className = 'w-1.5 h-1.5 rounded-full bg-gray-400';
               notesBtn.appendChild(d);
             }
           } else if (dot) {
@@ -1543,7 +1543,7 @@
     return (
       /naukri\.com\/[a-z][a-z-]+-jobs(\/|$|\?)/.test(u) ||        // naukri category pages
       /linkedin\.com\/jobs\/search/.test(u) ||                      // LinkedIn search
-      /indeed\.com\/(jobs|viewjob)\?/.test(u) ||                    // Indeed search
+      /indeed\.com\/jobs\?/.test(u) ||                               // Indeed search (not viewjob)
       /glassdoor\.com\/job-listing\/[a-z]/.test(u) ||               // Glassdoor generic
       /\/jobs\/search/.test(u) ||                                    // generic /jobs/search paths
       /[?&](q|query|keyword|jobType)=/.test(u) && !/apply/.test(u)  // search params without apply
@@ -1627,7 +1627,7 @@
         btn.textContent = 'Resume Tips';
         btn.disabled = false;
         if (data.ok && data.points) {
-          list.innerHTML = data.points.map(p => `<li class="flex items-start"><span class="text-amber-600 mr-2">•</span><span>${p}</span></li>`).join('');
+          list.innerHTML = data.points.map(p => `<li class="flex items-start"><span class="text-gray-600 mr-2">•</span><span>${p}</span></li>`).join('');
           panel.classList.remove('hidden');
         }
       })
@@ -1655,9 +1655,9 @@
         if (!badge) return;
         badge.classList.remove('hidden');
         if (info.status === 'sent') {
-          badge.innerHTML = `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">✓ Sent</span>`;
+          badge.innerHTML = `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700">✓ Sent</span>`;
         } else if (info.status === 'pending') {
-          badge.innerHTML = `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 cursor-pointer">💬 Draft</span>`;
+          badge.innerHTML = `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 cursor-pointer">💬 Draft</span>`;
         }
         // Also update the Apply button tooltip
         const card = document.getElementById('job-' + jobId);
@@ -1725,7 +1725,7 @@
       parts.push(`<div class="flex items-center gap-2 text-sm text-gray-500"><svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>${escapeHtml(outreach.hm_email)}</div>`);
     }
     if (outreach.hm_linkedin) {
-      parts.push(`<a href="${escapeHtml(outreach.hm_linkedin)}" target="_blank" rel="noopener" class="flex items-center gap-2 text-sm text-[#0a66c2] hover:underline"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>LinkedIn Profile ↗</a>`);
+      parts.push(`<a href="${escapeHtml(outreach.hm_linkedin)}" target="_blank" rel="noopener" class="flex items-center gap-2 text-sm text-[#333333] hover:underline"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>LinkedIn Profile ↗</a>`);
     }
     info.innerHTML = parts.join('');
   }
@@ -1735,10 +1735,10 @@
     if (!outreach) { el.classList.add('hidden'); return; }
     el.classList.remove('hidden');
     if (outreach.status === 'sent') {
-      el.className = 'rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700';
+      el.className = 'rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700';
       el.textContent = '✓ Outreach already sent for this job.';
     } else if (outreach.status === 'pending') {
-      el.className = 'rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700';
+      el.className = 'rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600';
       el.textContent = '💬 Draft ready — see Message tab.';
     } else if (outreach.status === 'skipped') {
       el.className = 'rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-400';

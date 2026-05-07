@@ -50,6 +50,33 @@
       "enabled": true,
       "base_url": "https://www.instahyre.com",
       "timeout": 25
+    },
+    "remoteok": {
+      "enabled": true,
+      "base_url": "https://remoteok.com",
+      "timeout": 20
+    },
+    "remotive": {
+      "enabled": true,
+      "base_url": "https://remotive.com",
+      "timeout": 20
+    },
+    "reddit": {
+      "enabled": true,
+      "base_url": "https://www.reddit.com",
+      "timeout": 20,
+      "subreddits": ["forhire", "cscareerquestions"]
+    },
+    "hackernews": {
+      "enabled": true,
+      "base_url": "https://news.ycombinator.com",
+      "timeout": 20
+    },
+    "twitter": {
+      "enabled": true,
+      "base_url": "https://x.com",
+      "timeout": 20,
+      "max_results": 15
     }
   },
   "scraping": {
