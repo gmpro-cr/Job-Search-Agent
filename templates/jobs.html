@@ -410,35 +410,50 @@
   /* Filter options panel */
   .filter-options-panel {
     display: none;
+    animation: slideDown 0.2s ease;
+  }
+  /* Sort panel stays as a flex row */
+  #sort-options {
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
-    animation: slideDown 0.2s ease;
   }
-  .filter-options-panel.visible {
-    display: flex;
+  #sort-options.visible { display: flex; }
+  /* Filter panel is a vertical stack of rows */
+  #filter-options {
+    flex-direction: column;
+    gap: 2px;
+    border-top: 1px solid rgba(0,0,0,0.05);
+    margin-top: 10px;
+    padding-top: 8px;
   }
+  #filter-options.visible { display: flex; }
   @keyframes slideDown {
     from { opacity: 0; transform: translateY(-6px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* Filter section label */
-  .filter-section-label {
+  /* Filter rows */
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+  }
+  .filter-row-label {
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: #9ca3af;
-    margin-right: 4px;
+    min-width: 62px;
     flex-shrink: 0;
+    text-align: right;
   }
-  .filter-section-divider {
-    width: 1px;
-    height: 20px;
-    background: rgba(209,213,219,0.50);
-    margin: 0 6px;
-    flex-shrink: 0;
+  .filter-row-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
   }
 
   /* NLP loading spinner */
@@ -566,7 +581,7 @@
       </div>
 
       <!-- Filter Toggle + Options -->
-      <div class="toolbar-group" id="filter-group" style="flex:1; flex-wrap:wrap;">
+      <div class="toolbar-group" id="filter-group" style="flex:1;">
         <button type="button" class="toolbar-toggle-btn" id="filter-toggle-btn" onclick="toggleToolbarSection('filter')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
@@ -574,81 +589,86 @@
           Filter
           <span class="filter-count-badge" id="filter-count"></span>
         </button>
-        <div class="filter-options-panel" id="filter-options" style="width:100%; margin-top:6px;">
-          <!-- Remote -->
-          <span class="filter-section-label">Remote</span>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.remote == 'remote' else '' }}" onclick="applyFilter('remote','remote')">🏠 Remote</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.remote == 'hybrid' else '' }}" onclick="applyFilter('remote','hybrid')">🔄 Hybrid</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.remote == 'onsite' else '' }}" onclick="applyFilter('remote','onsite')">🏢 Onsite</button>
-
-          <span class="filter-section-divider"></span>
-
-          <!-- Recency -->
-          <span class="filter-section-label" title="Only applies to jobs where the posting date was captured">Posted ⓘ</span>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '24h' else '' }}" onclick="applyFilter('recency','24h')">24h</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '3d' else '' }}" onclick="applyFilter('recency','3d')">3 days</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '1w' else '' }}" onclick="applyFilter('recency','1w')">1 week</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '1m' else '' }}" onclick="applyFilter('recency','1m')">1 month</button>
-
-          <span class="filter-section-divider"></span>
-
-          <!-- Experience -->
-          <span class="filter-section-label">Exp</span>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.experience == '0-3' else '' }}" onclick="applyFilter('experience','0-3')">0–3 yr</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.experience == '3-7' else '' }}" onclick="applyFilter('experience','3-7')">3–7 yr</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.experience == '7-12' else '' }}" onclick="applyFilter('experience','7-12')">7–12 yr</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.experience == '12+' else '' }}" onclick="applyFilter('experience','12+')">12+ yr</button>
-
-          <span class="filter-section-divider"></span>
-
-          <!-- Score -->
-          <span class="filter-section-label">Min Score</span>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.min_score == '40' else '' }}" onclick="applyFilter('min_score','40')">40+</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.min_score == '60' else '' }}" onclick="applyFilter('min_score','60')">60+</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.min_score == '80' else '' }}" onclick="applyFilter('min_score','80')">80+</button>
-
-          <span class="filter-section-divider"></span>
-
-          <!-- Status -->
-          <span class="filter-section-label">Status</span>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'none' else '' }}" onclick="applyFilter('applied','none')">New</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'applied' else '' }}" onclick="applyFilter('applied','applied')">✓ Applied</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'saved' else '' }}" onclick="applyFilter('applied','saved')">🔖 Saved</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'interview' else '' }}" onclick="applyFilter('applied','interview')">🎙 Interview</button>
-          <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'rejected' else '' }}" onclick="applyFilter('applied','rejected')">✗ Rejected</button>
-
+        <div class="filter-options-panel" id="filter-options">
+          <div class="filter-row">
+            <span class="filter-row-label">Remote</span>
+            <div class="filter-row-pills">
+              <button type="button" class="option-pill {{ 'active' if filters and filters.remote == 'remote' else '' }}" onclick="applyFilter('remote','remote')">Remote</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.remote == 'hybrid' else '' }}" onclick="applyFilter('remote','hybrid')">Hybrid</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.remote == 'onsite' else '' }}" onclick="applyFilter('remote','onsite')">Onsite</button>
+            </div>
+          </div>
+          <div class="filter-row">
+            <span class="filter-row-label" title="Only covers jobs where the posting date was captured">Posted</span>
+            <div class="filter-row-pills">
+              <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '24h' else '' }}" onclick="applyFilter('recency','24h')">24h</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '3d' else '' }}" onclick="applyFilter('recency','3d')">3 days</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '1w' else '' }}" onclick="applyFilter('recency','1w')">1 week</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '1m' else '' }}" onclick="applyFilter('recency','1m')">1 month</button>
+            </div>
+          </div>
+          <div class="filter-row">
+            <span class="filter-row-label">Experience</span>
+            <div class="filter-row-pills">
+              <button type="button" class="option-pill {{ 'active' if filters and filters.experience == '0-3' else '' }}" onclick="applyFilter('experience','0-3')">0–3 yr</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.experience == '3-7' else '' }}" onclick="applyFilter('experience','3-7')">3–7 yr</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.experience == '7-12' else '' }}" onclick="applyFilter('experience','7-12')">7–12 yr</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.experience == '12+' else '' }}" onclick="applyFilter('experience','12+')">12+ yr</button>
+            </div>
+          </div>
+          <div class="filter-row">
+            <span class="filter-row-label">Min Score</span>
+            <div class="filter-row-pills">
+              <button type="button" class="option-pill {{ 'active' if filters and filters.min_score == '40' else '' }}" onclick="applyFilter('min_score','40')">40+</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.min_score == '60' else '' }}" onclick="applyFilter('min_score','60')">60+</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.min_score == '80' else '' }}" onclick="applyFilter('min_score','80')">80+</button>
+            </div>
+          </div>
+          <div class="filter-row">
+            <span class="filter-row-label">Status</span>
+            <div class="filter-row-pills">
+              <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'none' else '' }}" onclick="applyFilter('applied','none')">New</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'applied' else '' }}" onclick="applyFilter('applied','applied')">Applied</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'saved' else '' }}" onclick="applyFilter('applied','saved')">Saved</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'interview' else '' }}" onclick="applyFilter('applied','interview')">Interview</button>
+              <button type="button" class="option-pill {{ 'active' if filters and filters.applied == 'rejected' else '' }}" onclick="applyFilter('applied','rejected')">Rejected</button>
+            </div>
+          </div>
           {% if locations %}
-          <span class="filter-section-divider"></span>
-          <span class="filter-section-label">Location</span>
-          {% for loc in locations[:8] %}
-          <button type="button" class="option-pill {{ 'active' if filters and filters.location == loc.name else '' }}" onclick="applyFilter('location','{{ loc.name }}')">{{ loc.name }}</button>
-          {% endfor %}
+          <div class="filter-row">
+            <span class="filter-row-label">Location</span>
+            <div class="filter-row-pills">
+              {% for loc in locations[:8] %}
+              <button type="button" class="option-pill {{ 'active' if filters and filters.location == loc.name else '' }}" onclick="applyFilter('location','{{ loc.name }}')">{{ loc.name }}</button>
+              {% endfor %}
+            </div>
+          </div>
           {% endif %}
-
           {% if portals %}
-          <span class="filter-section-divider"></span>
-          <span class="filter-section-label">Portal</span>
-          {% for p in portals %}
-          <button type="button" class="option-pill {{ 'active' if filters and filters.portal == p else '' }}" onclick="applyFilter('portal','{{ p }}')">{{ p }}</button>
-          {% endfor %}
+          <div class="filter-row">
+            <span class="filter-row-label">Portal</span>
+            <div class="filter-row-pills">
+              {% for p in portals %}
+              <button type="button" class="option-pill {{ 'active' if filters and filters.portal == p else '' }}" onclick="applyFilter('portal','{{ p }}')">{{ p }}</button>
+              {% endfor %}
+            </div>
+          </div>
           {% endif %}
         </div>
       </div>
     </div>
 
     <!-- Active filters summary (clear all) -->
-    {% if clean_filters %}
-    <div style="display:flex; align-items:center; gap:6px; margin-top:10px; flex-wrap:wrap;">
-      <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.06em;">Active:</span>
-      {% for k, v in clean_filters.items() %}
-      {% if k != 'sort' %}
-      <span style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; background:rgba(17,17,17,0.06); color:#111111; border:1px solid rgba(17,17,17,0.12);">
-        {{ k }}:{{ v }}
-        <span style="cursor:pointer; margin-left:2px; font-size:10px; opacity:0.6;" onclick="removeFilter('{{ k }}')" title="Remove">✕</span>
+    {% set filter_labels = {'remote':'Remote','recency':'Posted','experience':'Exp','min_score':'Score','applied':'Status','location':'Location','portal':'Portal','search':'Search','company_type':'Type','company_stage':'Stage','salary_min':'Min Salary','salary_max':'Max Salary'} %}
+    {% set active = clean_filters.items() | selectattr('0', 'ne', 'sort') | list %}
+    {% if active %}
+    <div style="display:flex; align-items:center; gap:5px; margin-top:12px; flex-wrap:wrap;">
+      {% for k, v in active %}
+      <span style="display:inline-flex; align-items:center; gap:5px; padding:3px 10px 3px 10px; border-radius:20px; font-size:11px; font-weight:600; background:#F3F4F6; color:#374151; border:1px solid #E5E7EB;">
+        <span style="color:#9ca3af; font-size:10px;">{{ filter_labels.get(k, k) }}</span>{{ v }}<span style="cursor:pointer; color:#9ca3af; font-size:10px; line-height:1;" onclick="removeFilter('{{ k }}')" title="Remove">✕</span>
       </span>
-      {% endif %}
       {% endfor %}
-      <span style="font-size:11px; font-weight:600; color:#777777; cursor:pointer; margin-left:4px;" onclick="clearAllFilters()">Clear all</span>
+      <button type="button" style="font-size:11px; font-weight:600; color:#9ca3af; background:none; border:none; cursor:pointer; padding:3px 6px;" onclick="clearAllFilters()">Clear all</button>
     </div>
     {% endif %}
   </form>
