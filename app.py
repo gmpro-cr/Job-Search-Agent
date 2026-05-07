@@ -1210,7 +1210,8 @@ def jobs():
     # Get normalized locations for filter dropdown (canonical name + count)
     normalized_locs = get_normalized_locations()
 
-    clean_filters = {k: v for k, v in filters.items() if v and v != "0"}
+    _internal_keys = {"cv_uploaded", "show_hidden", "show_international"}
+    clean_filters = {k: v for k, v in filters.items() if v and v != "0" and k not in _internal_keys}
 
     return render_template(
         "jobs.html",

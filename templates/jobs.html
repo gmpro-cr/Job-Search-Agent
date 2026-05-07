@@ -584,7 +584,7 @@
           <span class="filter-section-divider"></span>
 
           <!-- Recency -->
-          <span class="filter-section-label">Posted</span>
+          <span class="filter-section-label" title="Only applies to jobs where the posting date was captured">Posted ⓘ</span>
           <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '24h' else '' }}" onclick="applyFilter('recency','24h')">24h</button>
           <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '3d' else '' }}" onclick="applyFilter('recency','3d')">3 days</button>
           <button type="button" class="option-pill {{ 'active' if filters and filters.recency == '1w' else '' }}" onclick="applyFilter('recency','1w')">1 week</button>
@@ -1343,16 +1343,16 @@
           return;
         }
         
-        // Build URL from NLP filters, preserve sort/remote/applied
-        const form = new FormData(document.getElementById('filter-form'));
+        // Build URL from NLP filters, preserve sort/applied from current URL
+        const urlParams = new URLSearchParams(window.location.search);
         const params = new URLSearchParams();
         // NLP filters take precedence
         for (const [key, value] of Object.entries(data.filters || {})) {
           if (value) params.set(key, value);
         }
-        // Keep non-search form values that weren't overridden by NLP
+        // Keep sort and applied from current URL if NLP didn't set them
         ['sort', 'applied'].forEach(k => {
-          const v = form.get(k);
+          const v = urlParams.get(k);
           if (v && !params.has(k)) params.set(k, v);
         });
         window.location.href = '/jobs?' + params.toString();
