@@ -212,9 +212,9 @@ def insert_job(job):
                  company_type, date_found, date_posted, applied_status,
                  experience_min, experience_max, salary_min, salary_max,
                  company_size, company_funding_stage, company_glassdoor_rating,
-                 cv_score, llm_reason)
+                 cv_score)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job_id,
@@ -239,7 +239,6 @@ def insert_job(job):
                 job.get("company_funding_stage"),
                 job.get("company_glassdoor_rating"),
                 job.get("cv_score", 0),
-                job.get("llm_reason", ""),
             ),
         )
         conn.commit()
@@ -841,25 +840,33 @@ def delete_old_jobs(days: int = 30) -> int:
     return deleted
 
 
-def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: str = None) -> list:
+def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: str = None,
+                          max_age_days: int = 3) -> list:
     """
     Return up to max_jobs listings whose role contains any of the comma-separated
     terms in `keyword` (case-insensitive, OR logic) and whose relevance_score >=
     min_score, ordered newest first. Only returns non-hidden jobs.
 
-    since: ISO datetime string (e.g. last_sent). If provided, only returns jobs
-           found after that timestamp, preventing duplicate sends.
+    since: ISO datetime string (last_sent). Jobs must be found after this timestamp.
+    max_age_days: Hard recency cap — never return jobs older than this many days,
+                  regardless of since. Defaults to 3 days so reminders only surface
+                  fresh listings.
     """
     terms = [t.strip().lower() for t in keyword.split(",") if t.strip()]
     if not terms:
         return []
     role_clauses = " OR ".join("LOWER(role) LIKE ?" for _ in terms)
     params = [f"%{t}%" for t in terms] + [int(min_score)]
-    since_clause = ""
-    if since:
-        since_clause = "AND date_found > ?"
-        params.append(since)
+
+    # Recency cap: whichever cutoff is MORE recent wins
+    recency_cutoff = (datetime.now() - timedelta(days=max_age_days)).isoformat()
+    effective_since = recency_cutoff
+    if since and since > recency_cutoff:
+        effective_since = since
+
+    params.append(effective_since)
     params.append(int(max_jobs))
+
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -867,7 +874,7 @@ def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: st
         SELECT * FROM job_listings
         WHERE ({role_clauses})
           AND relevance_score >= ?
-          {since_clause}
+          AND date_found > ?
           AND (hidden = 0 OR hidden IS NULL)
         ORDER BY date_found DESC
         LIMIT ?
