@@ -6,6 +6,9 @@ on:
     - cron: '30 13 * * *'  # 7:00 PM IST
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -15,9 +18,9 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4.1.0
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5.0.0
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: pip
@@ -36,10 +39,13 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: python scrape_and_push.py
 
-      - name: Commit scraped jobs
+      - name: Commit and push scraped jobs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/latest_scrape.json reminders.json
-          git diff --staged --quiet || git commit -m "chore: update scraped jobs and reminder timestamps [skip ci]"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
+          git add -A data/latest_scrape.json reminders.json || true
+          git status
+          git diff --staged --quiet || (git commit -m "chore: update scraped jobs and reminder timestamps [skip ci]" && git push)
+          echo "Push completed successfully"
