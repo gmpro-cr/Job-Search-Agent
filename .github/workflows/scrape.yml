@@ -15,9 +15,9 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5.0.0
         with:
           python-version: '3.11'
           cache: pip
@@ -42,4 +42,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/latest_scrape.json reminders.json
           git diff --staged --quiet || git commit -m "chore: update scraped jobs and reminder timestamps [skip ci]"
-          git push
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
