@@ -37,7 +37,11 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_MIN_SCORE: ${{ secrets.TELEGRAM_MIN_SCORE }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: python scrape_and_push.py
+        run: |
+          python scrape_and_push.py
+          echo "Scraper exit code: $?"
+          ls -la data/latest_scrape.json reminders.json 2>&1 || echo "Files not found"
+          head -20 data/latest_scrape.json 2>&1 || echo "Cannot read latest_scrape.json"
 
       - name: Commit and push scraped jobs
         env:
@@ -46,6 +50,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A data/latest_scrape.json reminders.json || true
-          git status
-          git diff --staged --quiet || (git commit -m "chore: update scraped jobs and reminder timestamps [skip ci]" && git push)
-          echo "Push completed successfully"
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: update scraped jobs and reminder timestamps [skip ci]"
+            git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
+            echo "Changes pushed successfully"
+          else
+            echo "No changes to commit"
+          fi
