@@ -1411,16 +1411,18 @@ def scrape_reddit(job_titles, locations, config):
     jobs = []
     timeout = portal_config.get("timeout", 20)
     subreddits = portal_config.get("subreddits", ["forhire", "cscareerquestions"])
+    max_age_days = portal_config.get("max_age_days", 10)
     headers = {
         "User-Agent": "job-search-agent/1.0 (personal tool)",
         "Accept": "application/json",
     }
+    cutoff_ts = (datetime.now() - timedelta(days=max_age_days)).timestamp()
 
     for title in job_titles:
         for sub in subreddits:
             url = (
                 f"https://www.reddit.com/r/{sub}/search.json"
-                f"?q={quote_plus(title)}+hiring&restrict_sr=1&sort=new&limit=25&t=month"
+                f"?q={quote_plus(title)}+hiring&restrict_sr=1&sort=new&limit=25&t=week"
             )
             try:
                 resp = requests.get(url, headers=headers, timeout=timeout)
@@ -1442,6 +1444,15 @@ def scrape_reddit(job_titles, locations, config):
                 if sub == "forhire" and "for hire" in flair:
                     continue  # skip "for hire" (person looking for work), keep "hiring"
 
+                # Drop posts older than max_age_days using Reddit's created_utc field
+                created_utc = d.get("created_utc", 0)
+                if created_utc and created_utc < cutoff_ts:
+                    continue
+                date_posted = (
+                    datetime.utcfromtimestamp(created_utc).strftime("%Y-%m-%d")
+                    if created_utc else None
+                )
+
                 body = d.get("selftext", "")[:600]
                 permalink = "https://www.reddit.com" + d.get("permalink", "")
                 # Try to extract company from title: "[Hiring] Company | Role | ..."
@@ -1461,6 +1472,7 @@ def scrape_reddit(job_titles, locations, config):
                     "location": "Remote / Various",
                     "job_description": body,
                     "apply_url": permalink,
+                    "date_posted": date_posted,
                 })
             random_delay(config)
 
@@ -1557,12 +1569,17 @@ def scrape_twitter(job_titles, locations, config):
 
     jobs = []
     max_results = portal_config.get("max_results", 15)
+    # Only show tweets posted within the last week
+    since_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
 
     for title in job_titles:
-        query = f'site:x.com "{title}" (hiring OR "we are hiring" OR "job opening") -retweet'
+        query = (
+            f'site:x.com "{title}" (hiring OR "we are hiring" OR "job opening")'
+            f' -retweet since:{since_date}'
+        )
         try:
             with DDGS() as ddgs:
-                results = list(ddgs.text(query, max_results=max_results))
+                results = list(ddgs.text(query, max_results=max_results, timelimit="w"))
         except Exception as e:
             logger.warning("Twitter/X: DDG search failed for '%s': %s", title, e)
             random_delay(config)
@@ -1573,7 +1590,6 @@ def scrape_twitter(job_titles, locations, config):
             if "x.com" not in url and "twitter.com" not in url:
                 continue
             snippet = r.get("body", "")
-            page_title = r.get("title", "")
             # Extract handle/company from URL: x.com/{handle}/status/...
             company = ""
             parts = url.replace("https://x.com/", "").replace("https://twitter.com/", "").split("/")

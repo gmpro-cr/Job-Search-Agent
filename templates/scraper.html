@@ -79,12 +79,21 @@
           </svg>
           <span id="phase-text" class="text-lg font-medium text-gray-900">Starting...</span>
         </div>
+        <!-- Stop button for manual runs -->
         <button id="stop-btn" onclick="stopScraper()"
-          class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg border border-gray-300 transition-colors">
+          class="hidden flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg border border-gray-300 transition-colors">
           <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
             <rect x="4" y="4" width="12" height="12" rx="1"/>
           </svg>
           Stop
+        </button>
+        <!-- Stop button for scheduled runs -->
+        <button id="stop-scheduled-btn" onclick="stopScheduledScraper()"
+          class="hidden flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg border border-amber-300 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+            <rect x="4" y="4" width="12" height="12" rx="1"/>
+          </svg>
+          Stop Scheduled Run
         </button>
       </div>
 
@@ -196,6 +205,11 @@
     });
   }
 
+  function showStopButton(isScheduled) {
+    document.getElementById('stop-btn').classList.toggle('hidden', isScheduled);
+    document.getElementById('stop-scheduled-btn').classList.toggle('hidden', !isScheduled);
+  }
+
   function startScraper() {
     const btn = document.getElementById('start-btn');
     btn.disabled = true;
@@ -223,6 +237,7 @@
         if (data.ok) {
           document.getElementById('start-section').classList.add('hidden');
           document.getElementById('progress-section').classList.remove('hidden');
+          showStopButton(false);  // manual run — show regular stop
           pollInterval = setInterval(pollStatus, 2000);
           pollStatus();
         } else {
@@ -274,17 +289,27 @@
           document.getElementById('stat-skipped').textContent = s.skipped;
         }
 
-        // Stopping — disable stop button to avoid double-click
+        // Show correct stop button based on run type
+        if (s.running) showStopButton(s.is_scheduled_run);
+
+        // Stopping — disable both stop buttons
         if (s.phase === 'stopping') {
-          const stopBtn = document.getElementById('stop-btn');
-          if (stopBtn) { stopBtn.disabled = true; stopBtn.textContent = 'Stopping…'; }
+          ['stop-btn', 'stop-scheduled-btn'].forEach(id => {
+            const b = document.getElementById(id);
+            if (b) { b.disabled = true; b.textContent = 'Stopping…'; }
+          });
+        }
+
+        function hideStopBtns() {
+          document.getElementById('stop-btn').classList.add('hidden');
+          document.getElementById('stop-scheduled-btn').classList.add('hidden');
         }
 
         // Done
         if (s.phase === 'done') {
           clearInterval(pollInterval);
           document.getElementById('spinner').classList.add('hidden');
-          document.getElementById('stop-btn').classList.add('hidden');
+          hideStopBtns();
           document.getElementById('result-section').classList.remove('hidden');
           if (s.digest_path) {
             document.getElementById('digest-link').href = '/digests/' + s.digest_path;
@@ -295,7 +320,7 @@
         if (s.phase === 'stopped') {
           clearInterval(pollInterval);
           document.getElementById('spinner').classList.add('hidden');
-          document.getElementById('stop-btn').classList.add('hidden');
+          hideStopBtns();
           document.getElementById('stopped-section').classList.remove('hidden');
         }
 
@@ -303,7 +328,7 @@
         if (s.phase === 'error') {
           clearInterval(pollInterval);
           document.getElementById('spinner').classList.add('hidden');
-          document.getElementById('stop-btn').classList.add('hidden');
+          hideStopBtns();
           document.getElementById('error-section').classList.remove('hidden');
           document.getElementById('error-text').textContent = s.error || 'Unknown error';
         }
@@ -332,6 +357,23 @@
         if (!data.ok) {
           btn.disabled = false;
           btn.innerHTML = '&#9632; Stop';
+          alert(data.error || 'Could not stop scraper.');
+        }
+      })
+      .catch(() => { btn.disabled = false; });
+  }
+
+  function stopScheduledScraper() {
+    const btn = document.getElementById('stop-scheduled-btn');
+    btn.disabled = true;
+    btn.textContent = 'Stopping…';
+    fetch('/api/scraper/stop-scheduled', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) {
+          btn.disabled = false;
+          btn.innerHTML = '&#9632; Stop Scheduled Run';
+          alert(data.error || 'Could not stop scheduled run.');
         }
       })
       .catch(() => { btn.disabled = false; });
@@ -367,6 +409,7 @@
     if (s.running) {
       document.getElementById('start-section').classList.add('hidden');
       document.getElementById('progress-section').classList.remove('hidden');
+      showStopButton(s.is_scheduled_run);
       pollInterval = setInterval(pollStatus, 2000);
       pollStatus();
     } else {

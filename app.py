@@ -5,6 +5,7 @@ viewing jobs, and browsing digests.
 """
 
 import os
+import uuid
 import sys
 import logging
 import threading
@@ -82,8 +83,12 @@ google = oauth.register(
 @app.before_request
 def require_login():
     allowed_routes = ['login', 'auth_google', 'auth_callback', 'auth_demo', 'static']
-    # Skip auth for API routes for now if they are called by background workers, 
-    # but since this is a UI app, we'll protect everything except allowed routes.
+    # Allow scraper start/stop from localhost without a browser session
+    # (used by CLI triggers and the separate scheduled-stop endpoint)
+    localhost_api_routes = {'start_scraper', 'stop_scraper', 'stop_scheduled_scraper',
+                            'scraper_status_api', 'dashboard_top_jobs', 'dashboard_create_reminder'}
+    if request.endpoint in localhost_api_routes and request.remote_addr in ('127.0.0.1', '::1'):
+        return  # allow unauthenticated local API calls
     if request.endpoint and request.endpoint not in allowed_routes:
         if dict(session).get('user') is None:
             return redirect(url_for('login', next=request.url))
@@ -113,7 +118,9 @@ scraper_status = {
     "finished_at": None,
 }
 scraper_lock = threading.Lock()
-_scraper_stop_event = threading.Event()   # set() to request stop
+_scraper_stop_event = threading.Event()        # stop requested from UI "Stop" button
+_scheduled_stop_event = threading.Event()      # stop requested for scheduled runs only
+_is_scheduled_run = False                      # True when current run was triggered by scheduler
 
 # ---------------------------------------------------------------------------
 # AI agent run state
@@ -151,7 +158,7 @@ _scheduler = None
 
 def _scheduled_pipeline_run():
     """Callback for the daily scheduled scraper run."""
-    global scraper_status
+    global scraper_status, _is_scheduled_run
     with scraper_lock:
         if scraper_status["running"]:
             logger.info("Scheduled run skipped - scraper is already running")
@@ -171,6 +178,9 @@ def _scheduled_pipeline_run():
             "started_at": datetime.now().isoformat(),
             "finished_at": None,
         }
+    _scraper_stop_event.clear()
+    _scheduled_stop_event.clear()
+    _is_scheduled_run = True
     logger.info("Scheduled daily pipeline run starting")
     _run_scraper_pipeline()
 
@@ -445,13 +455,33 @@ def _start_simple_scheduler():
     MORNING_PIPELINE_HOUR = 7
     EVENING_PIPELINE_HOUR = 19
 
-    _ran_today: dict = {}   # job_key -> date string of last run
+    _SCHED_STATE_FILE = os.path.join(BASE_DIR, "data", "scheduler_state.json")
+
+    def _load_state() -> dict:
+        import json as _j
+        try:
+            with open(_SCHED_STATE_FILE) as f:
+                return _j.load(f)
+        except Exception:
+            return {}
+
+    def _save_state(state: dict):
+        import json as _j
+        try:
+            os.makedirs(os.path.dirname(_SCHED_STATE_FILE), exist_ok=True)
+            with open(_SCHED_STATE_FILE, "w") as f:
+                _j.dump(state, f)
+        except Exception as e:
+            logger.warning("Scheduler state save failed: %s", e)
+
+    _ran_today: dict = _load_state()   # persisted: job_key -> date string of last run
 
     def _already_ran(key: str, today: str) -> bool:
         return _ran_today.get(key) == today
 
     def _mark_ran(key: str, today: str):
         _ran_today[key] = today
+        _save_state(_ran_today)
 
     def _fire(name: str, fn, *args):
         def _run():
@@ -568,17 +598,23 @@ def _run_apollo_enrichment(job_ids):
 
 def _run_scraper_pipeline():
     """Run the full pipeline in a background thread."""
-    global scraper_status
+    global scraper_status, _is_scheduled_run
 
     def _stopped():
+        # Scheduled runs are only stopped by the dedicated scheduled-stop event.
+        # Manual UI runs are stopped by the regular stop event.
+        if _is_scheduled_run:
+            return _scheduled_stop_event.is_set()
         return _scraper_stop_event.is_set()
 
     def _mark_stopped():
+        global _is_scheduled_run
         with scraper_lock:
             scraper_status["phase"] = "stopped"
             scraper_status["finished_at"] = datetime.now().isoformat()
             scraper_status["running"] = False
-        logger.info("Scraper stopped by user request")
+        _is_scheduled_run = False
+        logger.info("Scraper stopped")
 
     try:
         config = load_config()
@@ -979,11 +1015,81 @@ def dashboard():
     activity = get_application_activity()
     recommendations = get_recommended_actions()
     insights = get_dashboard_insights()
+    cv_data = load_cv_data()
+    cv_uploaded = cv_data is not None
+    user_email = dict(session).get('user', {}).get('email', '')
     return render_template(
         "dashboard.html", stats=stats, portal_quality=portal_quality,
         pipeline=pipeline, categories=categories, activity=activity,
         recommendations=recommendations, insights=insights,
+        cv_data=cv_data, cv_uploaded=cv_uploaded, user_email=user_email,
     )
+
+
+@app.route("/api/dashboard/top-jobs")
+def dashboard_top_jobs():
+    """Return top 10 jobs by CV score (or relevance score if no CV)."""
+    cv_data = load_cv_data()
+    conn = get_connection()
+    c = conn.cursor()
+    if cv_data:
+        c.execute("""
+            SELECT job_id, role, company, location, relevance_score, cv_score,
+                   apply_url, date_found, portal, remote_status
+            FROM job_listings
+            WHERE cv_score > 0 AND (hidden=0 OR hidden IS NULL)
+            ORDER BY cv_score DESC, relevance_score DESC
+            LIMIT 10
+        """)
+    else:
+        c.execute("""
+            SELECT job_id, role, company, location, relevance_score, cv_score,
+                   apply_url, date_found, portal, remote_status
+            FROM job_listings
+            WHERE (hidden=0 OR hidden IS NULL)
+            ORDER BY relevance_score DESC, date_found DESC
+            LIMIT 10
+        """)
+    jobs = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({"jobs": jobs, "cv_uploaded": cv_data is not None})
+
+
+@app.route("/api/dashboard/reminder", methods=["POST"])
+def dashboard_create_reminder():
+    """Quick-create a job alert reminder from the dashboard widget."""
+    from reminder_runner import load_reminders, save_reminders
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip()
+    keyword = (data.get("keyword") or "").strip()
+    if not email or not keyword:
+        return jsonify({"ok": False, "error": "Email and keyword are required"}), 400
+
+    cv_data = load_cv_data()
+    all_reminders = load_reminders()
+    # Update existing reminder for this email+keyword if present, otherwise create
+    existing = next((r for r in all_reminders
+                     if r.get("email") == email and r.get("type", "jobs") == "jobs"), None)
+    if existing:
+        existing["keyword"] = keyword
+        existing["enabled"] = True
+        if cv_data:
+            existing["cv_data"] = cv_data
+    else:
+        import uuid
+        all_reminders.append({
+            "id": uuid.uuid4().hex[:8],
+            "name": f"Dashboard Alert — {email.split('@')[0]}",
+            "keyword": keyword,
+            "email": email,
+            "min_score": 60,
+            "max_jobs": 20,
+            "enabled": True,
+            "last_sent": None,
+            "cv_data": cv_data or {},
+        })
+    save_reminders(all_reminders)
+    return jsonify({"ok": True})
 
 
 def _build_jobs_query(filters):
@@ -1527,6 +1633,7 @@ def start_scraper():
             "finished_at": None,
         }
     _scraper_stop_event.clear()
+    _is_scheduled_run = False
     t = threading.Thread(target=_run_scraper_pipeline, daemon=True)
     t.start()
     return jsonify({"ok": True})
@@ -1534,11 +1641,29 @@ def start_scraper():
 
 @app.route("/api/scraper/stop", methods=["POST"])
 def stop_scraper():
+    """Stop a manually triggered scraper run. Does NOT affect scheduled runs."""
     global scraper_status
     with scraper_lock:
         if not scraper_status["running"]:
             return jsonify({"ok": False, "error": "Scraper is not running"}), 409
+        if _is_scheduled_run:
+            return jsonify({"ok": False, "error": "A scheduled run is in progress. Use Stop Scheduled Run to cancel it."}), 409
     _scraper_stop_event.set()
+    with scraper_lock:
+        scraper_status["phase"] = "stopping"
+    return jsonify({"ok": True})
+
+
+@app.route("/api/scraper/stop-scheduled", methods=["POST"])
+def stop_scheduled_scraper():
+    """Stop the currently running scheduled scraper run."""
+    global scraper_status
+    with scraper_lock:
+        if not scraper_status["running"]:
+            return jsonify({"ok": False, "error": "No scraper run in progress"}), 409
+        if not _is_scheduled_run:
+            return jsonify({"ok": False, "error": "No scheduled run in progress. Use Stop to cancel a manual run."}), 409
+    _scheduled_stop_event.set()
     with scraper_lock:
         scraper_status["phase"] = "stopping"
     return jsonify({"ok": True})
@@ -1547,7 +1672,9 @@ def stop_scraper():
 @app.route("/api/scraper/status")
 def scraper_status_api():
     with scraper_lock:
-        return jsonify(dict(scraper_status))
+        data = dict(scraper_status)
+    data["is_scheduled_run"] = _is_scheduled_run
+    return jsonify(data)
 
 
 # ---------------------------------------------------------------------------
@@ -1717,6 +1844,57 @@ def _rescore_all_jobs(cv_data):
     return len(jobs)
 
 
+@app.route("/api/cv/skills")
+def api_cv_skills():
+    """Return parsed CV skills and raw text."""
+    cv_data = load_cv_data()
+    if not cv_data:
+        return jsonify({"ok": False, "error": "CV not uploaded yet"}), 400
+    return jsonify({"ok": True, "skills": cv_data.get("skills", []), "raw_text": cv_data.get("raw_text", "")})
+
+@app.route("/api/cv/top_jobs")
+def api_top_jobs():
+    """Return top 10 jobs matched to the uploaded CV, sorted by cv_score descending."""
+    cv_data = load_cv_data()
+    if not cv_data:
+        return jsonify({"ok": False, "error": "CV not uploaded yet"}), 400
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT job_id, role, company, apply_url, cv_score FROM job_listings WHERE cv_score IS NOT NULL ORDER BY cv_score DESC LIMIT 10")
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return jsonify({"ok": True, "jobs": rows})
+
+@app.route("/api/reminder/set", methods=["POST"])
+def api_set_reminder():
+    """Create a reminder to email CV and top jobs at a specified datetime (ISO format)."""
+    data = request.get_json() or {}
+    email = data.get("email", "").strip()
+    remind_at = data.get("remind_at", "")
+    if not email or not remind_at:
+        return jsonify({"ok": False, "error": "Missing email or remind_at"}), 400
+    cv_data = load_cv_data()
+    if not cv_data:
+        return jsonify({"ok": False, "error": "CV not uploaded yet"}), 400
+    # Load existing reminders
+    from reminder_runner import load_reminders, save_reminders
+    reminders = load_reminders()
+    new_reminder = {
+        "id": str(uuid.uuid4()),
+        "type": "jobs",
+        "email": email,
+        "remind_at": remind_at,
+        "cv_data": cv_data,
+        "enabled": True,
+        "keyword": "",
+        "min_score": 65,
+        "max_jobs": 20,
+        "sent_job_ids": []
+    }
+    reminders.append(new_reminder)
+    save_reminders(reminders)
+    return jsonify({"ok": True, "reminder_id": new_reminder["id"]})
+
 @app.route("/api/cv/rescore", methods=["POST"])
 def rescore_jobs():
     """Re-score all jobs in the DB against the uploaded CV."""
@@ -1733,6 +1911,9 @@ def rescore_jobs():
 def cv_skills_gap():
     """Return skill frequency across target-role jobs vs CV skills."""
     cv_data = load_cv_data()
+    # If no CV data, redirect to upload page
+    if not cv_data:
+        return redirect(url_for('cv_page'))
     preferences = load_preferences() or DEFAULT_PREFS.copy()
     job_titles = preferences.get("job_titles", [])
 

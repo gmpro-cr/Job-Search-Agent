@@ -3,388 +3,554 @@
 
 {% block head %}
 <style>
-  /* ── Flowchart styles ── */
-  .flow-node {
-    background: #ffffff;
-    border: 1.5px solid #111111;
-    border-radius: 12px;
-    padding: 14px 20px;
-    text-align: center;
-    position: relative;
-    transition: box-shadow 0.2s, transform 0.2s;
-  }
-  .flow-node:hover {
-    box-shadow: 0 6px 24px rgba(17,17,17,0.08);
-    transform: translateY(-2px);
-  }
-  .flow-node-icon {
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    background: #111111;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 8px auto;
-  }
-  .flow-node-title { font-size: 13px; font-weight: 700; color: #1D1D1F; line-height: 1.3; }
-  .flow-node-sub   { font-size: 11px; color: #9CA3AF; margin-top: 3px; line-height: 1.4; }
+  .hiw-page { max-width: 900px; margin: 0 auto; }
 
-  .flow-arrow {
-    display: flex; align-items: center; justify-content: center;
-    padding: 6px 0;
-    color: #111111;
+  /* ── Main diagram ── */
+  .diagram {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 32px 28px;
+    overflow-x: auto;
   }
 
-  .flow-row {
+  /* Swimlane rows */
+  .lane {
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 0 16px;
+    margin-bottom: 0;
+  }
+  .lane-label {
     display: flex;
     align-items: center;
-    gap: 0;
+    justify-content: flex-end;
+    padding-right: 12px;
+    border-right: 2px solid #E5E7EB;
   }
-
-  .flow-arrow-h {
-    display: flex; align-items: center; justify-content: center;
-    width: 40px; flex-shrink: 0;
-    color: #111111;
-  }
-
-  .flow-badge {
-    display: inline-block;
-    background: #F3F4F6;
-    border: 1px solid #111111;
-    border-radius: 999px;
-    padding: 2px 10px;
-    font-size: 10px;
-    font-weight: 600;
-    color: #111111;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .phase-label {
-    font-size: 10px;
+  .lane-label span {
+    font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #111111;
-    margin-bottom: 6px;
+    color: #9CA3AF;
+    writing-mode: horizontal-tb;
+    text-align: right;
+    line-height: 1.3;
   }
-
-  .legend-dot {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 6px;
-  }
-
-  /* ── Step detail cards ── */
-  .step-card {
-    background: #ffffff;
-    border: 1px solid #E5E7EB;
-    border-radius: 14px;
-    padding: 20px 24px;
+  .lane-body {
+    padding: 12px 0;
     display: flex;
-    gap: 16px;
-    align-items: flex-start;
-    transition: box-shadow 0.2s;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #F3F4F6;
   }
-  .step-card:hover {
-    box-shadow: 0 4px 20px rgba(17,17,17,0.06);
+  .lane:last-child .lane-body { border-bottom: none; }
+
+  /* Connector line on the label column */
+  .lane-connector {
+    grid-column: 1;
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 12px;
+    border-right: 2px solid #E5E7EB;
+  }
+  .lane-connector-inner {
+    width: 2px;
+    height: 24px;
+    background: #E5E7EB;
+    position: relative;
+    left: 1px;
+  }
+  .lane-connector-arrow {
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 11px;
+    border-right: 2px solid #E5E7EB;
+    color: #9CA3AF;
+  }
+
+  /* Nodes */
+  .node {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 10px 14px;
+    min-width: 100px;
+    text-align: center;
+    transition: box-shadow 0.18s, transform 0.18s;
+    cursor: default;
+  }
+  .node:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+    transform: translateY(-2px);
+  }
+  .node.dark {
+    background: #111111;
+    border-color: #111111;
+  }
+  .node.accent {
+    background: #F3F4F6;
+    border-color: #111111;
+    border-width: 1.5px;
+  }
+  .node-icon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: #E5E7EB;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 7px;
+    flex-shrink: 0;
+  }
+  .node.dark .node-icon { background: rgba(255,255,255,0.12); }
+  .node-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #111111;
+    line-height: 1.3;
+  }
+  .node.dark .node-title { color: #ffffff; }
+  .node-sub {
+    font-size: 9.5px;
+    color: #9CA3AF;
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+  .node.dark .node-sub { color: rgba(255,255,255,0.45); }
+
+  /* Arrow between nodes */
+  .arr {
+    color: #D1D5DB;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+  }
+  .arr svg { width: 16px; height: 16px; }
+
+  /* Down-arrow connector between lanes */
+  .down-arr {
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0 2px 4px;
+    color: #D1D5DB;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .down-arr svg { width: 14px; height: 14px; flex-shrink:0; }
+  .down-arr span { color: #9CA3AF; }
+
+  /* Tags inside nodes */
+  .tag {
+    display: inline-block;
+    background: #E5E7EB;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 9px;
+    font-weight: 600;
+    color: #374151;
+    margin-top: 4px;
+  }
+  .node.dark .tag { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); }
+
+  /* ── Step cards ── */
+  .step-card {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
   }
   .step-num {
-    width: 32px; height: 32px; flex-shrink: 0;
+    width: 28px; height: 28px; flex-shrink: 0;
     border-radius: 50%;
     background: #111111;
     color: #fff;
-    font-weight: 700; font-size: 13px;
+    font-weight: 700; font-size: 12px;
     display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Data flow legend */
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #6B7280;
+  }
+  .legend-box {
+    width: 12px; height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
   }
 </style>
 {% endblock %}
 
 {% block content %}
+<div class="hiw-page">
 
 <!-- Header -->
 <div class="mb-8">
-  <div class="flex items-center gap-3 mb-2">
-    <div style="background:#111111; border-radius:10px; width:36px; height:36px; display:flex; align-items:center; justify-content:center;">
-      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
-      </svg>
-    </div>
-    <div>
-      <h1 class="text-xl font-semibold" style="color:#1D1D1F;">How it Works</h1>
-      <p class="text-sm" style="color:#111111;">End-to-end pipeline from job discovery to application</p>
-    </div>
-  </div>
+  <h1 class="text-2xl font-semibold tracking-tight" style="color:#111111;">How it Works</h1>
+  <p class="text-sm mt-1" style="color:#6B7280;">Architecture of the job search pipeline — from scraping to application</p>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     FLOWCHART
-══════════════════════════════════════════════ -->
-<div class="stat-card mb-8" style="overflow:visible;">
-  <div class="flex items-center justify-between mb-6">
-    <h2 class="text-sm font-semibold" style="color:#1D1D1F;">Pipeline Overview</h2>
-    <span class="flow-badge">Zero recurring cost</span>
-  </div>
+<!-- ══════════════════════════════════════════
+     MAIN DIAGRAM
+══════════════════════════════════════════ -->
+<div class="diagram mb-8">
 
-  <!-- ── Phase A: Discovery ── -->
-  <div class="mb-2">
-    <div class="phase-label">Phase 1 — Discovery (Python, Free)</div>
-    <div class="flow-row flex-wrap gap-2">
+  <div class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5">End-to-End Pipeline</div>
 
-      <div class="flow-node flex-1 min-w-[120px]">
-        <div class="flow-node-icon">
-          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <!-- ── Lane 1: Inputs ── -->
+  <div class="lane">
+    <div class="lane-label"><span>Inputs</span></div>
+    <div class="lane-body">
+
+      <div class="node">
+        <div class="node-icon">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
           </svg>
         </div>
-        <div class="flow-node-title">Your Profile</div>
-        <div class="flow-node-sub">Roles · Locations · Industries</div>
+        <div class="node-title">Your CV</div>
+        <div class="node-sub">Uploaded via /cv<br>Parsed → skills list</div>
       </div>
 
-      <div class="flow-arrow-h">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
+      <div class="arr">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
       </div>
 
-      <div class="flow-node flex-1 min-w-[120px]">
-        <div class="flow-node-icon">
-          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      <div class="node">
+        <div class="node-icon">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
           </svg>
         </div>
-        <div class="flow-node-title">Multi-Portal Scraper</div>
-        <div class="flow-node-sub">LinkedIn · Naukri · Indeed · Wellfound · IIMJobs · HiringCafe</div>
+        <div class="node-title">Preferences</div>
+        <div class="node-sub">Roles · Salary · Locations<br>config.json + user_prefs</div>
       </div>
 
-      <div class="flow-arrow-h">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
+      <div class="arr">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
       </div>
 
-      <div class="flow-node flex-1 min-w-[120px]">
-        <div class="flow-node-icon">
+      <div class="node accent">
+        <div class="node-icon" style="background:#111111;">
           <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0 0h18"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6M9 8h6M9 16h4"/>
           </svg>
         </div>
-        <div class="flow-node-title">AI Scoring</div>
-        <div class="flow-node-sub">Ollama / keyword · Score 0–100</div>
+        <div class="node-title">SQLite DB</div>
+        <div class="node-sub">job_search_agent.db<br>Single source of truth</div>
       </div>
+
     </div>
   </div>
 
-  <!-- Arrow down -->
-  <div class="flow-arrow my-1">
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-    </svg>
-  </div>
-
-  <!-- ── Phase B: Queue ── -->
-  <div class="mb-2">
-    <div class="phase-label">Phase 2 — Queue Export (Automatic)</div>
-    <div class="flow-row">
-      <div class="flow-node w-full" style="background:linear-gradient(135deg,#F3F4F6,#ffffff);">
-        <div class="flow-node-icon mx-auto">
-          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-          </svg>
-        </div>
-        <div class="flow-node-title">Top 5 jobs → <code style="font-size:11px;background:#F3F4F6;padding:1px 6px;border-radius:4px;border:1px solid #111111;">pipeline.md</code></div>
-        <div class="flow-node-sub">Auto-written after every scraper run · deduplicated by URL</div>
-      </div>
+  <!-- Down arrow -->
+  <div style="display:grid; grid-template-columns:88px 1fr; gap:0 16px;">
+    <div class="lane-connector-arrow"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+    <div class="down-arr">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      <span>scraper reads preferences, writes jobs to DB</span>
     </div>
   </div>
 
-  <!-- Arrow down -->
-  <div class="flow-arrow my-1">
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-    </svg>
+  <!-- ── Lane 2: Scraping ── -->
+  <div class="lane">
+    <div class="lane-label"><span>Scraping<br>(scrapers.py)</span></div>
+    <div class="lane-body" style="gap:6px; flex-wrap:wrap;">
+
+      {% for portal, icon_path in [
+        ('LinkedIn',    'M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z M4 6a2 2 0 100-4 2 2 0 000 4z'),
+        ('Naukri',      'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'),
+        ('Indeed',      'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'),
+        ('HiringCafe',  'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'),
+        ('Wellfound',   'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'),
+        ('IIMJobs',     'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'),
+        ('Cutshort',    'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4'),
+        ('RemoteOK',    'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'),
+        ('Reddit',      'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'),
+        ('HN',          'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z')
+      ] %}
+      <div class="node" style="min-width:72px; padding:8px 10px;">
+        <div class="node-icon" style="width:22px;height:22px;border-radius:5px;margin-bottom:5px;">
+          <svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ icon_path }}"/>
+          </svg>
+        </div>
+        <div class="node-title" style="font-size:10px;">{{ portal }}</div>
+      </div>
+      {% endfor %}
+
+      <div class="arr" style="margin-left:4px;">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </div>
+
+      <div class="node" style="min-width:90px;">
+        <div class="node-icon" style="background:#111111;">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+        </div>
+        <div class="node-title">Raw Jobs</div>
+        <div class="node-sub">title · company<br>JD · apply URL</div>
+      </div>
+
+    </div>
   </div>
 
-  <!-- ── Phase C: Claude Code ── -->
-  <div class="mb-2">
-    <div class="phase-label">Phase 3 — Evaluation (Claude Code, Claude Pro)</div>
-    <div class="flow-row flex-wrap gap-2">
+  <!-- Down arrow -->
+  <div style="display:grid; grid-template-columns:88px 1fr; gap:0 16px;">
+    <div class="lane-connector-arrow"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+    <div class="down-arr">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      <span>raw jobs passed to analyzer.py for enrichment & scoring</span>
+    </div>
+  </div>
 
-      <div class="flow-node flex-1 min-w-[120px]">
-        <div class="flow-node-icon">
-          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+  <!-- ── Lane 3: Analysis & Scoring ── -->
+  <div class="lane">
+    <div class="lane-label"><span>Analysis<br>(analyzer.py)</span></div>
+    <div class="lane-body">
+
+      <div class="node">
+        <div class="node-icon">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
           </svg>
         </div>
-        <div class="flow-node-title">Offer Evaluation</div>
-        <div class="flow-node-sub">A–F score · 10 dimensions · gap analysis</div>
+        <div class="node-title">Enrich</div>
+        <div class="node-sub">Salary · Experience<br>Location · Remote</div>
       </div>
 
-      <div class="flow-arrow-h">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
-      </div>
+      <div class="arr"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></div>
 
-      <div class="flow-node flex-1 min-w-[120px]">
-        <div class="flow-node-icon">
-          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      <div class="node">
+        <div class="node-icon">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
           </svg>
         </div>
-        <div class="flow-node-title">CV Tailoring</div>
-        <div class="flow-node-sub">Keywords injected · role-specific framing</div>
+        <div class="node-title">LLM Score</div>
+        <div class="node-sub">scoring_prompt.md<br>Ollama → OpenRouter</div>
+        <div class="tag">0–100</div>
       </div>
 
-      <div class="flow-arrow-h">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
+      <div class="arr"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></div>
+
+      <div class="node">
+        <div class="node-icon">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+          </svg>
+        </div>
+        <div class="node-title">Filter</div>
+        <div class="node-sub">min score ≥ 65<br>dedup · normalise</div>
       </div>
 
-      <div class="flow-node flex-1 min-w-[120px]">
-        <div class="flow-node-icon">
+      <div class="arr"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></div>
+
+      <div class="node accent">
+        <div class="node-icon" style="background:#111111;">
           <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6M9 8h6M9 16h4"/>
+          </svg>
+        </div>
+        <div class="node-title">Saved to DB</div>
+        <div class="node-sub">score · reason · status<br>salary · location</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Down arrow -->
+  <div style="display:grid; grid-template-columns:88px 1fr; gap:0 16px;">
+    <div class="lane-connector-arrow"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+    <div class="down-arr">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      <span>Flask app serves DB to browser; CV scored inline per page load</span>
+    </div>
+  </div>
+
+  <!-- ── Lane 4: Web UI ── -->
+  <div class="lane">
+    <div class="lane-label"><span>Web UI<br>(Flask / app.py)</span></div>
+    <div class="lane-body">
+
+      <div class="node">
+        <div class="node-icon">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+        </div>
+        <div class="node-title">Dashboard</div>
+        <div class="node-sub">Trends · Pipeline<br>Actions</div>
+      </div>
+
+      <div class="arr"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></div>
+
+      <div class="node">
+        <div class="node-icon">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+        </div>
+        <div class="node-title">Jobs List</div>
+        <div class="node-sub">Filter · Sort · Search<br>Score breakdown</div>
+      </div>
+
+      <div class="arr"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></div>
+
+      <div class="node">
+        <div class="node-icon">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
           </svg>
         </div>
-        <div class="flow-node-title">Tracker Updated</div>
-        <div class="flow-node-sub">applications.md · STAR stories added</div>
+        <div class="node-title">Autoresearch</div>
+        <div class="node-sub">Hill-climb prompt<br>Spearman optimise</div>
       </div>
+
+      <div class="arr"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></div>
+
+      <div class="node">
+        <div class="node-icon">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <div class="node-title">Outbox</div>
+        <div class="node-sub">Email drafts<br>Gmail send</div>
+      </div>
+
     </div>
   </div>
 
-  <!-- Arrow down -->
-  <div class="flow-arrow my-1">
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-    </svg>
+  <!-- Down arrow -->
+  <div style="display:grid; grid-template-columns:88px 1fr; gap:0 16px;">
+    <div class="lane-connector-arrow"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+    <div class="down-arr">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      <span>you review, mark status, apply — feedback loop back to scoring</span>
+    </div>
   </div>
 
-  <!-- ── Phase D: Apply ── -->
-  <div>
-    <div class="phase-label">Phase 4 — Apply</div>
-    <div class="flow-row">
-      <div class="flow-node w-full" style="border-color:#333333; background:linear-gradient(135deg,#F3F4F6,#fff);">
-        <div class="flow-node-icon" style="background:#333333;">
+  <!-- ── Lane 5: Actions ── -->
+  <div class="lane">
+    <div class="lane-label"><span>You</span></div>
+    <div class="lane-body">
+
+      <div class="node dark">
+        <div class="node-icon">
           <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
           </svg>
         </div>
-        <div class="flow-node-title">You Review → Apply</div>
-        <div class="flow-node-sub">Human-in-the-loop · 5 quality applications/day · tailored CV ready</div>
+        <div class="node-title">Apply</div>
+        <div class="node-sub">Click → job portal</div>
       </div>
+
+      <div class="arr"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></div>
+
+      <div class="node dark">
+        <div class="node-icon">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+          </svg>
+        </div>
+        <div class="node-title">Track Status</div>
+        <div class="node-sub">Applied · Interview<br>Offer · Rejected</div>
+      </div>
+
+      <div class="arr"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></div>
+
+      <div class="node dark">
+        <div class="node-icon">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+        </div>
+        <div class="node-title">Skills Gap</div>
+        <div class="node-sub">CV match % · what's<br>missing per job</div>
+      </div>
+
     </div>
   </div>
 
-  <!-- Legend -->
-  <div class="mt-6 pt-5" style="border-top:1px solid #E5E7EB;">
-    <div class="flex flex-wrap gap-4 text-xs" style="color:#6E6E73;">
-      <span><span class="legend-dot" style="background:#111111;"></span>Free (Python + local AI)</span>
-      <span><span class="legend-dot" style="background:#333333;"></span>Claude Pro (no extra cost)</span>
-      <span><span class="legend-dot" style="background:#E5E7EB; border:1px solid #111111;"></span>Your action</span>
-    </div>
+  <!-- ── Scheduler note ── -->
+  <div class="mt-6 pt-5 flex flex-wrap gap-4 items-center" style="border-top:1px solid #F3F4F6;">
+    <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#9CA3AF;">Runs automatically</div>
+    <div class="legend-item"><div class="legend-box" style="background:#111111;"></div>Scraper — daily 7am &amp; 7pm (APScheduler)</div>
+    <div class="legend-item"><div class="legend-box" style="background:#374151;"></div>Autoresearch — nightly 2:17am (cron)</div>
+    <div class="legend-item"><div class="legend-box" style="background:#6B7280;"></div>Digest email — daily 11am (APScheduler)</div>
+    <div class="legend-item"><div class="legend-box" style="background:#E5E7EB; border:1px solid #D1D5DB;"></div>LLM: Ollama (local) → OpenRouter fallback</div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     STEP-BY-STEP DETAIL
-══════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     KEY FILES
+══════════════════════════════════════════ -->
 <div class="mb-8">
-  <h2 class="text-base font-semibold mb-4" style="color:#1D1D1F;">Step-by-step breakdown</h2>
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <h2 class="text-base font-semibold mb-4" style="color:#111111;">Key files</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 
+    {% for file, desc in [
+      ('scrapers.py',               'One function per portal — LinkedIn, Naukri, Indeed, HiringCafe, Wellfound, IIMJobs, Cutshort, RemoteOK, Reddit, HN'),
+      ('analyzer.py',               'Enrichment (salary/exp/remote), LLM scoring via scoring_prompt.md, CV match, NLP query parsing'),
+      ('database.py',               'SQLite schema, insert/query helpers, location normalisation, dashboard stats queries'),
+      ('app.py',                    'Flask routes — /jobs, /dashboard, /scraper, /cv, /autoresearch, /outbox, /digests'),
+      ('agent/llm.py',              'LLM abstraction — tries Ollama first, falls back to OpenRouter (Claude Haiku)'),
+      ('autoresearch/loop.py',      'Hill-climbing loop: propose prompt tweak → evaluate Spearman → commit if better'),
+      ('autoresearch/scoring_prompt.md', '5-dimension scoring rubric (Role 35 + Domain 25 + Seniority 20 + Location 10 + AI 10)'),
+      ('scheduler.py',              'APScheduler wrapper for scraper (7am/7pm) and digest email (11am) jobs'),
+    ] %}
     <div class="step-card">
-      <div class="step-num">1</div>
+      <div style="width:8px; height:8px; border-radius:50%; background:#111111; margin-top:5px; flex-shrink:0;"></div>
       <div>
-        <div class="font-semibold text-sm mb-1" style="color:#1D1D1F;">Set up your profile</div>
-        <div class="text-xs leading-relaxed" style="color:#6E6E73;">Fill in your CV, target roles, salary range, and proof points once via the <a href="{{ url_for('setup_profile') }}" style="color:#111111; font-weight:600;">My Profile</a> page. This is the source of truth for all CV tailoring.</div>
+        <code style="font-size:11px; font-weight:700; color:#111111; background:#F3F4F6; padding:2px 7px; border-radius:4px;">{{ file }}</code>
+        <p class="text-xs mt-1.5 leading-relaxed" style="color:#6B7280;">{{ desc }}</p>
       </div>
     </div>
-
-    <div class="step-card">
-      <div class="step-num">2</div>
-      <div>
-        <div class="font-semibold text-sm mb-1" style="color:#1D1D1F;">Run the scraper</div>
-        <div class="text-xs leading-relaxed" style="color:#6E6E73;">Go to <a href="{{ url_for('scraper') }}" style="color:#111111; font-weight:600;">Run Scraper</a> or let it run on schedule. It searches 6 portals, scores every listing 0–100 using local AI (free), and saves results to the database.</div>
-      </div>
-    </div>
-
-    <div class="step-card">
-      <div class="step-num">3</div>
-      <div>
-        <div class="font-semibold text-sm mb-1" style="color:#1D1D1F;">Pipeline auto-populated</div>
-        <div class="text-xs leading-relaxed" style="color:#6E6E73;">After every scraper run, the top 5 qualified jobs are automatically written to <code style="font-size:10px;background:#F3F4F6;padding:1px 5px;border-radius:3px;border:1px solid #E5E7EB;">tmp_career_ops/data/pipeline.md</code> with full details and scores.</div>
-      </div>
-    </div>
-
-    <div class="step-card">
-      <div class="step-num">4</div>
-      <div>
-        <div class="font-semibold text-sm mb-1" style="color:#1D1D1F;">Claude Code evaluates</div>
-        <div class="text-xs leading-relaxed" style="color:#6E6E73;">Open Claude Code inside <code style="font-size:10px;background:#F3F4F6;padding:1px 5px;border-radius:3px;border:1px solid #E5E7EB;">tmp_career_ops/</code> and run <code style="font-size:10px;background:#F3F4F6;padding:1px 5px;border-radius:3px;border:1px solid #E5E7EB;">/career-ops pipeline</code>. Claude reads your CV, evaluates each job, tailors your resume, and updates the tracker — all within Claude Pro, no extra cost.</div>
-      </div>
-    </div>
-
-    <div class="step-card">
-      <div class="step-num">5</div>
-      <div>
-        <div class="font-semibold text-sm mb-1" style="color:#1D1D1F;">Review &amp; apply</div>
-        <div class="text-xs leading-relaxed" style="color:#6E6E73;">You get a tailored CV and evaluation report per job. Review, approve, and apply. Target is 5 quality applications daily — not spray-and-pray.</div>
-      </div>
-    </div>
-
-    <div class="step-card">
-      <div class="step-num">6</div>
-      <div>
-        <div class="font-semibold text-sm mb-1" style="color:#1D1D1F;">Interview prep builds up</div>
-        <div class="text-xs leading-relaxed" style="color:#6E6E73;">Every evaluation adds STAR stories to <code style="font-size:10px;background:#F3F4F6;padding:1px 5px;border-radius:3px;border:1px solid #E5E7EB;">interview-prep/story-bank.md</code>. Over time you build a searchable library of interview answers mapped to competencies.</div>
-      </div>
-    </div>
+    {% endfor %}
 
   </div>
 </div>
 
-<!-- ── Cost breakdown ── -->
-<div class="stat-card">
-  <h2 class="text-sm font-semibold mb-4" style="color:#1D1D1F;">Cost breakdown</h2>
-  <div class="overflow-x-auto">
-    <table class="w-full text-xs" style="border-collapse:collapse;">
-      <thead>
-        <tr style="border-bottom:2px solid #E5E7EB;">
-          <th class="text-left py-2 pr-4 font-semibold" style="color:#333333;">Component</th>
-          <th class="text-left py-2 pr-4 font-semibold" style="color:#333333;">Tool</th>
-          <th class="text-left py-2 font-semibold" style="color:#333333;">Cost</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr style="border-bottom:1px solid #F3F4F6;">
-          <td class="py-2 pr-4" style="color:#1D1D1F;">Job scraping (6 portals)</td>
-          <td class="py-2 pr-4" style="color:#6E6E73;">Python + Selenium</td>
-          <td class="py-2 font-semibold" style="color:#111111;">Free</td>
-        </tr>
-        <tr style="border-bottom:1px solid #F3F4F6;">
-          <td class="py-2 pr-4" style="color:#1D1D1F;">AI job scoring</td>
-          <td class="py-2 pr-4" style="color:#6E6E73;">Ollama (local Mistral)</td>
-          <td class="py-2 font-semibold" style="color:#111111;">Free</td>
-        </tr>
-        <tr style="border-bottom:1px solid #F3F4F6;">
-          <td class="py-2 pr-4" style="color:#1D1D1F;">CV tailoring + evaluation</td>
-          <td class="py-2 pr-4" style="color:#6E6E73;">Claude Code (Claude Pro)</td>
-          <td class="py-2 font-semibold" style="color:#111111;">Included in Pro ($20/mo)</td>
-        </tr>
-        <tr style="border-bottom:1px solid #F3F4F6;">
-          <td class="py-2 pr-4" style="color:#1D1D1F;">Application tracking</td>
-          <td class="py-2 pr-4" style="color:#6E6E73;">Markdown files</td>
-          <td class="py-2 font-semibold" style="color:#111111;">Free</td>
-        </tr>
-        <tr>
-          <td class="py-2 pr-4" style="color:#1D1D1F;">Company portal scanning</td>
-          <td class="py-2 pr-4" style="color:#6E6E73;">Claude Code + Playwright</td>
-          <td class="py-2 font-semibold" style="color:#111111;">Included in Pro</td>
-        </tr>
-      </tbody>
-    </table>
+<!-- ══════════════════════════════════════════
+     SCORING RUBRIC
+══════════════════════════════════════════ -->
+<div class="diagram">
+  <div class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5">Scoring Rubric (scoring_prompt.md)</div>
+  <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+    {% for dim, pts, desc in [
+      ('Role Match',   35, 'PM = 35 · APM = 25 · BA = 12 · Analyst = 4 · Engineer = 0'),
+      ('Domain Fit',   25, 'Fintech/lending = 25 · B2B SaaS/AI = 18 · General tech = 10 · Unrelated = 0'),
+      ('Seniority',    20, 'Senior PM = 20 · PM = 15 · APM = 10 · Director = 5 · VP/Fresher = 0'),
+      ('Location',     10, 'Remote = 10 · Hybrid = 7 · Pune/BLR/MUM = 4 · Other India = 2 · Abroad = 0'),
+      ('AI Leverage',  10, 'LLM/GenAI = 10 · Data-driven = 6 · Traditional = 2 · Non-tech = 0'),
+    ] %}
+    <div style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:10px; padding:14px; text-align:center;">
+      <div style="font-size:22px; font-weight:800; color:#111111; line-height:1;">{{ pts }}</div>
+      <div style="font-size:9px; color:#9CA3AF; font-weight:600; margin:1px 0 2px; text-transform:uppercase; letter-spacing:0.06em;">pts</div>
+      <div style="font-size:11px; font-weight:700; color:#374151; margin-bottom:6px;">{{ dim }}</div>
+      <div style="font-size:9.5px; color:#9CA3AF; line-height:1.5;">{{ desc }}</div>
+    </div>
+    {% endfor %}
   </div>
+  <div class="mt-4 text-xs" style="color:#9CA3AF;">Score = sum of all 5 dimensions · max 100 · min threshold for display: 65</div>
 </div>
 
+</div>
 {% endblock %}
