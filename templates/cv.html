@@ -1,368 +1,185 @@
 {% extends "base.html" %}
-{% block title %}Profile Hub — Job Search Agent{% endblock %}
-
-{% block head %}
-<style>
-  .hub-card {
-    background: #ffffff;
-    border: 1px solid rgba(243, 244, 246, 0.9);
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-  }
-
-  .skill-bar {
-    height: 6px;
-    border-radius: 999px;
-    background: #E5E7EB;
-    overflow: hidden;
-  }
-
-  .skill-bar-fill {
-    height: 100%;
-    border-radius: 999px;
-    background: #111111;
-    transition: width .4s;
-  }
-
-  .skill-bar-fill.in-cv {
-    background: #555555;
-  }
-
-  .profile-ring {
-    width: 80px;
-    height: 80px;
-  }
-
-  .kw-pill {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 600;
-    border: 1px solid;
-    margin: 3px;
-  }
-</style>
-{% endblock %}
+{% block title %}Profile & CV - Job Search Agent{% endblock %}
 
 {% block content %}
-<div class="mb-8 pl-1">
-  <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Profile Hub</h1>
-  <p class="text-sm text-gray-500 mt-1 font-medium">Your CV, skill gaps, and keyword insights in one place.</p>
-</div>
+<div class="space-y-6">
+  <div>
+    <h1 style="font-size:1.5rem;font-weight:700;margin:0 0 .25rem;">Profile & CV Management</h1>
+    <p class="text-muted">Upload and analyze your CV to optimize job matching</p>
+  </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-  <!-- Left column: Upload + Completeness -->
-  <div class="space-y-6">
-
-    <!-- Profile Completeness -->
-    <div class="hub-card" id="completeness-card">
-      <h2 class="text-base font-semibold text-gray-900 mb-4">Profile Completeness</h2>
-      <div class="flex items-center gap-4 mb-4">
-        <div class="relative profile-ring flex-shrink-0">
-          <svg viewBox="0 0 80 80" class="w-20 h-20 -rotate-90">
-            <circle cx="40" cy="40" r="34" fill="none" stroke="#E5E7EB" stroke-width="8" />
-            <circle cx="40" cy="40" r="34" fill="none" stroke="#111111" stroke-width="8" stroke-dasharray="213.6"
-              stroke-dashoffset="213.6" id="score-ring" stroke-linecap="round" />
-          </svg>
-          <div class="absolute inset-0 flex items-center justify-center">
-            <span class="text-lg font-bold text-gray-900" id="score-pct">…</span>
-          </div>
-        </div>
-        <div id="score-label" class="text-sm text-gray-500">Loading…</div>
-      </div>
-      <div id="score-breakdown" class="space-y-2 text-sm"></div>
-    </div>
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:1.5rem;align-items:start;">
 
     <!-- CV Upload -->
-    <div class="hub-card">
-      <h2 class="text-base font-semibold text-gray-900 mb-4">Your CV</h2>
-      {% if cv_data %}
-      <div class="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg mb-4">
-        <div>
-          <p class="text-sm font-medium text-gray-800">✓ CV uploaded — {{ cv_data.skills | length }} skills</p>
-          <p class="text-xs text-gray-700 mt-0.5">Updated: {{ cv_data.uploaded_at[:10] }}</p>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">CV Upload</div>
+        <div class="card-description">Upload your resume for analysis</div>
+      </div>
+      <div class="card-content">
+        {% if cv_filename %}
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+          <div style="display:flex;align-items:center;gap:.75rem;padding:1rem;border-radius:.5rem;border:1px solid var(--border);">
+            <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--primary);flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <div style="flex:1;min-width:0;">
+              <p style="font-weight:500;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ cv_filename }}</p>
+              <p class="text-muted" style="font-size:.8125rem;margin:.125rem 0 0;">Uploaded successfully</p>
+            </div>
+            <svg width="20" height="20" fill="none" stroke="#16a34a" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}">
+            <label class="btn btn-outline" style="width:100%;cursor:pointer;display:block;text-align:center;">
+              Replace CV
+              <input type="file" name="cv_file" accept=".pdf,.doc,.docx" style="display:none;" onchange="this.form.submit()">
+            </label>
+          </form>
         </div>
-        <div class="flex flex-col items-end gap-2">
-          <button onclick="document.getElementById('cv-replace-zone').classList.toggle('hidden')"
-            class="text-xs text-gray-700 hover:text-gray-900 font-medium underline">Replace</button>
-          <button onclick="rescoreJobs()" id="rescore-btn"
-            class="text-xs px-2.5 py-1 bg-gray-800 text-white font-semibold rounded hover:bg-gray-900 transition">
-            Re-score Jobs
-          </button>
-        </div>
+        {% else %}
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}">
+          <label id="upload-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;border-radius:.5rem;border:2px dashed var(--border);cursor:pointer;text-align:center;transition:border-color .2s;"
+            onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='var(--border)'">
+            <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);margin-bottom:1rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            <p style="margin:0 0 .5rem;font-size:.875rem;"><strong>Click to upload</strong> or drag and drop</p>
+            <p class="text-muted" style="font-size:.75rem;margin:0;">PDF, DOC, DOCX (MAX. 5MB)</p>
+            <input type="file" name="cv_file" accept=".pdf,.doc,.docx" style="display:none;" onchange="this.form.submit()">
+          </label>
+        </form>
+        {% endif %}
       </div>
-      <div id="rescore-status" class="hidden mb-4 text-sm text-gray-600 p-2 bg-gray-50 rounded border border-gray-100">
-      </div>
-      <div id="cv-replace-zone" class="hidden mb-4">
-        <div id="drop-zone"
-          class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-zinc-400 hover:bg-zinc-50 transition-colors"
-          onclick="document.getElementById('cv-file-input').click()"
-          ondragover="event.preventDefault(); this.classList.add('border-zinc-500','bg-zinc-50')"
-          ondragleave="this.classList.remove('border-zinc-500','bg-zinc-50')" ondrop="handleDrop(event)">
-          <p class="text-sm text-gray-600">Drop new CV or <span class="text-zinc-600">browse</span></p>
-          <p class="text-xs text-gray-400 mt-1">PDF, DOCX, TXT</p>
-        </div>
-      </div>
-      {% else %}
-      <div id="drop-zone"
-        class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-zinc-400 hover:bg-zinc-50 transition-colors mb-4"
-        onclick="document.getElementById('cv-file-input').click()"
-        ondragover="event.preventDefault(); this.classList.add('border-zinc-500','bg-zinc-50')"
-        ondragleave="this.classList.remove('border-zinc-500','bg-zinc-50')" ondrop="handleDrop(event)">
-        <p class="text-sm font-medium text-gray-700">Drop CV here or <span class="text-zinc-600">browse</span></p>
-        <p class="text-xs text-gray-400 mt-1">PDF, DOCX, TXT</p>
-      </div>
-      {% endif %}
-      <input type="file" id="cv-file-input" accept=".pdf,.docx,.txt" class="hidden" onchange="uploadCV(this.files[0])">
-      <div id="upload-status" class="hidden mt-3 p-3 rounded-lg text-sm"></div>
+    </div>
 
-      <!-- Upload detection and keyword fallback -->
+    <!-- Profile Completeness -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Profile Completeness</div>
+        <div class="card-description">How complete is your profile?</div>
+      </div>
+      <div class="card-content">
+        <div style="display:flex;align-items:flex-start;gap:2rem;flex-wrap:wrap;">
+          <div style="width:9rem;flex-shrink:0;position:relative;">
+            <canvas id="completeness-chart" width="144" height="144"></canvas>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+              <div style="font-size:1.5rem;font-weight:700;">{{ completeness }}%</div>
+              <div class="text-muted" style="font-size:.75rem;">Complete</div>
+            </div>
+          </div>
+          <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:.625rem;">
+            {% for section in cv_sections %}
+            <div style="display:flex;align-items:center;gap:.625rem;">
+              {% if section.status == 'complete' %}
+              <svg width="16" height="16" fill="none" stroke="#16a34a" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              {% elif section.status == 'partial' %}
+              <svg width="16" height="16" fill="none" stroke="#d97706" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              {% else %}
+              <svg width="16" height="16" fill="none" stroke="#dc2626" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              {% endif %}
+              <span style="flex:1;font-size:.875rem;">{{ section.name }}</span>
+              <span class="badge {% if section.status == 'complete' %}badge-default{% elif section.status == 'partial' %}badge-secondary{% else %}badge-outline{% endif %}" style="font-size:.7rem;">{{ section.percentage }}%</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-      {% if cv_data and cv_data.skills %}
-      <div class="mt-4">
-        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Detected Skills</p>
-        <div id="skills-fallback" class="flex flex-wrap gap-1.5">
-          {% for skill in cv_data.skills %}
-          <span
-            class="skill-pill inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-700 border border-zinc-200"
-            data-skill="{{ skill | lower }}">{{ skill }}</span>
+  <!-- Skills + Gap -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Skill Extraction & Matching</div>
+        <div class="card-description">Skills identified from your CV and job market</div>
+      </div>
+      <div class="card-content">
+        <div style="display:flex;flex-direction:column;gap:.75rem;">
+          {% for skill in extracted_skills %}
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:.5rem;">
+              <span style="font-weight:500;font-size:.875rem;">{{ skill.name }}</span>
+              {% if skill.in_cv %}
+              <span class="badge badge-secondary" style="font-size:.7rem;">In CV</span>
+              {% endif %}
+            </div>
+            <div style="display:flex;align-items:center;gap:.75rem;">
+              <div style="width:6rem;height:.5rem;border-radius:999px;background:var(--muted);">
+                <div style="height:100%;border-radius:999px;background:var(--primary);width:{{ skill.pct }}%;"></div>
+              </div>
+              <span class="text-muted" style="width:3.5rem;text-align:right;font-size:.8125rem;">{{ skill.frequency }} jobs</span>
+            </div>
+          </div>
+          {% else %}
+          <p class="text-muted" style="font-size:.875rem;">Upload your CV to extract skills.</p>
           {% endfor %}
         </div>
       </div>
-      {% endif %}
     </div>
 
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Skill Gap Analysis</div>
+        <div class="card-description">Skills in demand missing from your CV</div>
+      </div>
+      <div class="card-content">
+        <div style="display:flex;flex-direction:column;gap:.75rem;">
+          {% for gap in skill_gaps %}
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem;border-radius:.5rem;border:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:.5rem;">
+              <svg width="16" height="16" fill="none" stroke="#f97316" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+              <span style="font-weight:500;font-size:.875rem;">{{ gap.skill }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:.5rem;">
+              <span class="text-muted" style="font-size:.8125rem;">{{ gap.demand_count }} jobs</span>
+            </div>
+          </div>
+          {% else %}
+          <p class="text-muted" style="font-size:.875rem;">No skill gaps identified yet.</p>
+          {% endfor %}
+        </div>
+        <p class="text-muted" style="font-size:.875rem;margin-top:1rem;">Add these skills to improve your job match score.</p>
+      </div>
+    </div>
   </div>
 
-  <!-- Right columns: Skills gap + Keyword heatmap -->
-  <div class="lg:col-span-2 space-y-6">
-
-    <!-- Skills Gap Report -->
-    <div class="hub-card">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-semibold text-gray-900">Skills Gap Report</h2>
-        <p class="text-xs text-gray-400">Skills by frequency in your target roles</p>
-      </div>
-      {% if not cv_data %}
-      <div class="text-center py-8 text-gray-400 text-sm">Upload your CV to see which skills you're missing.</div>
-      {% else %}
-      <div id="skills-gap-list" class="space-y-2">
-        <div class="text-xs text-gray-400 py-4 text-center">Loading…</div>
-      </div>
-      {% endif %}
+  <!-- Keywords -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Top Keywords & Transferable Skills</div>
+      <div class="card-description">Most common keywords across matched jobs</div>
     </div>
-
-    <!-- Keyword Heatmap -->
-    <div class="hub-card">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-semibold text-gray-900">Keyword Heatmap</h2>
-        <p class="text-xs text-gray-400">Most common words in target-role JDs</p>
-      </div>
-      <div id="keyword-heatmap" class="leading-relaxed">
-        <div class="text-xs text-gray-400 py-4 text-center">Loading…</div>
+    <div class="card-content">
+      <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+        {% for kw in top_keywords %}
+        <span class="badge badge-secondary" style="padding:.375rem .75rem;">{{ kw }}</span>
+        {% else %}
+        <p class="text-muted" style="font-size:.875rem;">No keyword data available yet.</p>
+        {% endfor %}
       </div>
     </div>
-
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-  // ── Profile completeness ring ──────────────────────────────────────────────
-  fetch('/api/cv/profile-score')
-    .then(r => r.json())
-    .then(data => {
-      if (!data.ok) return;
-      const score = data.score;
-      document.getElementById('score-pct').textContent = score + '%';
-      document.getElementById('score-label').textContent =
-        score >= 80 ? 'Great shape! Your profile is strong.' :
-          score >= 50 ? 'Good start — a few things to improve.' :
-            'Set up your profile to get better results.';
-      // Animate the SVG ring (circumference = 2πr = 213.6)
-      const ring = document.getElementById('score-ring');
-      ring.style.strokeDashoffset = 213.6 - (score / 100 * 213.6);
-
-      const breakdown = document.getElementById('score-breakdown');
-      breakdown.innerHTML = data.breakdown.map(item => `
-      <div class="flex items-center gap-2">
-        <span class="${item.done ? 'text-gray-600' : 'text-gray-300'} flex-shrink-0">${item.done ? '✓' : '○'}</span>
-        <span class="${item.done ? 'text-gray-700' : 'text-gray-400'} text-xs">${item.label}</span>
-        <span class="ml-auto text-xs font-semibold ${item.done ? 'text-zinc-600' : 'text-gray-300'}">+${item.points}</span>
-      </div>
-    `).join('');
-    })
-    .catch(err => {
-      console.error('Profile Score Error:', err);
-      document.getElementById('score-label').textContent = 'Failed to load profile score.';
-    });
-
-  // ── Skills gap report ──────────────────────────────────────────────────────
-  fetch('/api/cv/skills-gap')
-    .then(r => r.json())
-    .then(data => {
-      const container = document.getElementById('skills-gap-list');
-      if (!container) return; // In case the element isn't rendered
-      if (!data.ok || !data.skills.length) {
-        container.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center">No skill data yet — run the scraper first.</div>';
-        return;
+  const completeness = {{ completeness }};
+  const canvas = document.getElementById('completeness-chart');
+  if (canvas) {
+    new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [completeness, 100 - completeness],
+          backgroundColor: ['#030213', 'rgba(3,2,19,.08)'],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        cutout: '75%',
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        animation: { duration: 800 }
       }
-      const maxCount = data.skills[0].count;
-      container.innerHTML = data.skills.slice(0, 25).map(item => `
-      <div class="flex items-center gap-3">
-        <div class="w-28 flex-shrink-0 flex items-center gap-1.5">
-          <span class="${item.in_cv ? 'text-gray-600' : 'text-gray-500'} text-xs flex-shrink-0">${item.in_cv ? '✓' : '✗'}</span>
-          <span class="text-xs text-gray-700 truncate" title="${item.skill}">${item.skill}</span>
-        </div>
-        <div class="flex-1 skill-bar">
-          <div class="skill-bar-fill ${item.in_cv ? 'in-cv' : ''}" style="width:${Math.round(item.count / maxCount * 100)}%"></div>
-        </div>
-        <span class="text-xs text-gray-400 w-10 text-right flex-shrink-0">${item.pct}%</span>
-      </div>
-    `).join('');
-    })
-    .catch(err => {
-      const container = document.getElementById('skills-gap-list');
-      if (container) {
-        container.innerHTML = '<div class="text-xs text-red-500 py-4 text-center">Failed to load skills gap data.</div>';
-      }
-      console.error('Skills Gap Error:', err);
     });
-
-  // ── Keyword heatmap ────────────────────────────────────────────────────────
-  fetch('/api/cv/keyword-heatmap')
-    .then(r => r.json())
-    .then(data => {
-      const container = document.getElementById('keyword-heatmap');
-      if (!container) return;
-      if (!data.ok || !data.keywords.length) {
-        container.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center">No keyword data yet.</div>';
-        return;
-      }
-      const maxCount = data.keywords[0].count;
-      const PALETTE = [
-        '#333333', '#555555', '#444444', '#555555', '#666666', '#777777', '#555555', '#666666'
-      ];
-      container.innerHTML = data.keywords.map((item, i) => {
-        const intensity = item.count / maxCount;
-        const fontSize = Math.round(11 + intensity * 10);
-        const opacity = 0.4 + intensity * 0.6;
-        const color = PALETTE[i % PALETTE.length];
-        return `<span class="kw-pill" style="font-size:${fontSize}px; opacity:${opacity}; color:${color}; border-color:${color}40">${item.word} <span style="font-size:9px;opacity:0.7">${item.count}</span></span>`;
-      }).join('');
-    })
-    .catch(err => {
-      const container = document.getElementById('keyword-heatmap');
-      if (container) {
-        container.innerHTML = '<div class="text-xs text-red-500 py-4 text-center">Failed to load keyword heatmap.</div>';
-      }
-      console.error('Keyword Heatmap Error:', err);
-    });
-
-  // ── CV upload + rescore ──────────────────────────────────────────────────────
-  function handleDrop(event) {
-    event.preventDefault();
-    document.getElementById('drop-zone').classList.remove('border-zinc-500', 'bg-zinc-50');
-    const file = event.dataTransfer.files[0];
-    if (file) uploadCV(file);
   }
-
-  function uploadCV(file) {
-    if (!file) return;
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (!['pdf', 'docx', 'txt'].includes(ext)) {
-      showStatus('upload-status', `Unsupported: .${ext}. Use PDF, DOCX, or TXT.`, 'error');
-      return;
-    }
-    const formData = new FormData();
-    formData.append('cv_file', file);
-    showStatus('upload-status', 'Uploading and parsing CV...', 'info');
-    fetch('/api/cv/upload', { method: 'POST', body: formData })
-      .then(r => r.json())
-      .then(data => {
-        if (data.ok) {
-          showStatus('upload-status', `✓ ${data.skills_count} skills detected. Reloading...`, 'success');
-          setTimeout(() => window.location.reload(), 1200);
-        } else {
-          showStatus('upload-status', `Error: ${data.error}`, 'error');
-        }
-      })
-      .catch(err => showStatus('upload-status', `Network error: ${err.message}`, 'error'));
-  }
-
-  function rescoreJobs() {
-    const btn = document.getElementById('rescore-btn');
-    btn.disabled = true; btn.textContent = 'Rescoring...';
-    const status = document.getElementById('rescore-status');
-    status.classList.remove('hidden');
-    status.textContent = 'Computing CV match for all jobs...';
-    fetch('/api/cv/rescore', { method: 'POST' })
-      .then(r => r.json())
-      .then(data => {
-        btn.disabled = false; btn.textContent = 'Re-score Jobs';
-        if (data.ok) {
-          status.textContent = `✓ ${data.updated} jobs re-scored.`;
-          status.className = 'mb-4 text-sm text-gray-700 p-2 border border-gray-200 bg-gray-50 rounded';
-        } else {
-          status.textContent = `Error: ${data.error}`;
-          status.className = 'mb-4 text-sm text-red-600 p-2 border border-red-200 bg-gray-50 rounded';
-        }
-      })
-      .catch(err => {
-        btn.disabled = false; btn.textContent = 'Re-score Jobs';
-        status.classList.remove('hidden');
-        status.textContent = `Error: ${err.message}`;
-        status.className = 'mb-4 text-sm text-red-600 p-2 border border-red-200 bg-gray-50 rounded';
-      });
-  }
-
-  function showStatus(id, msg, type) {
-    const el = document.getElementById(id);
-    el.classList.remove('hidden');
-    el.className = `mt-3 p-3 rounded-lg text-sm ${type === 'success' ? 'bg-gray-50 text-gray-800 border border-gray-200' :
-      type === 'error' ? 'bg-gray-50 text-red-700 border border-red-200' :
-        'bg-gray-50 text-gray-800 border border-gray-200'}`;
-    el.textContent = msg;
-  }
-
-  // ── Skill grouping ─────────────────────────────────────────────────────────
-  (function groupSkills() {
-    const TECH = new Set(['sql', 'python', 'excel', 'figma', 'api', 'rest', 'git', 'github', 'ios', 'android', 'java', 'javascript', 'typescript', 'react', 'node', 'go', 'rust', 'swift', 'kotlin', 'docker', 'kubernetes', 'aws', 'gcp', 'azure', 'mongodb', 'redis', 'tableau', 'power bi', 'powerbi', 'looker', 'dbt', 'airflow', 'spark', 'ml', 'nlp', 'ui', 'ux']);
-    const DOMAIN = new Set(['lending', 'credit', 'banking', 'finance', 'fintech', 'insurance', 'payments', 'nbfc', 'risk', 'compliance', 'audit', 'tax', 'accounting', 'treasury', 'ipo', 'saas', 'b2b', 'b2c', 'e-commerce']);
-    const AI_PRODUCT = new Set(['ai', 'analytics', 'a/b testing', 'metrics', 'kpi', 'okr', 'roadmap', 'prd', 'product', 'mvp', 'user research', 'ux research']);
-    const pills = document.querySelectorAll('.skill-pill');
-    if (!pills.length) return;
-    const groups = { tech: [], domain: [], ai_product: [], other: [] };
-    pills.forEach(p => {
-      const s = p.dataset.skill;
-      if (TECH.has(s)) groups.tech.push(p);
-      else if (AI_PRODUCT.has(s)) groups.ai_product.push(p);
-      else if (DOMAIN.has(s)) groups.domain.push(p);
-      else groups.other.push(p);
-    });
-    const fallback = document.getElementById('skills-fallback');
-    if (!fallback) return;
-    fallback.innerHTML = '';
-    [
-      { key: 'tech', label: 'Technical', pillClass: 'bg-gray-50 text-gray-800 border-gray-200' },
-      { key: 'ai_product', label: 'Analytics & Product', pillClass: 'bg-gray-50 text-gray-700 border-gray-200' },
-      { key: 'domain', label: 'Domain & Industry', pillClass: 'bg-gray-50 text-gray-700 border-gray-200' },
-      { key: 'other', label: 'Other', pillClass: 'bg-gray-50 text-gray-600 border-gray-200' },
-    ].forEach(({ key, label, pillClass }) => {
-      const items = groups[key];
-      if (!items.length) return;
-      const sec = document.createElement('div');
-      sec.innerHTML = `<p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 mt-3">${label}</p>`;
-      const wrap = document.createElement('div');
-      wrap.className = 'flex flex-wrap gap-1.5';
-      items.forEach(p => { p.className = `inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${pillClass}`; wrap.appendChild(p); });
-      sec.appendChild(wrap);
-      fallback.appendChild(sec);
-    });
-  })();
 </script>
 {% endblock %}

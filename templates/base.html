@@ -4,338 +4,138 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Job Search Agent{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
-  <style>
-    :root {
-      --background: #ffffff;
-      --foreground: #0a0a0f;
-      --card: #ffffff;
-      --card-foreground: #0a0a0f;
-      --primary: #030213;
-      --primary-foreground: #ffffff;
-      --secondary: #f1f1f5;
-      --secondary-foreground: #030213;
-      --muted: #ececf0;
-      --muted-foreground: #717182;
-      --accent: #e9ebef;
-      --accent-foreground: #030213;
-      --destructive: #d4183d;
-      --destructive-foreground: #ffffff;
-      --border: rgba(0,0,0,0.09);
-      --input-bg: #f3f3f5;
-      --ring: rgba(0,0,0,0.12);
-      --radius: 0.625rem;
-      --sidebar-bg: #f9f9fb;
-      --sidebar-border: #ebebee;
-      --sidebar-fg: #0a0a0f;
-      --sidebar-muted: #717182;
-      --sidebar-active-bg: #efeff4;
-      --sidebar-active-fg: #030213;
-    }
-
-    *, *::before, *::after { box-sizing: border-box; }
-
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--background);
-      color: var(--foreground);
-      min-height: 100vh;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    /* ── Sidebar ── */
-    .sidebar {
-      background: var(--sidebar-bg);
-      border-right: 1px solid var(--sidebar-border);
-    }
-    .sidebar-link {
-      display: flex; align-items: center; gap: 0.625rem;
-      padding: 0.4375rem 0.75rem; border-radius: 0.5rem;
-      font-size: 0.875rem; font-weight: 500;
-      color: var(--sidebar-muted);
-      transition: all 0.12s ease; text-decoration: none;
-      white-space: nowrap;
-    }
-    .sidebar-link:hover { background: var(--muted); color: var(--sidebar-fg); }
-    .sidebar-link.active { background: var(--sidebar-active-bg); color: var(--sidebar-active-fg); font-weight: 600; }
-    .sidebar-link svg { flex-shrink: 0; }
-    .nav-group-label {
-      font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em;
-      color: var(--muted-foreground); text-transform: uppercase;
-      padding: 0 0.75rem; margin-top: 1.25rem; margin-bottom: 0.375rem;
-    }
-
-    /* ── Cards ── */
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
-    }
-    .card-header { padding: 1.25rem 1.5rem 0; }
-    .card-content { padding: 1.25rem 1.5rem; }
-    .card-title { font-size: 0.9375rem; font-weight: 600; color: var(--foreground); }
-    .card-description { font-size: 0.8125rem; color: var(--muted-foreground); margin-top: 0.125rem; }
-
-    /* ── Buttons ── */
-    .btn {
-      display: inline-flex; align-items: center; gap: 0.375rem;
-      padding: 0.4375rem 0.875rem; border-radius: 0.5rem;
-      font-size: 0.875rem; font-weight: 500; cursor: pointer;
-      border: none; transition: all 0.12s ease; text-decoration: none;
-      white-space: nowrap;
-    }
-    .btn-primary { background: var(--primary); color: var(--primary-foreground); }
-    .btn-primary:hover { background: #1a1a2e; }
-    .btn-outline {
-      background: transparent; color: var(--foreground);
-      border: 1px solid var(--border);
-    }
-    .btn-outline:hover { background: var(--muted); }
-    .btn-ghost { background: transparent; color: var(--foreground); }
-    .btn-ghost:hover { background: var(--muted); }
-    .btn-destructive { background: var(--destructive); color: var(--destructive-foreground); }
-    .btn-destructive:hover { background: #b01232; }
-    .btn-sm { padding: 0.3125rem 0.625rem; font-size: 0.8125rem; }
-    .btn-lg { padding: 0.5625rem 1.25rem; font-size: 0.9375rem; }
-    .btn-icon { padding: 0.4375rem; }
-    .btn-full { width: 100%; justify-content: flex-start; }
-
-    /* ── Badges ── */
-    .badge {
-      display: inline-flex; align-items: center;
-      padding: 0.125rem 0.5rem; border-radius: 9999px;
-      font-size: 0.75rem; font-weight: 500;
-    }
-    .badge-default { background: var(--primary); color: var(--primary-foreground); }
-    .badge-secondary { background: var(--secondary); color: var(--secondary-foreground); }
-    .badge-outline { background: transparent; border: 1px solid var(--border); color: var(--muted-foreground); }
-    .badge-success { background: #dcfce7; color: #166534; }
-    .badge-warning { background: #fef9c3; color: #854d0e; }
-    .badge-destructive { background: #fee2e2; color: #991b1b; }
-
-    /* ── Inputs ── */
-    .input {
-      width: 100%; border: 1px solid var(--border); border-radius: 0.5rem;
-      padding: 0.4375rem 0.75rem; font-size: 0.875rem;
-      color: var(--foreground); background: var(--input-bg);
-      transition: border-color 0.15s, box-shadow 0.15s; outline: none;
-      font-family: inherit;
-    }
-    .input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--ring); }
-    .input::placeholder { color: var(--muted-foreground); }
-    select.input { appearance: none; cursor: pointer; }
-
-    /* ── Flash messages ── */
-    .flash-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
-    .flash-error   { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
-    .flash-info    { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
-
-    /* ── Separator ── */
-    .separator { height: 1px; background: var(--border); }
-
-    /* ── Page header ── */
-    .page-header { margin-bottom: 1.5rem; }
-    .page-title { font-size: 1.25rem; font-weight: 600; color: var(--foreground); }
-    .page-subtitle { font-size: 0.875rem; color: var(--muted-foreground); margin-top: 0.125rem; }
-
-    /* ── Progress bar ── */
-    .progress-bar { height: 0.5rem; background: var(--muted); border-radius: 9999px; overflow: hidden; }
-    .progress-fill { height: 100%; background: var(--primary); border-radius: 9999px; transition: width 0.3s ease; }
-
-    /* ── Table ── */
-    .data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-    .data-table th { padding: 0.625rem 0.75rem; text-align: left; font-weight: 500; color: var(--muted-foreground); font-size: 0.8125rem; border-bottom: 1px solid var(--border); }
-    .data-table td { padding: 0.75rem; border-bottom: 1px solid var(--border); color: var(--foreground); vertical-align: middle; }
-    .data-table tr:last-child td { border-bottom: none; }
-    .data-table tbody tr:hover { background: var(--muted); }
-
-    /* ── Skeleton ── */
-    .skeleton {
-      background: linear-gradient(90deg, var(--muted) 0%, var(--accent) 50%, var(--muted) 100%);
-      background-size: 200% 100%;
-      animation: shimmer 1.4s ease infinite; border-radius: 0.375rem;
-    }
-    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-
-    /* ── Topbar ── */
-    .topbar {
-      border-bottom: 1px solid var(--border);
-      background: var(--card);
-      padding: 0.75rem 1.5rem;
-      display: flex; align-items: center; gap: 1rem;
-    }
-
-    /* ── Score badge colors ── */
-    .score-high  { background: #dcfce7; color: #166534; }
-    .score-mid   { background: #fef9c3; color: #854d0e; }
-    .score-low   { background: var(--muted); color: var(--muted-foreground); }
-
-    /* ── Company logo placeholder ── */
-    .company-logo {
-      width: 2.5rem; height: 2.5rem; border-radius: 0.5rem;
-      background: var(--secondary); color: var(--primary);
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 600; font-size: 0.875rem; flex-shrink: 0;
-    }
-
-    /* Legacy overrides for existing template compatibility */
-    .btn-teal { background: var(--primary); color: var(--primary-foreground); font-weight: 500; border-radius: 0.5rem; padding: 0.4375rem 0.875rem; font-size: 0.875rem; transition: background 0.12s; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.375rem; }
-    .btn-teal:hover { background: #1a1a2e; }
-    .gloss-btn-secondary { background: var(--primary); color: var(--primary-foreground); font-weight: 500; border-radius: 0.5rem; padding: 0.4375rem 0.875rem; font-size: 0.875rem; border: none; cursor: pointer; transition: background 0.12s; display: inline-flex; align-items: center; gap: 0.375rem; }
-    .gloss-btn-secondary:hover { background: #1a1a2e; }
-    .gloss-btn-ghost { background: transparent; color: var(--foreground); font-weight: 500; border-radius: 0.5rem; padding: 0.4375rem 0.875rem; font-size: 0.875rem; border: 1px solid var(--border); cursor: pointer; transition: all 0.12s; display: inline-flex; align-items: center; gap: 0.375rem; }
-    .gloss-btn-ghost:hover { background: var(--muted); }
-    .gloss-input { width: 100%; border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.4375rem 0.75rem; font-size: 0.875rem; color: var(--foreground); background: var(--input-bg); transition: border-color 0.15s; }
-    .gloss-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--ring); }
-    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; }
-    .glass-panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-    .glass-panel-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--muted); }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   {% block head %}{% endblock %}
 </head>
+<body>
+<div class="layout">
 
-<body class="min-h-screen">
-  <div class="flex min-h-screen">
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-logo">Job Search Agent</span>
+    </div>
 
-    <!-- Sidebar (desktop) -->
-    <aside id="sidebar" class="sidebar hidden md:flex flex-col w-60 min-h-screen fixed left-0 top-0 z-20">
-      <!-- Logo -->
-      <div class="px-4 py-5 flex items-center gap-3" style="border-bottom:1px solid var(--sidebar-border);">
-        <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:var(--primary);">
-          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/>
-          </svg>
-        </div>
-        <span class="font-semibold text-sm" style="color:var(--sidebar-fg); letter-spacing:-0.01em;">Job Search Agent</span>
-      </div>
-
-      <!-- Nav -->
-      <nav class="flex-1 px-3 py-3 overflow-y-auto space-y-0.5">
-        <div class="nav-group-label">Main</div>
-        <a href="{{ url_for('dashboard') }}" class="sidebar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-          Dashboard
-        </a>
-        <a href="{{ url_for('jobs') }}" class="sidebar-link {% if request.endpoint == 'jobs' %}active{% endif %}">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-          Jobs
-        </a>
-        <a href="{{ url_for('pipeline') }}" class="sidebar-link {% if request.endpoint == 'pipeline' %}active{% endif %}">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          Agent Pipeline
-        </a>
-
-        <div class="nav-group-label">Tools</div>
-        <a href="{{ url_for('scraper') }}" class="sidebar-link {% if request.endpoint == 'scraper' %}active{% endif %}">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-          Run Scraper
-        </a>
-        <a href="{{ url_for('autoresearch_page') }}" class="sidebar-link {% if request.endpoint == 'autoresearch_page' %}active{% endif %}">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-          Autoresearch
-        </a>
-        <a href="{{ url_for('cv_page') }}" class="sidebar-link {% if request.endpoint == 'cv_page' %}active{% endif %}">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          My CV
-        </a>
-
-        <div class="nav-group-label">Settings</div>
-        <a href="{{ url_for('preferences') }}" class="sidebar-link {% if request.endpoint == 'preferences' %}active{% endif %}">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          Settings
-        </a>
-        <a href="{{ url_for('setup_profile') }}" class="sidebar-link {% if request.endpoint == 'setup_profile' %}active{% endif %}">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-          My Profile
-        </a>
-      </nav>
-    </aside>
-
-    <!-- Mobile bottom nav -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 flex"
-      style="background:var(--card); border-top:1px solid var(--border);">
-      <a href="{{ url_for('dashboard') }}" class="flex-1 flex flex-col items-center py-2.5 text-xs gap-1 {% if request.endpoint == 'dashboard' %}font-semibold{% endif %}" style="color:{% if request.endpoint == 'dashboard' %}var(--primary){% else %}var(--muted-foreground){% endif %}">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-        Home
-      </a>
-      <a href="{{ url_for('jobs') }}" class="flex-1 flex flex-col items-center py-2.5 text-xs gap-1 {% if request.endpoint == 'jobs' %}font-semibold{% endif %}" style="color:{% if request.endpoint == 'jobs' %}var(--primary){% else %}var(--muted-foreground){% endif %}">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-        Jobs
-      </a>
-      <a href="{{ url_for('scraper') }}" class="flex-1 flex flex-col items-center py-2.5 text-xs gap-1 {% if request.endpoint == 'scraper' %}font-semibold{% endif %}" style="color:{% if request.endpoint == 'scraper' %}var(--primary){% else %}var(--muted-foreground){% endif %}">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-        Scraper
-      </a>
-      <button onclick="document.getElementById('mobileMenu').classList.toggle('hidden')"
-        class="flex-1 flex flex-col items-center py-2.5 text-xs gap-1" style="color:var(--muted-foreground); background:none; border:none; cursor:pointer;">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-        More
-      </button>
+    <nav class="sidebar-nav">
+      <p class="sidebar-group-label">Navigation</p>
+      <ul class="sidebar-menu">
+        <li>
+          <a href="{{ url_for('dashboard') }}"
+             class="sidebar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Home
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('jobs') }}"
+             class="sidebar-link {% if request.endpoint == 'jobs' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/></svg>
+            Jobs
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('scraper') }}"
+             class="sidebar-link {% if request.endpoint == 'scraper' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Run Scraper
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('pipeline') }}"
+             class="sidebar-link {% if request.endpoint == 'pipeline' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Analytics
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('cv_page') }}"
+             class="sidebar-link {% if request.endpoint == 'cv_page' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            Profile &amp; CV
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('digests') }}"
+             class="sidebar-link {% if request.endpoint == 'digests' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Digest
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('autoresearch_page') }}"
+             class="sidebar-link {% if request.endpoint == 'autoresearch_page' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Schedule
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('preferences') }}"
+             class="sidebar-link {% if request.endpoint == 'preferences' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Settings
+          </a>
+        </li>
+      </ul>
     </nav>
+  </aside>
 
-    <!-- Mobile drawer -->
-    <div id="mobileMenu" class="hidden md:hidden fixed inset-0 z-40 flex justify-end" style="background:rgba(0,0,0,0.4);" onclick="if(event.target===this)this.classList.add('hidden')">
-      <div class="w-60 h-full flex flex-col" style="background:var(--sidebar-bg); border-left:1px solid var(--sidebar-border);">
-        <div class="p-4 flex justify-between items-center" style="border-bottom:1px solid var(--sidebar-border);">
-          <span class="font-semibold text-sm">Navigation</span>
-          <button onclick="document.getElementById('mobileMenu').classList.add('hidden')" class="btn btn-ghost btn-icon btn-sm">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <div class="overflow-y-auto flex-1 p-3 space-y-0.5">
-          <a href="{{ url_for('dashboard') }}" class="sidebar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a>
-          <a href="{{ url_for('jobs') }}" class="sidebar-link {% if request.endpoint == 'jobs' %}active{% endif %}">Jobs</a>
-          <a href="{{ url_for('scraper') }}" class="sidebar-link {% if request.endpoint == 'scraper' %}active{% endif %}">Run Scraper</a>
-          <a href="{{ url_for('autoresearch_page') }}" class="sidebar-link {% if request.endpoint == 'autoresearch_page' %}active{% endif %}">Autoresearch</a>
-          <a href="{{ url_for('cv_page') }}" class="sidebar-link {% if request.endpoint == 'cv_page' %}active{% endif %}">My CV</a>
-          <a href="{{ url_for('preferences') }}" class="sidebar-link {% if request.endpoint == 'preferences' %}active{% endif %}">Settings</a>
-          <a href="{{ url_for('setup_profile') }}" class="sidebar-link {% if request.endpoint == 'setup_profile' %}active{% endif %}">My Profile</a>
-        </div>
-      </div>
+  <!-- ── Main content ── -->
+  <div class="main-content">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <button class="btn btn-ghost btn-icon-sm mobile-sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
     </div>
 
-    <!-- Main content -->
-    <div class="flex-1 md:ml-60 min-h-screen flex flex-col">
-      <!-- Topbar -->
-      <div class="topbar">
-        <button id="sidebarToggle" class="btn btn-ghost btn-icon btn-sm md:hidden">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-        </button>
-        <span class="text-sm font-medium" style="color:var(--muted-foreground);">{% block breadcrumb %}{% endblock %}</span>
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div style="padding: 1rem 1.5rem 0;">
+      {% for category, message in messages %}
+      <div class="flash flash-{{ 'success' if category == 'success' else 'error' if category == 'error' else 'info' }}">
+        {% if category == 'success' %}
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        {% elif category == 'error' %}
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        {% endif %}
+        {{ message }}
       </div>
-
-      <!-- Flash messages -->
-      {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-      <div class="px-6 pt-4">
-        {% for category, message in messages %}
-        <div class="rounded-lg px-4 py-3 mb-2 text-sm flex items-center gap-2.5
-          {% if category == 'success' %}flash-success{% elif category == 'error' %}flash-error{% else %}flash-info{% endif %}">
-          {% if category == 'success' %}<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          {% elif category == 'error' %}<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          {% else %}<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          {% endif %}
-          <span>{{ message }}</span>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-      {% endwith %}
-
-      <!-- Page content -->
-      <main class="flex-1 p-6 pb-20 md:pb-6">
-        <div class="max-w-7xl mx-auto">
-          {% block content %}{% endblock %}
-        </div>
-      </main>
+      {% endfor %}
     </div>
-  </div>
+    {% endif %}
+    {% endwith %}
 
-  {% block scripts %}{% endblock %}
+    <!-- Page content -->
+    <div class="page-body">
+      {% block content %}{% endblock %}
+    </div>
+
+  </div><!-- /main-content -->
+
+  <!-- Mobile bottom nav -->
+  <nav class="mobile-nav">
+    <a href="{{ url_for('dashboard') }}" class="mobile-nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      Home
+    </a>
+    <a href="{{ url_for('jobs') }}" class="mobile-nav-item {% if request.endpoint == 'jobs' %}active{% endif %}">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/></svg>
+      Jobs
+    </a>
+    <a href="{{ url_for('scraper') }}" class="mobile-nav-item {% if request.endpoint == 'scraper' %}active{% endif %}">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Scraper
+    </a>
+    <a href="{{ url_for('preferences') }}" class="mobile-nav-item {% if request.endpoint == 'preferences' %}active{% endif %}">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Settings
+    </a>
+  </nav>
+
+</div><!-- /layout -->
+
+{% block scripts %}{% endblock %}
 </body>
 </html>

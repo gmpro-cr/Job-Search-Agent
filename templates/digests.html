@@ -1,74 +1,176 @@
 {% extends "base.html" %}
-{% block title %}Digests — Job Search Agent{% endblock %}
+{% block title %}Job Digest - Job Search Agent{% endblock %}
 
 {% block content %}
-<div class="mb-8 flex items-end justify-between gap-4">
-  <div>
-    <h1 class="text-2xl font-bold tracking-tight" style="color:#111111;">Digests</h1>
-    <p class="mt-1 text-sm font-medium" style="color:#6b7280;">Browse past AI-generated job digest reports.</p>
+<div class="space-y-6">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1 style="font-size:1.5rem;font-weight:700;margin:0 0 .25rem;">Job Digest</h1>
+      <p class="text-muted">View and manage your daily job digests</p>
+    </div>
+    <div style="display:flex;gap:.5rem;">
+      <button onclick="emailDigest()" class="btn btn-outline">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        Email Digest
+      </button>
+      <a href="{{ url_for('scraper') }}" class="btn btn-primary">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+        Generate New Digest
+      </a>
+    </div>
   </div>
-  {% if files %}
-  <span class="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg">{{ files|length }} digest{{ 's' if files|length != 1 else '' }}</span>
-  {% endif %}
-</div>
 
-{% if files %}
-<div class="glass-panel overflow-hidden">
-  <div class="overflow-x-auto">
-    <table class="min-w-full text-sm">
-      <thead>
-        <tr style="background:rgba(243,244,246,0.6); border-bottom:1px solid rgba(255,255,255,0.5);">
-          <th class="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">Digest</th>
-          <th class="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">Generated</th>
-          <th class="px-5 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-gray-400">Size</th>
-          <th class="px-5 py-3.5 text-right text-[11px] font-bold uppercase tracking-wider text-gray-400">Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for f in files %}
-        <tr class="hover:bg-white/30 transition-colors" style="border-top:1px solid rgba(255,255,255,0.35);">
-          <td class="px-5 py-4 font-semibold text-gray-800 whitespace-nowrap">
-            <span class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
-              Digest #{{ loop.index }}
-              {% if loop.first %}
-              <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-gray-50 text-gray-700 border border-gray-200 rounded-md">Latest</span>
-              {% endif %}
-            </span>
-          </td>
-          <td class="px-5 py-4 text-gray-500 whitespace-nowrap">{{ f.date }}</td>
-          <td class="px-5 py-4 text-gray-400 text-right whitespace-nowrap font-mono text-xs">{{ f.size_kb }} KB</td>
-          <td class="px-5 py-4 text-right whitespace-nowrap">
-            <a href="{{ url_for('serve_digest', filename=f.filename) }}" target="_blank"
-               class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold tracking-wide text-white transition-all bg-gray-900 hover:bg-gray-900">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-              </svg>
-              Open
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;align-items:start;">
+
+    <!-- Latest digest -->
+    <div class="card">
+      <div class="card-header">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">
+          <div>
+            <div class="card-title">Latest Digest</div>
+            {% if files %}
+            <div class="card-description">{{ files[0].date if files else 'No digests yet' }}</div>
+            {% else %}
+            <div class="card-description">No digests generated yet</div>
+            {% endif %}
+          </div>
+          {% if files %}
+          <span class="badge badge-default">Generated</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card-content" style="display:flex;flex-direction:column;gap:1rem;">
+        {% if stats %}
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;padding:1rem;border-radius:.5rem;background:var(--muted);">
+          <div style="text-align:center;">
+            <div style="font-size:1.5rem;font-weight:700;">{{ stats.total }}</div>
+            <p class="text-muted" style="font-size:.875rem;margin:0;">Total Jobs</p>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:1.5rem;font-weight:700;">{{ stats.qualified }}</div>
+            <p class="text-muted" style="font-size:.875rem;margin:0;">Qualified</p>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:1.5rem;font-weight:700;">{{ stats.avg_score }}</div>
+            <p class="text-muted" style="font-size:.875rem;margin:0;">Avg Score</p>
+          </div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);">
+        {% endif %}
+
+        {% if top_jobs %}
+        <div>
+          <h3 style="font-weight:600;margin:0 0 .75rem;">Top {{ top_jobs|length }} Jobs</h3>
+          <div style="display:flex;flex-direction:column;gap:.625rem;">
+            {% for job in top_jobs %}
+            <div style="display:flex;align-items:flex-start;gap:.75rem;padding:.75rem;border-radius:.5rem;border:1px solid var(--border);transition:background .15s;"
+              onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''">
+              <div style="width:2.5rem;height:2.5rem;border-radius:.5rem;background:rgba(3,2,19,.08);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;color:var(--primary);flex-shrink:0;">
+                {{ loop.index }}
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.25rem;">
+                  <h4 style="font-weight:600;margin:0;font-size:.9375rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ job.role }}</h4>
+                  <span class="badge {% if job.score >= 90 %}badge-default{% elif job.score >= 80 %}badge-secondary{% else %}badge-outline{% endif %}" style="flex-shrink:0;">{{ job.score }}</span>
+                </div>
+                <p class="text-muted" style="font-size:.8125rem;margin:0;">{{ job.company }}</p>
+                <div class="text-muted" style="display:flex;align-items:center;gap:.5rem;font-size:.8125rem;margin-top:.125rem;">
+                  <span>{{ job.location }}</span>
+                  {% if job.salary %}<span>•</span><span>{{ job.salary }}</span>{% endif %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:2rem;">
+          <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);margin:0 auto 1rem;display:block;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <p class="text-muted">No digest generated yet. Run the scraper then generate a digest.</p>
+        </div>
+        {% endif %}
+
+        {% if files %}
+        <div style="display:flex;gap:.5rem;padding-top:.5rem;">
+          <a href="{{ url_for('serve_digest', filename=files[0].filename) }}" class="btn btn-outline" style="flex:1;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            View Full Digest
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+
+      <!-- Digest settings -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Digest Settings</div>
+        </div>
+        <div class="card-content" style="display:flex;flex-direction:column;gap:.625rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="text-muted" style="font-size:.875rem;">Top Jobs Count</span>
+            <span style="font-weight:500;">{{ prefs.top_n if prefs else 5 }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="text-muted" style="font-size:.875rem;">Min Score</span>
+            <span style="font-weight:500;">{{ prefs.min_score if prefs else 65 }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="text-muted" style="font-size:.875rem;">Daily Time</span>
+            <span style="font-weight:500;">8:00 AM</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:.5rem;padding-top:.5rem;">
+            <svg width="16" height="16" fill="none" stroke="var(--primary)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <span style="font-size:.875rem;color:var(--primary);">Auto-generated daily</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Past digests -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Past Digests</div>
+          <div class="card-description">Browse previous digests</div>
+        </div>
+        <div class="card-content">
+          {% if files %}
+          <div style="display:flex;flex-direction:column;gap:.5rem;">
+            {% for f in files %}
+            <a href="{{ url_for('serve_digest', filename=f.filename) }}"
+              style="display:flex;align-items:center;justify-content:space-between;padding:.625rem;border-radius:.5rem;border:1px solid var(--border);text-decoration:none;color:inherit;transition:background .15s;"
+              onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''">
+              <div style="display:flex;align-items:center;gap:.5rem;">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <div>
+                  <p style="font-size:.875rem;font-weight:500;margin:0;">{{ f.date }}</p>
+                  <p class="text-muted" style="font-size:.75rem;margin:0;">{{ f.size_kb }} KB</p>
+                </div>
+              </div>
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             </a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-muted" style="font-size:.875rem;">No past digests.</p>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
   </div>
 </div>
+{% endblock %}
 
-{% else %}
-<div class="glass-panel p-14 text-center flex flex-col items-center justify-center min-h-[280px]">
-  <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-5 shadow-inner border border-gray-100 bg-gray-50">📋</div>
-  <h3 class="text-base font-bold text-gray-800 mb-2">No digests yet</h3>
-  <p class="text-sm text-gray-500 mb-6 max-w-xs mx-auto leading-relaxed">Run the scraper to generate your first AI-curated job digest report.</p>
-  <a href="{{ url_for('scraper') }}"
-     class="inline-flex items-center gap-2 px-5 py-2.5 text-white text-sm font-bold tracking-wide rounded-xl transition-all bg-gray-900 hover:bg-gray-900">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-    </svg>
-    Run Scraper Now
-  </a>
-</div>
-{% endif %}
+{% block scripts %}
+<script>
+function emailDigest() {
+  fetch('/api/send_prd', {method:'POST'})
+    .then(r => r.json())
+    .then(d => alert(d.message || (d.ok ? 'Email sent!' : 'Failed: ' + (d.error||'unknown'))))
+    .catch(() => alert('Email feature requires SMTP configuration in Settings.'));
+}
+</script>
 {% endblock %}

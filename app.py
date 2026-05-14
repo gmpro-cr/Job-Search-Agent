@@ -1753,7 +1753,26 @@ def digests():
                     "date": datetime.fromtimestamp(mtime).strftime("%B %d, %Y %I:%M %p"),
                     "size_kb": round(os.path.getsize(path) / 1024, 1),
                 })
-    return render_template("digests.html", files=files)
+    # Top jobs for the latest digest display
+    prefs = load_preferences()
+    top_n = prefs.get("top_jobs_per_digest", 5) if prefs else 5
+    min_score = prefs.get("min_score", 65) if prefs else 65
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""SELECT role, company, location, salary, cv_score as score
+                      FROM job_listings WHERE cv_score >= ? ORDER BY cv_score DESC LIMIT ?""",
+                   (min_score, top_n))
+    top_jobs = [dict(r) for r in cursor.fetchall()]
+    cursor.execute("SELECT COUNT(*) as total FROM job_listings")
+    total = cursor.fetchone()["total"]
+    cursor.execute("SELECT COUNT(*) as q FROM job_listings WHERE cv_score >= ?", (min_score,))
+    qualified = cursor.fetchone()["q"]
+    cursor.execute("SELECT AVG(cv_score) as avg FROM job_listings WHERE cv_score > 0")
+    avg_row = cursor.fetchone()
+    avg_score = round(avg_row["avg"] or 0, 1)
+    conn.close()
+    stats = {"total": total, "qualified": qualified, "avg_score": avg_score}
+    return render_template("digests.html", files=files, top_jobs=top_jobs, stats=stats, prefs=prefs)
 
 
 @app.route("/digests/<filename>")
@@ -1765,10 +1784,97 @@ def serve_digest(filename):
 # CV Management Routes
 # ---------------------------------------------------------------------------
 
-@app.route("/cv")
+@app.route("/cv", methods=["GET", "POST"])
 def cv_page():
+    if request.method == "POST":
+        if "cv_file" not in request.files:
+            flash("No file selected.", "error")
+            return redirect(url_for("cv_page"))
+        f = request.files["cv_file"]
+        if not f.filename:
+            flash("No file selected.", "error")
+            return redirect(url_for("cv_page"))
+        filename = f.filename or ""
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        text = ""
+        if ext == "pdf":
+            try:
+                import pdfplumber, io as _io
+                with pdfplumber.open(_io.BytesIO(f.read())) as pdf:
+                    text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+            except Exception as e:
+                flash(f"PDF parsing failed: {e}", "error")
+                return redirect(url_for("cv_page"))
+        elif ext == "docx":
+            try:
+                import docx as _docx, io as _io
+                doc = _docx.Document(_io.BytesIO(f.read()))
+                text = "\n".join(p.text for p in doc.paragraphs)
+            except Exception as e:
+                flash(f"DOCX parsing failed: {e}", "error")
+                return redirect(url_for("cv_page"))
+        else:
+            text = f.read().decode("utf-8", errors="ignore")
+        cv_data = parse_cv_text(text)
+        cv_data["filename"] = filename
+        save_cv_data(cv_data)
+        _rescore_all_jobs(cv_data)
+        flash(f"CV uploaded — {len(cv_data['skills'])} skills detected.", "success")
+        return redirect(url_for("cv_page"))
+
     cv_data = load_cv_data()
-    return render_template("cv.html", cv_data=cv_data)
+
+    # Build template variables
+    cv_filename = cv_data.get("filename") if cv_data else None
+    skills = cv_data.get("skills", []) if cv_data else []
+    completeness = min(100, len(skills) * 5 + (50 if cv_data else 0)) if cv_data else 0
+
+    cv_sections = [
+        {"name": "Contact Information", "status": "complete" if cv_data else "missing", "percentage": 100 if cv_data else 0},
+        {"name": "Professional Summary", "status": "complete" if cv_data else "missing", "percentage": 100 if cv_data else 0},
+        {"name": "Work Experience", "status": "complete" if cv_data else "missing", "percentage": 100 if cv_data else 0},
+        {"name": "Education", "status": "partial" if cv_data else "missing", "percentage": 75 if cv_data else 0},
+        {"name": "Skills", "status": "complete" if len(skills) >= 5 else ("partial" if skills else "missing"), "percentage": min(100, len(skills) * 10)},
+        {"name": "Certifications", "status": "missing", "percentage": 0},
+        {"name": "Projects", "status": "partial" if cv_data else "missing", "percentage": 50 if cv_data else 0},
+    ]
+
+    # Count skill frequencies from DB
+    conn = get_connection()
+    cursor = conn.cursor()
+    skill_freq = {}
+    for sk in skills:
+        cursor.execute("SELECT COUNT(*) FROM job_listings WHERE LOWER(job_description) LIKE ?", (f"%{sk.lower()}%",))
+        skill_freq[sk] = cursor.fetchone()[0]
+    max_freq = max(skill_freq.values()) if skill_freq else 1
+
+    extracted_skills = [{"name": sk, "in_cv": True, "frequency": skill_freq.get(sk, 0), "pct": round(skill_freq.get(sk, 0) / max(max_freq, 1) * 100)} for sk in skills[:8]]
+
+    # Skill gaps: common skills NOT in cv
+    common_skills = ["System Design", "Leadership", "Kubernetes", "Machine Learning", "Docker", "AWS", "GraphQL", "Go", "Rust"]
+    skill_lower = [s.lower() for s in skills]
+    skill_gaps = []
+    for sk in common_skills:
+        if sk.lower() not in skill_lower:
+            cursor.execute("SELECT COUNT(*) FROM job_listings WHERE LOWER(job_description) LIKE ?", (f"%{sk.lower()}%",))
+            cnt = cursor.fetchone()[0]
+            if cnt > 0:
+                skill_gaps.append({"skill": sk, "demand_count": cnt})
+    skill_gaps.sort(key=lambda x: -x["demand_count"])
+    skill_gaps = skill_gaps[:4]
+    conn.close()
+
+    top_keywords = skills[:14]
+
+    return render_template("cv.html",
+        cv_data=cv_data,
+        cv_filename=cv_filename,
+        completeness=completeness,
+        cv_sections=cv_sections,
+        extracted_skills=extracted_skills,
+        skill_gaps=skill_gaps,
+        top_keywords=top_keywords,
+    )
 
 
 @app.route("/api/cv/upload", methods=["POST"])
