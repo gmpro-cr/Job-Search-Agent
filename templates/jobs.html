@@ -279,8 +279,8 @@
       const portal = job.portal || '';
       const date = job.date_found ? timeAgo(job.date_found) : '';
 
-      return `<div class="card" style="cursor:pointer;transition:box-shadow .15s;" onclick="openJob('${job.job_id}')"
-        onmouseenter="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)'" onmouseleave="this.style.boxShadow=''">
+      return `<div class="card card-interactive" onclick="openJob('${job.job_id}')" tabindex="0"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openJob('${job.job_id}');}">
         <div class="card-content" style="padding:1rem;">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">
             <div style="display:flex;gap:.75rem;flex:1;min-width:0;">
