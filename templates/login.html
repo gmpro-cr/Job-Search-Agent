@@ -3,123 +3,135 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign in &mdash; Job Search Agent</title>
+  <title>Sign in — Job Search Agent</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   <style>
-    /* Login is a chrome-less page — no sidebar, no topbar. Give it its own
-       layout so we can use the design tokens without inheriting layout. */
+    /* Login is chrome-less. Its own layout so we can use design tokens
+       without inheriting the app frame. */
     body {
       min-height: 100vh;
       background: var(--background);
-      /* Subtle gradient mesh — paper colour with a single warm wash that
-         catches the eye toward the form. */
       background-image:
-        radial-gradient(at 18% 110%, rgba(156,74,44,0.10), transparent 55%),
-        radial-gradient(at 92% 6%,  rgba(13,13,20,0.06),  transparent 50%);
+        radial-gradient(at 14% 105%, rgba(0,102,255,0.13), transparent 55%),
+        radial-gradient(at 92% 5%, rgba(10,10,12,0.06), transparent 55%);
       display: grid;
       grid-template-columns: 1fr;
       align-items: stretch;
     }
-    @media (min-width: 900px) {
-      body { grid-template-columns: 1.05fr 0.95fr; }
+    @media (min-width: 960px) {
+      body { grid-template-columns: 1.15fr 1fr; }
     }
 
     .login-stage {
       padding: clamp(2rem, 5vw, 4.5rem);
       display: flex;
       flex-direction: column;
-      gap: 2rem;
+      gap: 2.25rem;
       position: relative;
       overflow: hidden;
+      min-height: 100vh;
     }
     .login-stage::before {
-      /* faint grid texture — feels like ruled-paper without being heavy */
       content: "";
       position: absolute; inset: 0;
       background-image:
-        linear-gradient(to right, rgba(13,13,20,0.035) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(13,13,20,0.035) 1px, transparent 1px);
-      background-size: 56px 56px;
-      mask-image: linear-gradient(180deg, transparent, #000 40%, #000 80%, transparent);
+        radial-gradient(circle at center, rgba(10,10,12,0.18) 1px, transparent 1px);
+      background-size: 26px 26px;
+      mask-image: radial-gradient(ellipse at 30% 55%, #000 0%, transparent 70%);
+      opacity: 0.55;
       pointer-events: none;
     }
+    .login-stage > * { position: relative; z-index: 1; }
+
     .login-wordmark {
-      font-family: var(--font-serif);
-      font-size: 1.0625rem;
-      font-weight: 500;
-      letter-spacing: -0.012em;
-      font-style: italic;
-      font-variation-settings: "opsz" 24, "SOFT" 60;
-      position: relative;
-      z-index: 1;
-    }
-    .login-wordmark::after {
-      content: " — Agent";
+      display: inline-flex; align-items: center; gap: 0.625rem;
       font-family: var(--font-sans);
-      font-style: normal;
-      font-weight: 600;
-      font-size: 0.625rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--accent-warm);
-      margin-left: 0.5rem;
+    }
+    .login-wordmark .dot {
+      width: 1.625rem;
+      height: 1.625rem;
+      border-radius: var(--radius-sm);
+      background: var(--primary);
+      color: var(--primary-foreground);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      position: relative;
+    }
+    .login-wordmark .dot::after {
+      content: ""; position: absolute;
+      width: 0.375rem; height: 0.375rem;
+      background: var(--accent); border-radius: 999px;
+      bottom: -2px; right: -2px;
+      border: 2px solid var(--background);
+    }
+    .login-wordmark .name {
+      font-weight: 600; letter-spacing: -0.012em; font-size: 0.9375rem;
+    }
+    .login-wordmark .badge {
+      font-size: 0.5625rem; font-weight: 700; letter-spacing: 0.2em;
+      text-transform: uppercase; color: var(--muted-foreground);
+      padding: 0.125rem 0.375rem; border: 1px solid var(--border);
+      border-radius: 999px; margin-left: 0.375rem;
     }
 
     .login-headline {
-      position: relative;
-      z-index: 1;
-      max-width: 28ch;
+      max-width: 26ch;
       margin-top: auto;
     }
     .login-headline .eyebrow { margin-bottom: 1.25rem; }
     .login-headline h1 {
-      font-family: var(--font-serif);
-      font-weight: 400;
-      font-size: clamp(2.25rem, 5vw, 3.5rem);
-      line-height: 1.05;
-      letter-spacing: -0.022em;
-      font-variation-settings: "opsz" 144, "SOFT" 30;
-      margin: 0 0 1rem;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: clamp(2.5rem, 5.5vw, 4rem);
+      line-height: 0.98;
+      letter-spacing: -0.04em;
+      margin: 0 0 1.25rem;
+      color: var(--foreground);
     }
     .login-headline h1 em {
-      font-style: italic;
-      color: var(--accent-warm);
+      font-style: normal;
+      color: var(--accent);
+      padding-bottom: 4px;
+      background-image: linear-gradient(var(--accent), var(--accent));
+      background-repeat: no-repeat;
+      background-position: 0 100%;
+      background-size: 0 3px;
+      animation: sweep 0.9s var(--ease-out-soft) 0.7s forwards;
     }
+    @keyframes sweep { to { background-size: 100% 3px; } }
     .login-lede {
-      font-family: var(--font-sans);
-      color: var(--muted-foreground);
-      font-size: 1rem;
+      font-size: 1.0625rem;
       line-height: 1.55;
+      color: var(--muted-foreground);
       max-width: 38ch;
       margin: 0;
     }
 
     .login-footnotes {
-      position: relative;
-      z-index: 1;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 1.5rem;
       margin-top: 2rem;
+      padding-top: 1.75rem;
+      border-top: 1px solid var(--border);
     }
     .footnote .footnote-num {
-      font-family: var(--font-serif);
-      font-weight: 400;
-      font-size: 1.625rem;
-      letter-spacing: -0.02em;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 1.875rem;
+      letter-spacing: -0.035em;
       color: var(--foreground);
-      line-height: 1;
-      display: block;
-      margin-bottom: 0.375rem;
-      font-variation-settings: "opsz" 96, "SOFT" 30;
+      line-height: 1; display: block;
+      margin-bottom: 0.5rem;
+      font-variant-numeric: tabular-nums;
     }
-    .footnote .footnote-num em { color: var(--accent-warm); font-style: italic; }
+    .footnote .footnote-num em { color: var(--accent); font-style: normal; }
     .footnote .footnote-label {
       font-family: var(--font-sans);
-      font-size: 0.6875rem;
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
+      font-size: 0.6875rem; font-weight: 600;
+      letter-spacing: 0.14em; text-transform: uppercase;
       color: var(--muted-foreground);
     }
 
@@ -127,25 +139,23 @@
       background: var(--card);
       border-left: 1px solid var(--border);
       padding: clamp(2rem, 5vw, 4.5rem);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
+      display: flex; flex-direction: column; justify-content: center;
       align-items: center;
+      position: relative;
     }
-    @media (max-width: 899px) {
+    @media (max-width: 959px) {
       .login-panel { border-left: none; border-top: 1px solid var(--border); }
     }
     .login-form { width: 100%; max-width: 22rem; }
     .login-form h2 {
-      font-family: var(--font-serif);
-      font-weight: 400;
+      font-family: var(--font-sans);
+      font-weight: 600;
       font-size: 1.625rem;
-      letter-spacing: -0.015em;
+      letter-spacing: -0.025em;
       margin: 0 0 0.5rem;
-      font-variation-settings: "opsz" 36, "SOFT" 50;
+      color: var(--foreground);
     }
     .login-form p {
-      font-family: var(--font-sans);
       color: var(--muted-foreground);
       font-size: 0.9375rem;
       margin: 0 0 2rem;
@@ -153,34 +163,35 @@
 
     .login-cta {
       width: 100%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+      display: inline-flex; align-items: center; justify-content: center;
       gap: 0.625rem;
-      padding: 0.75rem 1rem;
-      border-radius: calc(var(--radius) - 2px);
+      padding: 0.875rem 1rem;
+      border-radius: var(--radius);
       font-size: 0.9375rem;
       font-weight: 500;
       cursor: pointer;
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-strong);
       background: var(--card);
       color: var(--foreground);
       text-decoration: none;
-      transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+      transition: border-color var(--duration-snap) var(--ease-out-snappy),
+                  background var(--duration-snap) var(--ease-out-snappy),
+                  transform var(--duration-snap) var(--ease-out-snappy);
       font-family: var(--font-sans);
     }
     .login-cta:hover {
-      border-color: var(--border-strong);
-      background: var(--muted);
+      border-color: var(--foreground);
+      transform: translateY(-1px);
     }
+    .login-cta:active { transform: translateY(0); }
     .login-cta-primary {
-      background: var(--primary);
-      color: var(--primary-foreground);
-      border-color: var(--primary);
+      background: var(--accent);
+      color: var(--accent-foreground);
+      border-color: var(--accent);
     }
     .login-cta-primary:hover {
-      background: #1a1a2e;
-      border-color: #1a1a2e;
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
     }
     .login-cta:focus-visible {
       outline: none;
@@ -188,52 +199,42 @@
     }
 
     .login-divider {
-      display: flex;
-      align-items: center;
-      gap: 0.875rem;
-      margin: 1.25rem 0;
-      font-family: var(--font-sans);
-      font-size: 0.6875rem;
-      font-weight: 600;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
+      display: flex; align-items: center; gap: 0.875rem; margin: 1.25rem 0;
+      font-size: 0.6875rem; font-weight: 600;
+      letter-spacing: 0.18em; text-transform: uppercase;
       color: var(--muted-foreground);
     }
     .login-divider::before,
     .login-divider::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: var(--border);
+      content: ""; flex: 1; height: 1px; background: var(--border);
     }
-
     .login-note {
-      font-family: var(--font-sans);
-      font-size: 0.75rem;
-      color: var(--muted-foreground);
-      line-height: 1.55;
-      text-align: center;
-      margin-top: 1.25rem;
+      font-size: 0.75rem; color: var(--muted-foreground);
+      line-height: 1.55; text-align: center; margin-top: 1.25rem;
     }
 
-    /* Staggered reveal — single orchestrated entrance, no jitter. */
-    .seq { opacity: 0; transform: translateY(8px); animation: seq-up 0.6s cubic-bezier(0.2,0,0.1,1) forwards; }
+    /* Staggered reveal — same .stagger system as the rest of the app. */
+    .seq { opacity: 0; transform: translateY(10px); animation: seq-up 0.65s var(--ease-out-soft) forwards; }
     .seq-1 { animation-delay: 0.05s; }
     .seq-2 { animation-delay: 0.18s; }
     .seq-3 { animation-delay: 0.32s; }
-    .seq-4 { animation-delay: 0.46s; }
-    .seq-5 { animation-delay: 0.6s; }
+    .seq-4 { animation-delay: 0.5s; }
+    .seq-5 { animation-delay: 0.7s; }
     @keyframes seq-up { to { opacity: 1; transform: translateY(0); } }
     @media (prefers-reduced-motion: reduce) {
       .seq { opacity: 1; transform: none; animation: none; }
+      .login-headline h1 em { background-size: 100% 3px !important; animation: none; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Editorial side -->
   <div class="login-stage">
-    <div class="login-wordmark seq seq-1">Job Search</div>
+    <div class="login-wordmark seq seq-1">
+      <span class="dot">JS</span>
+      <span class="name">Job Search</span>
+      <span class="badge">Agent</span>
+    </div>
 
     <div class="login-headline">
       <span class="eyebrow seq seq-2">Quietly working in the background</span>
@@ -242,8 +243,8 @@
         <em>without the noise.</em>
       </h1>
       <p class="login-lede seq seq-4">
-        Six portals scraped daily. Every listing scored against your CV.
-        Only the matches that actually look like you, surfaced in one place.
+        Six portals scraped twice a day. Every listing scored against your CV.
+        Only the matches that look like you, surfaced in one place.
       </p>
     </div>
 
@@ -253,7 +254,7 @@
         <span class="footnote-label">Live portals</span>
       </div>
       <div class="footnote">
-        <span class="footnote-num"><em>15k</em></span>
+        <span class="footnote-num"><em>15K</em></span>
         <span class="footnote-label">Roles tracked</span>
       </div>
       <div class="footnote">
@@ -263,7 +264,6 @@
     </div>
   </div>
 
-  <!-- Auth panel -->
   <div class="login-panel">
     <div class="login-form seq seq-3">
       <h2>Welcome back.</h2>
@@ -292,9 +292,7 @@
       <div class="login-divider">or</div>
 
       <form action="{{ url_for('auth_demo') }}" method="POST" style="margin:0;">
-        <button type="submit" class="login-cta">
-          Continue as Demo
-        </button>
+        <button type="submit" class="login-cta">Continue as Demo</button>
       </form>
 
       <p class="login-note">

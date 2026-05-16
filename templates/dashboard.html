@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — Job Search Agent{% endblock %}
+{% block page_body_class %}is-airy{% endblock %}
 
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -117,31 +118,30 @@
 <!-- ─── DASHBOARD ─── -->
 <div id="dashboard-content" {% if not cv_uploaded %}style="display:none"{% endif %}>
 
-  <!-- Header -->
-  <header class="page-header">
-    <div class="page-header-row">
-      <div style="flex:1;min-width:0;">
-        <span class="eyebrow">{{ stats.jobs_today or 0 }} new today · {{ stats.jobs_this_week or 0 }} this week</span>
-        <h1>Your job search, this morning.</h1>
-        <p class="page-lede">A quiet desk for tracking opportunities, hiring contacts, and CV-scored matches across portals.</p>
-      </div>
-      <div class="flex gap-2" style="margin-top:.25rem;">
-        <a href="{{ url_for('jobs') }}" class="btn btn-outline btn-sm">
-          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-          View Jobs
-        </a>
-        <a href="{{ url_for('scraper') }}" class="btn btn-default btn-sm">
-          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          Run Scraper
-        </a>
-      </div>
+  <!-- Hero: greeting + tagline + sweep-underlined em-italic accent -->
+  <header class="dash-hero">
+    <span class="eyebrow">{{ stats.jobs_today or 0 }} new today · {{ stats.jobs_this_week or 0 }} this week</span>
+    <h1 class="display reveal-on-scroll">
+      Good morning, <em class="underline-sweep">{{ session.user.name.split(' ')[0] if session.user and session.user.name else 'friend' }}</em>.<br>
+      Here's what's worth your time.
+    </h1>
+    <p class="page-lede reveal-on-scroll">A quiet desk for the role hunt &mdash; matches scored against your CV, contacts ready to reach out to, and a digest waiting in your inbox.</p>
+    <div class="dash-hero-actions">
+      <a href="{{ url_for('jobs') }}" class="btn btn-accent magnetic" data-magnetic-strength="0.22">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+        Browse Jobs
+      </a>
+      <a href="{{ url_for('scraper') }}" class="btn btn-outline">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Run Scraper
+      </a>
     </div>
   </header>
 
-  <!-- KPI cards: 4 columns -->
-  <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <!-- KPI tiles — counters animate from 0 on intersection -->
+  <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 stagger">
 
-    <div class="card stat-card">
+    <div class="card stat-card" style="--i:0">
       <div class="card-header">
         <div class="card-header-row">
           <span class="card-title">Total Jobs</span>
@@ -149,12 +149,12 @@
         </div>
       </div>
       <div class="card-content pt-0">
-        <div class="stat-value" id="kpiTotal">—</div>
-        <p class="stat-change"><span class="positive" id="kpiTotalChange"></span> in the database</p>
+        <div class="stat-value tabular" id="kpiTotal" data-count-to="{{ stats.total_jobs or 0 }}">0</div>
+        <p class="stat-change"><span id="kpiTotalChange">across the database</span></p>
       </div>
     </div>
 
-    <div class="card stat-card">
+    <div class="card stat-card" style="--i:1">
       <div class="card-header">
         <div class="card-header-row">
           <span class="card-title">Jobs Today</span>
@@ -162,12 +162,12 @@
         </div>
       </div>
       <div class="card-content pt-0">
-        <div class="stat-value" id="kpiToday">—</div>
+        <div class="stat-value tabular" id="kpiToday" data-count-to="{{ stats.jobs_today or 0 }}">0</div>
         <p class="stat-change">from today's scrape</p>
       </div>
     </div>
 
-    <div class="card stat-card">
+    <div class="card stat-card" style="--i:2">
       <div class="card-header">
         <div class="card-header-row">
           <span class="card-title">Avg CV Match</span>
@@ -175,12 +175,12 @@
         </div>
       </div>
       <div class="card-content pt-0">
-        <div class="stat-value" id="kpiAvg">—</div>
+        <div class="stat-value tabular" id="kpiAvg" data-count-to="{{ insights.avg_cv_this_week or 0 }}" data-count-decimals="1" data-count-suffix="%">0%</div>
         <p class="stat-change">across matched jobs</p>
       </div>
     </div>
 
-    <div class="card stat-card">
+    <div class="card stat-card" style="--i:3">
       <div class="card-header">
         <div class="card-header-row">
           <span class="card-title">High Matches</span>
@@ -188,8 +188,8 @@
         </div>
       </div>
       <div class="card-content pt-0">
-        <div class="stat-value" id="kpiHigh">—</div>
-        <p class="stat-change">score ≥ 75</p>
+        <div class="stat-value tabular" id="kpiHigh" data-count-to="{{ insights.unopened_high_score or 0 }}">0</div>
+        <p class="stat-change">score &ge; 75 · unopened</p>
       </div>
     </div>
 

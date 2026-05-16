@@ -4,9 +4,17 @@
 {% block content %}
 <div class="space-y-6">
   <header class="page-header">
-    <span class="eyebrow">Live database</span>
-    <h1>Every role we've found for you.</h1>
-    <p class="page-lede">Filter, sort, and act on the freshest matches across all the portals we watch.</p>
+    <div class="page-header-row">
+      <div style="flex:1;min-width:0;">
+        <span class="eyebrow">Live database</span>
+        <h1>Every role we've found for you.</h1>
+        <p class="page-lede">Filter, sort, and act on the freshest matches across all the portals we watch.</p>
+      </div>
+      <div class="jobs-count-display">
+        <div class="stat-figure tabular" id="jobs-count-figure" data-count-to="0">0</div>
+        <div class="stat-label">Showing</div>
+      </div>
+    </div>
   </header>
 
   <!-- Search + Sort -->
@@ -28,10 +36,10 @@
   </div>
 
   <!-- 3-col grid: filters | job list (2 cols) -->
-  <div style="display:grid;grid-template-columns:240px 1fr;gap:1.5rem;align-items:start;">
+  <div class="jobs-grid">
 
-    <!-- Filters -->
-    <div class="card">
+    <!-- Filters (sticky) -->
+    <div class="card jobs-filter-rail">
       <div class="card-header">
         <div class="card-title" style="display:flex;align-items:center;gap:.5rem;">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
@@ -261,6 +269,8 @@
     const list = document.getElementById('jobs-list');
     const empty = document.getElementById('jobs-empty');
     const count = document.getElementById('jobs-count');
+    const figure = document.getElementById('jobs-count-figure');
+    if (figure) figure.textContent = jobs.length;
 
     if (jobs.length === 0) {
       list.innerHTML = '';

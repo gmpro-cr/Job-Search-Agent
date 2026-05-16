@@ -22,8 +22,9 @@
   <!-- ── Sidebar ── -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
+      <span class="sidebar-logo-dot">JS</span>
       <span class="sidebar-logo">Job Search</span>
-      <span class="sidebar-logo-mark">— Agent</span>
+      <span class="sidebar-logo-mark">Agent</span>
     </div>
 
     <nav class="sidebar-nav">
@@ -138,7 +139,7 @@
     {% endwith %}
 
     <!-- Page content -->
-    <div class="page-body">
+    <div class="page-body {% block page_body_class %}{% endblock %}">
       {% block content %}{% endblock %}
     </div>
 
@@ -166,6 +167,7 @@
 
 </div><!-- /layout -->
 
+<script src="{{ url_for('static', filename='js/motion.js') }}" defer></script>
 <script>
   // Single burger button drives both behaviours:
   //   • Mobile  (≤767px): toggles a transient `.open` class on the sidebar.

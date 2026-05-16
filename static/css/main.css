@@ -1,68 +1,83 @@
 /* ============================================================
    Job Search Agent — Design System
-   Direction: editorial workspace, a job hunter's quiet study
-   Display: Fraunces (variable serif)  |  Body: Outfit (sans)
-   Accent: warm clay against near-black + paper white
+   Direction: Light paper · quiet & precise · single Inter family
+   Accent: one electric blue used in disciplined doses
+   Motion: layered defaults + view transitions + scroll reveals
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:opsz,wght,SOFT@9..144,300..700,0..100&display=swap');
+@import url('https://rsms.me/inter/inter.css');
 
 /* ── CSS Variables ── */
 :root {
   --font-size: 16px;
 
-  /* Surfaces */
-  --background: #fafaf7;        /* warm paper — a hair off pure white */
-  --foreground: #0d0d14;
+  /* Surfaces — warm off-white with a true white card */
+  --background: #fafaf7;
+  --foreground: #0a0a0c;
   --card: #ffffff;
-  --card-foreground: #0d0d14;
+  --card-foreground: #0a0a0c;
 
-  /* Brand */
-  --primary: #030213;
+  /* Brand — near-black */
+  --primary: #0a0a0c;
   --primary-foreground: #ffffff;
-  --secondary: #f0f0f8;
-  --secondary-foreground: #030213;
+  --secondary: #f3f3f1;
+  --secondary-foreground: #0a0a0c;
 
   /* Greys */
-  --muted: #ececf0;
-  --muted-foreground: #6b6b78;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
+  --muted: #f0f0ee;
+  --muted-foreground: #696970;
+  --muted-strong: #3f3f48;
 
-  /* Warm clay accent — the one colour used for active state, key
-     numbers, the eyebrow rule. Used sparingly. */
-  --accent-warm: #9c4a2c;
-  --accent-warm-soft: #e8d4c8;
-  --accent-warm-foreground: #ffffff;
+  /* Single accent — electric blue. Used for active state, primary CTA,
+     focus rings, key numbers, the eyebrow rule. */
+  --accent: #0066ff;
+  --accent-foreground: #ffffff;
+  --accent-soft: #e8f0ff;        /* tinted hover surface */
+  --accent-hover: #0052cc;
 
   /* Feedback */
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
+  --success: #1f7a3a;
+  --warning: #b25a00;
 
   /* Borders / inputs */
-  --border: rgba(0,0,0,0.09);
-  --border-strong: rgba(0,0,0,0.18);
-  --input-bg: #f3f3f0;
-  --ring: rgba(156,74,44,0.28);
+  --border: rgba(10,10,12,0.08);
+  --border-strong: rgba(10,10,12,0.16);
+  --input-bg: #ffffff;
+  --ring: rgba(0,102,255,0.28);
 
-  /* Geometry */
-  --radius: 0.625rem;
-  --radius-sm: 0.375rem;
+  /* Geometry — tighter radii feel more precise */
+  --radius: 0.5rem;
+  --radius-sm: 0.3125rem;
+  --radius-lg: 0.875rem;
 
   /* Sidebar */
-  --sidebar: #f4f3ee;          /* warmer than #f9f9fb, hints at paper */
-  --sidebar-foreground: #0d0d14;
-  --sidebar-primary: #030213;
+  --sidebar: #f4f4f0;
+  --sidebar-foreground: #0a0a0c;
+  --sidebar-primary: #0a0a0c;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ebeae3;
-  --sidebar-accent-foreground: #1f1f28;
-  --sidebar-border: #e3e1d8;
-  --sidebar-muted: #6b6b78;
+  --sidebar-accent: #e9e9e4;
+  --sidebar-accent-foreground: #0a0a0c;
+  --sidebar-border: #e3e3dc;
+  --sidebar-muted: #696970;
 
-  /* Type stacks */
-  --font-sans: 'Outfit', system-ui, -apple-system, sans-serif;
-  --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace;
+  /* Type stacks — Inter only; mono kept for any technical data we
+     want to differentiate (timestamps, IDs, the user-chip email). */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, monospace;
+
+  /* Motion */
+  --ease-out-snappy: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-snap: 0.18s;
+  --duration-glide: 0.32s;
+}
+
+/* Inter variable-font opt-in (rsms.me's stylesheet handles this when the
+   browser supports it) — gives access to the optical-size / weight axes. */
+@supports (font-variation-settings: normal) {
+  :root { --font-sans: 'InterVariable', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
 }
 
 /* ── Reset ── */
@@ -78,8 +93,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-feature-settings: "ss01", "cv11";
+  /* Inter feature flags: contextual alternates, single-storey 'a', tabular numbers
+     turned on in scoped contexts. cv11 = single-storey 'a' for a cleaner display. */
+  font-feature-settings: "cv11", "ss01", "calt";
+  font-synthesis: none;
 }
+/* Tabular nums for any element that displays numbers — KPIs, tables, badges. */
+.tabular { font-variant-numeric: tabular-nums; }
 
 /* ── Layout ── */
 .layout { display: flex; min-height: 100vh; }
@@ -101,29 +121,56 @@ body {
 }
 
 .sidebar-header {
-  padding: 1.75rem 1.125rem 1.5rem;
+  padding: 1.5rem 1.125rem 1.25rem;
   display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.625rem;
 }
 
+.sidebar-logo-dot {
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  position: relative;
+}
+.sidebar-logo-dot::after {
+  content: "";
+  position: absolute;
+  width: 0.375rem;
+  height: 0.375rem;
+  background: var(--accent);
+  border-radius: 999px;
+  bottom: -2px;
+  right: -2px;
+  border: 2px solid var(--sidebar);
+}
 .sidebar-logo {
-  font-family: var(--font-serif);
-  font-size: 1.25rem;
-  font-weight: 500;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.012em;
   color: var(--sidebar-foreground);
-  letter-spacing: -0.015em;
-  font-variation-settings: "opsz" 24, "SOFT" 60;
-  font-style: italic;        /* the one designed flourish — Fraunces italic */
 }
 .sidebar-logo-mark {
   font-family: var(--font-sans);
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--accent-warm);
-  margin-left: 0.25rem;
+  color: var(--muted-foreground);
+  margin-left: 0.375rem;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
 }
 
 .sidebar-nav { flex: 1; padding: 0 0.625rem 1rem; }
@@ -160,16 +207,10 @@ body {
   color: var(--sidebar-accent-foreground);
 }
 
-/* Active item gets a left clay-accent bar + bold weight on a subtle
-   warm-tinted surface. Hover keeps the cooler accent so the two
-   states are clearly distinct. */
+/* Active item: electric-blue left rule + bold weight on a soft blue tint. */
 .sidebar-link.active {
-  background: linear-gradient(
-    90deg,
-    rgba(156, 74, 44, 0.10) 0%,
-    rgba(156, 74, 44, 0.04) 100%
-  );
-  color: var(--foreground);
+  background: var(--accent-soft);
+  color: var(--accent);
   font-weight: 600;
 }
 .sidebar-link.active::before {
@@ -180,7 +221,7 @@ body {
   bottom: 7px;
   width: 3px;
   border-radius: 0 2px 2px 0;
-  background: var(--accent-warm);
+  background: var(--accent);
 }
 
 .sidebar-link svg {
@@ -190,7 +231,7 @@ body {
   transition: opacity 0.15s ease, color 0.15s ease;
 }
 .sidebar-link:hover svg { opacity: 1; }
-.sidebar-link.active svg { opacity: 1; color: var(--accent-warm); }
+.sidebar-link.active svg { opacity: 1; color: var(--accent); }
 
 /* ── Main content ── */
 .main-content {
@@ -227,26 +268,26 @@ body.sidebar-collapsed .main-content { margin-left: 0; }
   box-shadow: 0 1px 0 var(--border);
 }
 .topbar-title {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: 1rem;
-  letter-spacing: -0.005em;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: -0.01em;
   color: var(--foreground);
-  font-variation-settings: "opsz" 14, "SOFT" 50;
 }
 .topbar-spacer { flex: 1; }
 .user-chip {
   display: inline-flex;
   align-items: center;
   gap: 0.625rem;
-  padding: 0.3125rem 0.75rem 0.3125rem 0.3125rem;
+  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--card);
   font-size: 0.8125rem;
   color: var(--foreground);
   text-decoration: none;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color var(--duration-snap) var(--ease-out-snappy),
+              background var(--duration-snap) var(--ease-out-snappy);
 }
 .user-chip:hover {
   border-color: var(--border-strong);
@@ -256,15 +297,14 @@ body.sidebar-collapsed .main-content { margin-left: 0; }
   width: 1.625rem;
   height: 1.625rem;
   border-radius: 999px;
-  background: var(--accent-warm);
-  color: var(--accent-warm-foreground);
+  background: var(--accent);
+  color: var(--accent-foreground);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
   font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0;
   flex-shrink: 0;
 }
 .user-chip-email {
@@ -281,103 +321,285 @@ body.sidebar-collapsed .main-content { margin-left: 0; }
 }
 
 .page-body {
-  padding: 1.5rem;
+  padding: 1.75rem 2rem;
   flex: 1;
-  /* Belt-and-braces — clip any stray horizontal overflow inside a single
-     wide element (e.g. a non-wrapping job title) instead of stretching the
-     page. Tables that genuinely need to scroll wrap themselves in their
-     own overflow:auto container. */
   min-width: 0;
   overflow-x: hidden;
-  /* Subtle entrance — refines the navigation feel without delaying first paint. */
-  animation: page-rise 220ms cubic-bezier(0.2, 0, 0.1, 1) both;
+  animation: page-rise 320ms var(--ease-out-soft) both;
+}
+/* Hybrid density: airy pages get a centered max-width column. */
+.page-body.is-airy {
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 2.5rem clamp(1.5rem, 4vw, 3rem);
+}
+
+/* ─── Dashboard hero ─────────────────────────────────────────────
+   Editorial hero used at the top of the dashboard. Big greeting,
+   electric-blue em-italic accent that sweeps in an underline as it
+   reveals, eyebrow above for context, two CTAs below. */
+.dash-hero {
+  padding: 2.5rem 0 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2.5rem;
+  position: relative;
+}
+.dash-hero h1 { margin: 0; max-width: 26ch; }
+.dash-hero h1 em {
+  font-style: normal;
+  color: var(--accent);
+  position: relative;
+  padding-bottom: 2px;
+}
+.dash-hero .page-lede { max-width: 56ch; margin: 0; }
+.dash-hero-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+.dash-hero::after {
+  /* Ambient blue glow lower-right — drama without noise. */
+  content: "";
+  position: absolute;
+  right: -120px; bottom: -80px;
+  width: 320px; height: 320px;
+  background: radial-gradient(circle, rgba(0,102,255,0.10), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+.dash-hero > * { position: relative; z-index: 1; }
+
+/* ─── Jobs page (dense) ────────────────────────────────────────── */
+.jobs-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1.75rem;
+  align-items: start;
+}
+@media (max-width: 960px) {
+  .jobs-grid { grid-template-columns: 1fr; }
+}
+.jobs-filter-rail {
+  position: sticky;
+  top: calc(60px + 1.25rem);
+  /* topbar height (60) + breathing room. */
+  align-self: start;
+}
+.jobs-count-display {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  padding-left: 1.5rem;
+  border-left: 1px solid var(--border);
+}
+@media (max-width: 760px) {
+  .jobs-count-display {
+    align-items: flex-start;
+    border-left: none;
+    padding-left: 0;
+  }
 }
 
 @keyframes page-rise {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .page-body { animation: none; }
+
+/* ──────────────────────────────────────────────────────────────
+   MOTION SYSTEM
+   ──────────────────────────────────────────────────────────────
+   Five primitives, all CSS-only (animations) or progressive JS:
+
+     .reveal-on-scroll   — IntersectionObserver toggles .is-visible
+     .stagger > *        — apply --i index for staggered reveal
+     .count-up           — JS counts data-target from 0 to value
+     .magnetic           — JS translates element toward cursor
+     .skeleton-shimmer   — pulsing loading state
+*/
+
+/* Reveal on scroll — initially hidden, becomes visible when intersecting. */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.5s var(--ease-out-soft), transform 0.6s var(--ease-out-soft);
+  will-change: opacity, transform;
+}
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
-/* ── Typography ── */
-/* Headings render in the serif display face — that's the brand voice.
-   Optical sizes through Fraunces' opsz axis tighten letters at display
-   sizes without lifting weight. SOFT axis keeps terminals soft / not
-   too contrast-y on a paper background. */
+/* Staggered reveal — set --i on each child via inline style or :nth-child. */
+.stagger > * {
+  animation: stagger-in 0.55s var(--ease-out-soft) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+@keyframes stagger-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Skeleton shimmer for loading states. */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 0%,
+    var(--secondary) 50%,
+    var(--muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s linear infinite;
+  border-radius: var(--radius-sm);
+  color: transparent;
+  user-select: none;
+}
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* Number-with-underline reveal. Used on display em-italics. */
+.underline-sweep {
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0 2px;
+  transition: background-size 0.7s var(--ease-out-soft) 0.4s;
+  padding-bottom: 2px;
+}
+.underline-sweep.is-visible {
+  background-size: 100% 2px;
+}
+
+/* View Transitions — give navigations a smooth crossfade. */
+@view-transition { navigation: auto; }
+::view-transition-old(root) {
+  animation: vt-fade-out 0.18s var(--ease-out-snappy) both;
+}
+::view-transition-new(root) {
+  animation: vt-fade-in 0.32s var(--ease-out-soft) both;
+}
+@keyframes vt-fade-out {
+  to { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes vt-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Sidebar persists across nav — opt out of the transition for it. */
+.sidebar { view-transition-name: sidebar-pane; }
+.topbar  { view-transition-name: topbar-bar; }
+::view-transition-old(sidebar-pane),
+::view-transition-new(sidebar-pane),
+::view-transition-old(topbar-bar),
+::view-transition-new(topbar-bar) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Reduced motion — honour the OS preference everywhere. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal-on-scroll { opacity: 1; transform: none; }
+}
+
+/* ── Typography ── Single Inter family, weight + tracking do the work. */
 h1, h2, h3, h4 {
-  font-family: var(--font-serif);
-  font-feature-settings: "ss01" on, "ss02" on;
+  font-family: var(--font-sans);
+  color: var(--foreground);
+  font-feature-settings: "cv11", "ss01", "calt", "ss02";
 }
 h1 {
-  font-size: 1.875rem;
-  font-weight: 400;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  font-variation-settings: "opsz" 96, "SOFT" 50;
+  font-size: clamp(1.875rem, 3.6vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
 }
 h2 {
   font-size: 1.375rem;
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.2;
-  letter-spacing: -0.012em;
-  font-variation-settings: "opsz" 36, "SOFT" 50;
+  letter-spacing: -0.015em;
 }
 h3 {
-  font-size: 1.0625rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
   line-height: 1.4;
-  letter-spacing: -0.005em;
-  font-variation-settings: "opsz" 14, "SOFT" 50;
+  letter-spacing: -0.008em;
 }
 h4 {
   font-size: 0.9375rem;
   font-weight: 500;
   line-height: 1.5;
-  font-variation-settings: "opsz" 12, "SOFT" 60;
+  letter-spacing: -0.005em;
 }
 
-/* Editorial page-header pattern — eyebrow label + serif headline + thin rule.
-   Use as: <header class="page-header">
-             <span class="eyebrow">Section</span>
-             <h1>Headline</h1>
-             <p class="page-lede">One-line description.</p>
-           </header>                                                          */
+/* Display headline class — used on hero sections / login. Same font, more weight, tighter tracking. */
+.display {
+  font-size: clamp(2.5rem, 5.5vw, 4rem);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+.display em {
+  font-style: normal;
+  color: var(--accent);
+  position: relative;
+}
+
+/* Editorial page-header pattern — eyebrow label + headline + lede.
+   <header class="page-header">
+     <span class="eyebrow">Section</span>
+     <h1>Headline</h1>
+     <p class="page-lede">One-line description.</p>
+   </header> */
 .page-header {
-  margin-bottom: 1.75rem;
-  padding-bottom: 1.25rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: 0.5rem;
 }
 .eyebrow {
   font-family: var(--font-sans);
   font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--accent-warm);
+  color: var(--accent);
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.625rem;
+  font-feature-settings: "cv11";
 }
 .eyebrow::before {
   content: "";
-  width: 1.5rem;
-  height: 1px;
-  background: var(--accent-warm);
+  width: 1.25rem;
+  height: 1.5px;
+  background: var(--accent);
   display: inline-block;
-  opacity: 0.7;
 }
-.page-header h1 { margin: 0; }
+.page-header h1 { margin: 0; max-width: 24ch; }
 .page-lede {
   font-family: var(--font-sans);
-  font-size: 0.9375rem;
+  font-size: 1rem;
   color: var(--muted-foreground);
-  max-width: 60ch;
-  margin: 0;
+  max-width: 56ch;
+  margin: 0.25rem 0 0;
+  line-height: 1.55;
 }
 .page-header-row {
   display: flex;
@@ -387,18 +609,18 @@ h4 {
   flex-wrap: wrap;
 }
 
-/* Editorial stat number — the dashboard's "Today: 47" figure should
-   read like a headline, not a counter. Pair with .stat-label below. */
+/* Display number used on hero KPIs. Inter at heavy weight + tight tracking. */
 .stat-figure {
-  font-family: var(--font-serif);
-  font-weight: 400;
-  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: clamp(2.25rem, 4vw, 3rem);
   line-height: 1;
-  letter-spacing: -0.025em;
-  font-variation-settings: "opsz" 144, "SOFT" 30;
+  letter-spacing: -0.035em;
   color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "ss01";
 }
-.stat-figure-accent { color: var(--accent-warm); }
+.stat-figure-accent { color: var(--accent); }
 .stat-label {
   font-family: var(--font-sans);
   font-size: 0.6875rem;
@@ -486,25 +708,26 @@ h4 {
   color: var(--muted-foreground);
 }
 .stat-value {
-  font-family: var(--font-serif);
-  font-weight: 400;
-  font-size: clamp(2rem, 3.6vw, 2.6rem);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: clamp(2.25rem, 4vw, 3rem);
   line-height: 1;
-  letter-spacing: -0.025em;
-  font-variation-settings: "opsz" 144, "SOFT" 30;
+  letter-spacing: -0.035em;
   color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "ss01";
 }
-/* First stat tile gets the warm accent — singles out the most
+/* First stat tile gets the electric-blue accent — singles out the most
    important number ("Total Jobs") on the dashboard. */
-.stat-card:first-child .stat-value { color: var(--accent-warm); }
+.stat-card:first-child .stat-value { color: var(--accent); }
 .stat-change {
   font-family: var(--font-sans);
   font-size: 0.75rem;
   color: var(--muted-foreground);
   margin-top: 0.5rem;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.005em;
 }
-.stat-change .positive { color: #2f6f3a; }
+.stat-change .positive { color: var(--success); }
 .stat-change .negative { color: var(--destructive); }
 
 /* ── Badge ── */
@@ -553,25 +776,25 @@ h4 {
 }
 
 .btn-default  { background: var(--primary); color: var(--primary-foreground); }
-.btn-default:hover { background: #1a1a2e; }
-.btn-outline  { background: transparent; color: var(--foreground); border: 1px solid var(--border); }
-.btn-outline:hover { background: var(--accent); color: var(--accent-foreground); }
+.btn-default:hover { background: #1f1f24; }
+.btn-outline  { background: transparent; color: var(--foreground); border: 1px solid var(--border-strong); }
+.btn-outline:hover { background: var(--muted); }
 .btn-ghost    { background: transparent; color: var(--foreground); }
-.btn-ghost:hover { background: var(--accent); }
+.btn-ghost:hover { background: var(--muted); }
 .btn-destructive { background: var(--destructive); color: var(--destructive-foreground); }
 .btn-destructive:hover { background: #b01230; }
+.btn-accent   { background: var(--accent); color: var(--accent-foreground); }
+.btn-accent:hover { background: var(--accent-hover); }
 
-/* Legacy aliases — several templates were authored against names that
-   don't exist in this CSS file. Aliasing keeps those pages rendering
-   correctly without a sweep through every template. */
+/* Legacy aliases — templates were authored against names not in this file. */
 .btn-primary           { background: var(--primary); color: var(--primary-foreground); }
-.btn-primary:hover     { background: #1a1a2e; }
+.btn-primary:hover     { background: #1f1f24; }
 .btn-secondary         { background: var(--secondary); color: var(--secondary-foreground); }
-.btn-secondary:hover   { background: var(--accent); }
-.btn-teal              { background: var(--primary); color: var(--primary-foreground); padding: 0.5rem 1rem; border-radius: calc(var(--radius) - 2px); font-weight: 500; font-family: inherit; border: none; cursor: pointer; }
-.btn-teal:hover        { background: #1a1a2e; }
-.gloss-btn-secondary   { background: transparent; color: var(--foreground); border: 1px solid var(--border); padding: 0.5rem 1rem; border-radius: calc(var(--radius) - 2px); font-weight: 500; font-family: inherit; cursor: pointer; }
-.gloss-btn-secondary:hover { background: var(--accent); }
+.btn-secondary:hover   { background: var(--muted); }
+.btn-teal              { background: var(--accent); color: var(--accent-foreground); padding: 0.5rem 1rem; border-radius: calc(var(--radius) - 2px); font-weight: 500; font-family: inherit; border: none; cursor: pointer; }
+.btn-teal:hover        { background: var(--accent-hover); }
+.gloss-btn-secondary   { background: transparent; color: var(--foreground); border: 1px solid var(--border-strong); padding: 0.5rem 1rem; border-radius: calc(var(--radius) - 2px); font-weight: 500; font-family: inherit; cursor: pointer; }
+.gloss-btn-secondary:hover { background: var(--muted); }
 
 .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.875rem; }
 .btn-lg { padding: 0.625rem 1.25rem; font-size: 1rem; }
