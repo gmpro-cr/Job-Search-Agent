@@ -1847,3 +1847,93 @@ def user_state_join_sql(user_id: int):
         "ON ujs.job_id = job_listings.job_id AND ujs.user_id = ?"
     )
     return join_sql, [int(user_id or 0)]
+
+
+# ---------------------------------------------------------------------------
+# Hiring managers — aggregated from outreach_queue + job_listings.poster_*
+# ---------------------------------------------------------------------------
+
+def get_hiring_managers(limit: int = 300) -> list[dict]:
+    """
+    Return distinct hiring managers / job posters with contact details and
+    the latest role/company we associated them with.
+
+    Sources (merged, deduped by lower(name)):
+      * outreach_queue.hiring_manager / hm_email / hm_linkedin
+      * job_listings.poster_name / poster_email / poster_linkedin
+
+    For each person we keep the most-recent non-null linkedin / email and
+    the last role+company we saw them associated with (most recent
+    date_found / created_at). Sorted by `last_seen` descending.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT oq.hiring_manager AS name,
+               oq.hm_email       AS email,
+               oq.hm_linkedin    AS linkedin,
+               oq.company        AS company,
+               oq.role           AS role,
+               oq.created_at     AS seen_at
+        FROM outreach_queue oq
+        WHERE oq.hiring_manager IS NOT NULL AND TRIM(oq.hiring_manager) <> ''
+        """
+    )
+    rows = list(cursor.fetchall())
+
+    cursor.execute(
+        """
+        SELECT j.poster_name     AS name,
+               j.poster_email    AS email,
+               j.poster_linkedin AS linkedin,
+               j.company         AS company,
+               j.role            AS role,
+               j.date_found      AS seen_at
+        FROM job_listings j
+        WHERE j.poster_name IS NOT NULL AND TRIM(j.poster_name) <> ''
+        """
+    )
+    rows.extend(cursor.fetchall())
+    conn.close()
+
+    by_name: dict = {}
+    for r in rows:
+        # psycopg dict_row → dict, sqlite Row → mapping; both support r["..."]
+        name = (r["name"] or "").strip()
+        if not name:
+            continue
+        key = name.lower()
+        seen_at = r["seen_at"] or ""
+        existing = by_name.get(key)
+        candidate = {
+            "name": name,
+            "email": (r["email"] or "").strip() or None,
+            "linkedin": (r["linkedin"] or "").strip() or None,
+            "company": (r["company"] or "").strip() or None,
+            "role": (r["role"] or "").strip() or None,
+            "last_seen": seen_at,
+        }
+        if not existing:
+            by_name[key] = candidate
+            continue
+        # Merge: prefer most recent seen_at for company/role/last_seen,
+        # but keep the earliest-found non-null email/linkedin we already have.
+        if seen_at and seen_at > (existing["last_seen"] or ""):
+            existing["last_seen"] = seen_at
+            existing["company"] = candidate["company"] or existing["company"]
+            existing["role"] = candidate["role"] or existing["role"]
+        existing["email"] = existing["email"] or candidate["email"]
+        existing["linkedin"] = existing["linkedin"] or candidate["linkedin"]
+
+    # Keep only entries we can actually act on — must have at least one of
+    # linkedin / email. The contact-scraper occasionally puts a role title
+    # into poster_name when no real person was found, and a row with no
+    # contact channel is useless in this view.
+    actionable = [
+        d for d in by_name.values()
+        if d["linkedin"] or d["email"]
+    ]
+    actionable.sort(key=lambda d: d["last_seen"] or "", reverse=True)
+    return actionable[: int(limit)]

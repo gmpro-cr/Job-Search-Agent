@@ -1906,6 +1906,19 @@ def scheduler_status():
     return jsonify({"enabled": False, "next_run": None, "next_run_human": None})
 
 
+@app.route("/hiring-managers")
+def hiring_managers():
+    """List distinct hiring managers / job posters with contact details."""
+    from database import get_hiring_managers
+    managers = get_hiring_managers(limit=500)
+    counts = {
+        "total": len(managers),
+        "with_linkedin": sum(1 for m in managers if m["linkedin"]),
+        "with_email": sum(1 for m in managers if m["email"]),
+    }
+    return render_template("hiring_managers.html", managers=managers, counts=counts)
+
+
 @app.route("/digests")
 def digests():
     from digest_generator import list_digests

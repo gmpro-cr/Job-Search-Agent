@@ -8,6 +8,15 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+<!-- Restore the user's last sidebar state before paint so we never flash an
+     expanded sidebar on a page-load where they previously collapsed it. -->
+<script>
+  try {
+    if (localStorage.getItem('sidebarCollapsed') === '1') {
+      document.body.classList.add('sidebar-collapsed');
+    }
+  } catch (e) {}
+</script>
 <div class="layout">
 
   <!-- ── Sidebar ── -->
@@ -62,6 +71,13 @@
           </a>
         </li>
         <li>
+          <a href="{{ url_for('hiring_managers') }}"
+             class="sidebar-link {% if request.endpoint == 'hiring_managers' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            Hiring Managers
+          </a>
+        </li>
+        <li>
           <a href="{{ url_for('autoresearch_page') }}"
              class="sidebar-link {% if request.endpoint == 'autoresearch_page' %}active{% endif %}">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -84,7 +100,7 @@
 
     <!-- Topbar -->
     <div class="topbar">
-      <button class="btn btn-ghost btn-icon-sm mobile-sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
+      <button id="sidebar-toggle" class="btn btn-ghost btn-icon-sm mobile-sidebar-toggle" aria-label="Toggle sidebar" aria-controls="sidebar">
         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
     </div>
@@ -136,6 +152,26 @@
 
 </div><!-- /layout -->
 
+<script>
+  // Single burger button drives both behaviours:
+  //   • Mobile  (≤767px): toggles a transient `.open` class on the sidebar.
+  //   • Desktop (≥768px): toggles `body.sidebar-collapsed`, persisted in
+  //     localStorage so the collapsed state survives navigation.
+  (function () {
+    var btn = document.getElementById('sidebar-toggle');
+    var sidebar = document.getElementById('sidebar');
+    if (!btn || !sidebar) return;
+    var mobileMQ = window.matchMedia('(max-width: 767px)');
+    btn.addEventListener('click', function () {
+      if (mobileMQ.matches) {
+        sidebar.classList.toggle('open');
+      } else {
+        var collapsed = document.body.classList.toggle('sidebar-collapsed');
+        try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
+      }
+    });
+  })();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
