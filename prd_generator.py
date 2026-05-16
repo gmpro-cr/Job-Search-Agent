@@ -1238,6 +1238,46 @@ def _generate_prd_template(product: dict) -> dict:
 # Public API
 # ─────────────────────────────────────────────────────────────────────────────
 
+_BLOB_PRD_PREFIX = "prds/"
+
+
+def _prd_blob_path(date_str: str) -> str:
+    return f"{_BLOB_PRD_PREFIX}prd_{date_str}.json"
+
+
+def _load_prd_cached(date_str: str) -> dict | None:
+    """Return cached PRD for date_str. Prefers Blob; falls back to local FS."""
+    try:
+        import blob_storage as _bs
+        if _bs._use_blob():
+            raw = _bs.get(_prd_blob_path(date_str))
+            if raw:
+                return json.loads(raw)
+    except Exception as e:
+        logger.warning("Blob PRD load failed: %s", e)
+    cache_path = os.path.join(PRD_DIR, f"prd_{date_str}.json")
+    if os.path.exists(cache_path):
+        with open(cache_path) as f:
+            return json.load(f)
+    return None
+
+
+def _store_prd(date_str: str, prd: dict) -> None:
+    """Write PRD to local FS and (best-effort) Blob."""
+    cache_path = os.path.join(PRD_DIR, f"prd_{date_str}.json")
+    try:
+        with open(cache_path, "w") as f:
+            json.dump(prd, f, indent=2)
+    except OSError as e:
+        logger.warning("PRD local write failed for %s: %s", date_str, e)
+    try:
+        import blob_storage as _bs
+        _bs.put(_prd_blob_path(date_str), json.dumps(prd, indent=2),
+                content_type="application/json")
+    except Exception as e:
+        logger.warning("Blob PRD upload failed for %s: %s", date_str, e)
+
+
 def generate_daily_prd(target_date: date | None = None) -> dict:
     """
     Generate (or load cached) PRD for the given date.
@@ -1247,12 +1287,9 @@ def generate_daily_prd(target_date: date | None = None) -> dict:
         target_date = date.today()
 
     date_str = target_date.isoformat()
-    cache_path = os.path.join(PRD_DIR, f"prd_{date_str}.json")
-
-    # Return cached PRD if already generated today
-    if os.path.exists(cache_path):
-        with open(cache_path) as f:
-            return json.load(f)
+    cached = _load_prd_cached(date_str)
+    if cached is not None:
+        return cached
 
     product = _deterministic_product_for_date(target_date)
 
@@ -1275,8 +1312,7 @@ def generate_daily_prd(target_date: date | None = None) -> dict:
         "sections": sections,
     }
 
-    with open(cache_path, "w") as f:
-        json.dump(prd, f, indent=2)
+    _store_prd(date_str, prd)
 
     logger.info("PRD generated for %s: %s (via %s)", date_str, product["name"], generated_by)
     return prd
@@ -1284,23 +1320,60 @@ def generate_daily_prd(target_date: date | None = None) -> dict:
 
 def list_prds() -> list[dict]:
     """Return all saved PRDs sorted newest first (metadata only)."""
-    prds = []
-    for fname in sorted(os.listdir(PRD_DIR), reverse=True):
-        if fname.startswith("prd_") and fname.endswith(".json"):
+    seen: set[str] = set()
+    prds: list[dict] = []
+
+    def _try_add(prd):
+        try:
+            prds.append({
+                "id": prd["id"],
+                "date": prd["date"],
+                "product_name": prd["product"]["name"],
+                "domain": prd["product"]["domain"],
+                "type": prd["product"]["type"],
+                "tagline": prd["product"]["tagline"],
+                "generated_by": prd.get("generated_by", "template"),
+            })
+        except Exception:
+            pass
+
+    # Blob first
+    try:
+        import blob_storage as _bs
+        if _bs._use_blob():
+            for entry in _bs.list(_BLOB_PRD_PREFIX):
+                pn = entry.get("pathname") or ""
+                if not pn.endswith(".json"):
+                    continue
+                fn = pn[len(_BLOB_PRD_PREFIX):]
+                if fn in seen:
+                    continue
+                seen.add(fn)
+                raw = _bs.get(pn)
+                if not raw:
+                    continue
+                try:
+                    _try_add(json.loads(raw))
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.warning("Blob PRD list failed: %s", e)
+
+    # Local fallback / merge
+    if os.path.isdir(PRD_DIR):
+        for fname in sorted(os.listdir(PRD_DIR), reverse=True):
+            if not (fname.startswith("prd_") and fname.endswith(".json")):
+                continue
+            if fname in seen:
+                continue
+            seen.add(fname)
             try:
                 with open(os.path.join(PRD_DIR, fname)) as f:
-                    prd = json.load(f)
-                prds.append({
-                    "id": prd["id"],
-                    "date": prd["date"],
-                    "product_name": prd["product"]["name"],
-                    "domain": prd["product"]["domain"],
-                    "type": prd["product"]["type"],
-                    "tagline": prd["product"]["tagline"],
-                    "generated_by": prd.get("generated_by", "template"),
-                })
+                    _try_add(json.load(f))
             except Exception:
                 pass
+
+    prds.sort(key=lambda p: p["date"], reverse=True)
     return prds
 
 

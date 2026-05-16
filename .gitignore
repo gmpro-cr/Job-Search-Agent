@@ -11,3 +11,4 @@ user_preferences.json
 .vercel
 node_modules/
 data/last_import.txt
+.env*.local

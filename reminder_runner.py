@@ -16,8 +16,34 @@ _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 REMINDERS_PATH = os.path.join(_BASE_DIR, "reminders.json")
 
 
-def load_reminders() -> list:
-    """Load reminders from reminders.json. Returns [] if file missing or invalid."""
+def _current_session_user_id():
+    try:
+        from flask import session as _session, has_request_context
+    except Exception:
+        return None
+    try:
+        if not has_request_context():
+            return None
+        uid = (_session.get("user") or {}).get("id") if _session else None
+        return int(uid) if uid else None
+    except Exception:
+        return None
+
+
+def load_reminders(user_id: int = None) -> list:
+    """
+    Load reminders. With a user_id (or active Flask session), returns only that
+    user's reminders from DB. Otherwise falls back to the legacy global file
+    so CLI / scraper / scheduler keep working during the rollout.
+    """
+    if user_id is None:
+        user_id = _current_session_user_id()
+    if user_id:
+        try:
+            from database import get_user_reminders as _gur
+            return _gur(user_id) or []
+        except Exception as e:
+            logger.warning("DB reminder load failed for user %s: %s", user_id, e)
     if not os.path.exists(REMINDERS_PATH):
         return []
     try:
@@ -29,10 +55,58 @@ def load_reminders() -> list:
         return []
 
 
-def save_reminders(reminders: list) -> None:
-    """Persist reminders list to reminders.json."""
+def save_reminders(reminders: list, user_id: int = None) -> None:
+    """
+    Persist reminders. With a user_id (or active Flask session), writes that
+    user's reminders to DB. Otherwise falls back to the legacy JSON file.
+    """
+    if user_id is None:
+        user_id = _current_session_user_id()
+    if user_id:
+        from database import save_user_reminders as _sur
+        _sur(user_id, reminders or [])
+        return
     with open(REMINDERS_PATH, "w", encoding="utf-8") as f:
         json.dump(reminders, f, indent=2)
+
+
+def load_all_reminders_global() -> list:
+    """
+    Cross-user reminder list — used by the post-scrape `run_reminders` worker
+    which fires emails for every user. Reads from DB (all users) and merges in
+    any legacy file-based reminders not yet migrated.
+    """
+    out: list = []
+    try:
+        from database import get_connection
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT ur.reminder_json, u.email
+            FROM user_reminders ur
+            JOIN users u ON u.id = ur.user_id
+            """
+        )
+        for row in c.fetchall():
+            try:
+                r = json.loads(row["reminder_json"])
+                r.setdefault("owner_email", row["email"])
+                out.append(r)
+            except (ValueError, TypeError):
+                continue
+        conn.close()
+    except Exception as e:
+        logger.warning("Cross-user reminder load failed: %s", e)
+    if os.path.exists(REMINDERS_PATH):
+        try:
+            with open(REMINDERS_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, list):
+                out.extend(data)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return out
 
 
 def score_jobs_for_cv_reminder(reminder: dict) -> list:
@@ -94,7 +168,9 @@ def run_reminders(preferences: dict) -> None:
     """
     from email_notifier import send_job_email
 
-    reminders = load_reminders()
+    # Cross-user read so the post-scrape worker fires reminders for all users,
+    # falling back to the legacy file for unmigrated reminders.
+    reminders = load_all_reminders_global()
     if not reminders:
         logger.info("No reminders configured, skipping")
         return
@@ -195,4 +271,43 @@ def run_reminders(preferences: dict) -> None:
             logger.error("Reminder '%s': email send failed to %s", name, recipient)
 
     if updated:
-        save_reminders(reminders)
+        _persist_reminders_after_run(reminders)
+
+
+def _persist_reminders_after_run(reminders: list) -> None:
+    """
+    After run_reminders has potentially mutated each reminder dict
+    (last_sent / sent_job_ids), persist them back to the right owner.
+    Reminders with a known owner_email go to per-user DB; the rest fall
+    back to the legacy file.
+    """
+    try:
+        from database import get_user_by_email, save_user_reminders
+    except Exception:
+        get_user_by_email = None
+        save_user_reminders = None
+
+    by_user: dict = {}
+    legacy: list = []
+    for r in reminders:
+        owner = (r.get("owner_email") or "").strip().lower()
+        if owner and get_user_by_email:
+            user = get_user_by_email(owner)
+            if user:
+                by_user.setdefault(user["id"], []).append(r)
+                continue
+        legacy.append(r)
+
+    if save_user_reminders:
+        for uid, rems in by_user.items():
+            try:
+                save_user_reminders(uid, rems)
+            except Exception as e:
+                logger.error("Failed to save reminders for user %s: %s", uid, e)
+
+    if legacy and os.path.exists(REMINDERS_PATH):
+        try:
+            with open(REMINDERS_PATH, "w", encoding="utf-8") as f:
+                json.dump(legacy, f, indent=2)
+        except OSError as e:
+            logger.error("Failed to write legacy reminders.json: %s", e)

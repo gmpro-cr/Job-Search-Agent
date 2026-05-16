@@ -223,6 +223,7 @@ def generate_html_digest(jobs, portal_results, preferences, stats):
 
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(html)
+    _upload_digest_blob(filename, html, "text/html; charset=utf-8")
 
     logger.info("HTML digest saved to %s", filepath)
     return filepath
@@ -301,6 +302,7 @@ def generate_txt_digest(jobs, portal_results, preferences, stats):
     text = "\n".join(lines)
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(text)
+    _upload_digest_blob(filename, text, "text/plain; charset=utf-8")
 
     logger.info("TXT digest saved to %s", filepath)
     return filepath
@@ -337,3 +339,79 @@ def get_latest_digest():
         return max(files, key=os.path.getmtime)
     except Exception:
         return None
+
+
+# ---------------------------------------------------------------------------
+# Blob-backed digest listing / retrieval
+# ---------------------------------------------------------------------------
+
+_BLOB_DIGEST_PREFIX = "digests/"
+
+
+def _upload_digest_blob(filename: str, content: str, content_type: str) -> None:
+    """Best-effort upload of a digest artefact to Vercel Blob. We never let
+    a Blob failure abort the local write — the local copy is always written
+    first and stays useful for the user's own browser."""
+    try:
+        import blob_storage as _bs
+        _bs.put(f"{_BLOB_DIGEST_PREFIX}{filename}", content, content_type=content_type)
+    except Exception as e:
+        logger.warning("Blob upload of digest %s failed: %s", filename, e)
+
+
+def list_digests() -> list[dict]:
+    """Return a list of digest HTML entries from Blob (preferred) or local
+    disk (fallback). Each entry: {filename, uploaded_at, size_kb}."""
+    try:
+        import blob_storage as _bs
+        if _bs._use_blob():
+            entries = []
+            for b in _bs.list(_BLOB_DIGEST_PREFIX):
+                pn = b.get("pathname") or ""
+                if not pn.endswith(".html"):
+                    continue
+                fn = pn[len(_BLOB_DIGEST_PREFIX):]
+                entries.append({
+                    "filename": fn,
+                    "uploaded_at": b.get("uploaded_at") or "",
+                    "size_kb": round((b.get("size") or 0) / 1024, 1),
+                })
+            entries.sort(key=lambda e: e["uploaded_at"], reverse=True)
+            return entries
+    except Exception as e:
+        logger.warning("Blob digest list failed: %s", e)
+
+    # Fallback: local filesystem
+    out = []
+    if os.path.isdir(DIGEST_DIR):
+        for f in sorted(os.listdir(DIGEST_DIR), reverse=True):
+            if f.endswith(".html"):
+                path = os.path.join(DIGEST_DIR, f)
+                mtime = os.path.getmtime(path)
+                out.append({
+                    "filename": f,
+                    "uploaded_at": datetime.fromtimestamp(mtime).isoformat(),
+                    "size_kb": round(os.path.getsize(path) / 1024, 1),
+                })
+    return out
+
+
+def read_digest(filename: str) -> tuple[bytes | None, str]:
+    """Fetch the digest HTML/TXT bytes by filename. Tries Blob first, then
+    falls back to local disk. Returns (bytes_or_None, content_type)."""
+    is_html = filename.endswith(".html")
+    content_type = "text/html; charset=utf-8" if is_html else "text/plain; charset=utf-8"
+    try:
+        import blob_storage as _bs
+        if _bs._use_blob():
+            data = _bs.get(f"{_BLOB_DIGEST_PREFIX}{filename}")
+            if data is not None:
+                return data, content_type
+    except Exception as e:
+        logger.warning("Blob digest get failed for %s: %s", filename, e)
+
+    fp = os.path.join(DIGEST_DIR, filename)
+    if os.path.exists(fp):
+        with open(fp, "rb") as f:
+            return f.read(), content_type
+    return None, content_type

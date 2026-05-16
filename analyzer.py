@@ -1063,8 +1063,39 @@ def parse_cv_text(text):
     }
 
 
-def load_cv_data():
-    """Load stored CV data from cv_data.json. Returns None if not uploaded yet."""
+def _current_session_user_id():
+    """
+    Return the Flask session user's DB id when running inside a request,
+    else None. Used to scope load_cv_data / save_cv_data to the current user.
+    """
+    try:
+        from flask import session as _session, has_request_context
+    except Exception:
+        return None
+    try:
+        if not has_request_context():
+            return None
+        uid = (_session.get("user") or {}).get("id") if _session else None
+        return int(uid) if uid else None
+    except Exception:
+        return None
+
+
+def load_cv_data(user_id: int = None):
+    """
+    Load CV data. If user_id (or a Flask session user) is available, read from
+    per-user DB. Otherwise fall back to the legacy cv_data.json for CLI use.
+    """
+    if user_id is None:
+        user_id = _current_session_user_id()
+    if user_id:
+        try:
+            from database import get_user_cv_data as _gucd
+            cv = _gucd(user_id)
+            if cv is not None:
+                return cv
+        except Exception:
+            pass
     if not os.path.exists(CV_DATA_PATH):
         return None
     try:
@@ -1074,8 +1105,14 @@ def load_cv_data():
         return None
 
 
-def save_cv_data(cv_data):
-    """Save CV data dict to cv_data.json."""
+def save_cv_data(cv_data, user_id: int = None):
+    """Save CV data. Writes to DB when a user is in scope, else to JSON."""
+    if user_id is None:
+        user_id = _current_session_user_id()
+    if user_id:
+        from database import save_user_cv_data as _sucd
+        _sucd(user_id, cv_data)
+        return
     with open(CV_DATA_PATH, "w", encoding="utf-8") as f:
         json.dump(cv_data, f, indent=2)
 

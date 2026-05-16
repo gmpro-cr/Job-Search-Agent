@@ -1,0 +1,18 @@
+# Extra deps for the GitHub Actions scraper / agent.
+# Installed alongside requirements.txt in the scrape workflow.
+
+python-telegram-bot>=21.0
+selenium>=4.15.0
+webdriver-manager>=4.0.0
+ollama>=0.1.0
+openai>=1.0.0
+APScheduler>=3.10.0
+schedule>=1.2.0
+gunicorn>=21.0.0
+pytest>=8.0.0
+langgraph>=0.2
+langchain-core>=0.3
+ddgs>=6.0
+google-api-python-client>=2.0
+google-auth-httplib2>=0.2
+google-auth-oauthlib>=1.0

@@ -1,12 +1,24 @@
 """
-database.py - SQLite database operations for job listings tracking.
-Handles creating tables, inserting/querying jobs, deduplication, and statistics.
+database.py - DB operations for job listings tracking.
+
+Dual driver: when DATABASE_URL points at Postgres (Neon / Vercel deploy) we
+connect via psycopg3; otherwise we fall back to local SQLite. Call sites use
+sqlite-style "?" placeholders — a thin cursor adapter rewrites them to "%s"
+for Postgres so the rest of this file stays driver-agnostic.
 """
 
 import sqlite3
 import os
 import logging
 from datetime import datetime, timedelta
+
+# Make sure .env-supplied DATABASE_URL is visible even when this module is
+# imported before app.py (e.g. by the migration script).
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+except Exception:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -17,12 +29,157 @@ if _IS_VERCEL:
 else:
     DB_PATH = os.path.join(os.environ.get("DATA_DIR", _BASE_DIR), "jobs.db")
 
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+USE_POSTGRES = DATABASE_URL.startswith(("postgres://", "postgresql://"))
+
+if USE_POSTGRES:
+    import psycopg  # type: ignore
+    from psycopg.rows import dict_row as _pg_dict_row  # type: ignore
+    from psycopg import errors as _pg_errors  # type: ignore
+
+    # Exceptions the rest of this module catches when probing schema state.
+    _OPERATIONAL_ERRORS = (
+        sqlite3.OperationalError,
+        _pg_errors.UndefinedColumn,
+        _pg_errors.DuplicateColumn,
+        _pg_errors.DuplicateTable,
+        _pg_errors.DuplicateObject,
+        psycopg.errors.OperationalError,
+        psycopg.Error,
+    )
+    _INTEGRITY_ERRORS = (sqlite3.IntegrityError, _pg_errors.UniqueViolation,
+                         _pg_errors.IntegrityError)
+else:
+    _OPERATIONAL_ERRORS = (sqlite3.OperationalError,)
+    _INTEGRITY_ERRORS = (sqlite3.IntegrityError,)
+
+
+class _PgCursor:
+    """Thin wrapper over a psycopg cursor that rewrites '?' placeholders
+    to '%s' so the rest of the module can keep using sqlite-style SQL."""
+
+    def __init__(self, real):
+        self._c = real
+
+    @staticmethod
+    def _adapt(sql):
+        # psycopg uses %s as the placeholder. Literal '%' characters in the
+        # SQL (e.g. inside LIKE '%foo%') would otherwise be misread as
+        # placeholders, so we double them to '%%' before rewriting '?' to
+        # '%s'. Order matters: escape literals first so we don't damage the
+        # placeholders we're about to insert.
+        if "%" in sql:
+            sql = sql.replace("%", "%%")
+        if "?" in sql:
+            sql = sql.replace("?", "%s")
+        return sql
+
+    def execute(self, sql, params=()):
+        self._c.execute(self._adapt(sql), params)
+        return self
+
+    def executemany(self, sql, seq):
+        self._c.executemany(self._adapt(sql), seq)
+        return self
+
+    def fetchone(self):
+        return self._c.fetchone()
+
+    def fetchall(self):
+        return self._c.fetchall()
+
+    def fetchmany(self, size):
+        return self._c.fetchmany(size)
+
+    @property
+    def rowcount(self):
+        return self._c.rowcount
+
+    @property
+    def description(self):
+        return self._c.description
+
+    def close(self):
+        return self._c.close()
+
+    def __iter__(self):
+        return iter(self._c)
+
+
+class _PgConn:
+    """psycopg connection wrapper exposing the sqlite3.Connection surface
+    used throughout database.py / app.py."""
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def cursor(self):
+        return _PgCursor(self._conn.cursor())
+
+    def commit(self):
+        return self._conn.commit()
+
+    def rollback(self):
+        return self._conn.rollback()
+
+    def close(self):
+        return self._conn.close()
+
+    # For compat with sqlite3.Connection assignments — no-op on Postgres
+    # (we install dict_row at connect time).
+    @property
+    def row_factory(self):
+        return None
+
+    @row_factory.setter
+    def row_factory(self, _):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            self._conn.commit()
+        else:
+            self._conn.rollback()
+        self._conn.close()
+        return False
+
 
 def get_connection():
-    """Get a SQLite connection with row factory enabled."""
+    """Return a DB connection. Picks psycopg/Postgres when DATABASE_URL is
+    set, sqlite otherwise. Both flavours expose rows as dict-like objects."""
+    if USE_POSTGRES:
+        pg = psycopg.connect(DATABASE_URL, row_factory=_pg_dict_row, autocommit=False)
+        return _PgConn(pg)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _serial_pk():
+    """Return the column-definition fragment for an auto-increment integer PK
+    in whichever dialect we're targeting."""
+    return "BIGSERIAL PRIMARY KEY" if USE_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
+
+
+def _add_columns_idempotent(conn, cursor, table, columns):
+    """
+    Add columns to a table idempotently across both drivers.
+    Postgres supports ALTER TABLE ADD COLUMN IF NOT EXISTS; SQLite does not,
+    so we catch its OperationalError per column.
+    """
+    for col in columns:
+        if USE_POSTGRES:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col}")
+            conn.commit()
+        else:
+            try:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col}")
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass
 
 
 def init_db():
@@ -52,66 +209,24 @@ def init_db():
     """)
     conn.commit()
 
-    # Add date_posted column for actual job posting date (idempotent)
-    for col in ["date_posted TEXT"]:
-        try:
-            cursor.execute(f"ALTER TABLE job_listings ADD COLUMN {col}")
-        except sqlite3.OperationalError:
-            pass
-
-    # Add contact enrichment columns (idempotent)
-    for col in ["poster_name TEXT", "poster_email TEXT", "poster_phone TEXT", "poster_linkedin TEXT"]:
-        try:
-            cursor.execute(f"ALTER TABLE job_listings ADD COLUMN {col}")
-        except sqlite3.OperationalError:
-            pass  # Column already exists
-
-    # Phase 1b/1c: experience and salary range columns
-    for col in [
-        "experience_min INTEGER",
-        "experience_max INTEGER",
-        "salary_min INTEGER",
-        "salary_max INTEGER",
-    ]:
-        try:
-            cursor.execute(f"ALTER TABLE job_listings ADD COLUMN {col}")
-        except sqlite3.OperationalError:
-            pass
-
-    # Phase 1d: enhanced tracking columns
-    for col in [
-        "follow_up_date TEXT",
-        "rejection_reason TEXT",
-    ]:
-        try:
-            cursor.execute(f"ALTER TABLE job_listings ADD COLUMN {col}")
-        except sqlite3.OperationalError:
-            pass
-
-    # Phase 3a: company research columns
-    for col in [
-        "company_size TEXT",
-        "company_funding_stage TEXT",
-        "company_glassdoor_rating TEXT",
-    ]:
-        try:
-            cursor.execute(f"ALTER TABLE job_listings ADD COLUMN {col}")
-        except sqlite3.OperationalError:
-            pass
-
-    # CV scoring column
-    for col in ["cv_score INTEGER DEFAULT 0"]:
-        try:
-            cursor.execute(f"ALTER TABLE job_listings ADD COLUMN {col}")
-        except sqlite3.OperationalError:
-            pass
-
-    # User actions: hide job
-    for col in ["hidden INTEGER DEFAULT 0"]:
-        try:
-            cursor.execute(f"ALTER TABLE job_listings ADD COLUMN {col}")
-        except sqlite3.OperationalError:
-            pass
+    # Idempotent column additions. Postgres supports ADD COLUMN IF NOT
+    # EXISTS; SQLite does not, so we fall back to a per-column try/except
+    # there. We commit after each statement so a failure on one column
+    # doesn't abort the rest of the DDL transaction.
+    _extra_cols = [
+        "date_posted TEXT",
+        "poster_name TEXT", "poster_email TEXT", "poster_phone TEXT", "poster_linkedin TEXT",
+        "experience_min INTEGER", "experience_max INTEGER",
+        # BIGINT because some scrapers produce salary values above 2^31 (9-digit
+        # rupee amounts when misparsed). SQLite treats INTEGER as 8 bytes so
+        # this is backward-compatible there.
+        "salary_min BIGINT", "salary_max BIGINT",
+        "follow_up_date TEXT", "rejection_reason TEXT",
+        "company_size TEXT", "company_funding_stage TEXT", "company_glassdoor_rating TEXT",
+        "cv_score INTEGER DEFAULT 0",
+        "hidden INTEGER DEFAULT 0",
+    ]
+    _add_columns_idempotent(conn, cursor, "job_listings", _extra_cols)
 
     # outreach_queue: stores LLM-drafted outreach emails pending human approval
     cursor.execute("""
@@ -135,10 +250,74 @@ def init_db():
     """)
 
     # Add hm_linkedin column to existing outreach_queue tables (idempotent)
-    try:
-        cursor.execute("ALTER TABLE outreach_queue ADD COLUMN hm_linkedin TEXT")
-    except sqlite3.OperationalError:
-        pass
+    _add_columns_idempotent(conn, cursor, "outreach_queue", ["hm_linkedin TEXT"])
+
+    # Phase 1: multi-user tables. job_listings remains shared (one scrape, all
+    # users see). Per-user state (applied status, CV scores, notes, hidden,
+    # preferences, CV) moves into user-scoped tables.
+    cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS users (
+            id          {_serial_pk()},
+            email       TEXT UNIQUE NOT NULL,
+            name        TEXT,
+            picture     TEXT,
+            created_at  TEXT NOT NULL,
+            last_login  TEXT
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_job_state (
+            user_id           INTEGER NOT NULL,
+            job_id            TEXT    NOT NULL,
+            applied_status    INTEGER DEFAULT 0,
+            applied_date      TEXT,
+            cv_score          INTEGER DEFAULT 0,
+            user_notes        TEXT,
+            follow_up_date    TEXT,
+            rejection_reason  TEXT,
+            hidden            INTEGER DEFAULT 0,
+            updated_at        TEXT,
+            PRIMARY KEY (user_id, job_id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ujs_user_status ON user_job_state(user_id, applied_status)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ujs_user_hidden ON user_job_state(user_id, hidden)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ujs_user_cv_score ON user_job_state(user_id, cv_score)")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_preferences (
+            user_id     INTEGER PRIMARY KEY,
+            prefs_json  TEXT NOT NULL,
+            updated_at  TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_cv_data (
+            user_id     INTEGER PRIMARY KEY,
+            cv_json     TEXT NOT NULL,
+            filename    TEXT,
+            updated_at  TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+
+    cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS user_reminders (
+            id              {_serial_pk()},
+            user_id         INTEGER NOT NULL,
+            reminder_id     TEXT NOT NULL,
+            reminder_json   TEXT NOT NULL,
+            updated_at      TEXT,
+            UNIQUE(user_id, reminder_id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_reminders_user ON user_reminders(user_id)")
 
     conn.commit()
     conn.close()
@@ -244,7 +423,7 @@ def insert_job(job):
         conn.commit()
         logger.debug("Inserted job %s: %s at %s", job_id, job["role"], job["company"])
         return True
-    except sqlite3.IntegrityError:
+    except _INTEGRITY_ERRORS:
         logger.debug("Duplicate job_id %s on insert", job_id)
         return False
     finally:
@@ -1061,11 +1240,12 @@ def insert_outreach_draft(job_id: str, company: str, role: str,
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT OR IGNORE INTO outreach_queue
+        INSERT INTO outreach_queue
         (job_id, company, role, hiring_manager, hm_email, hm_linkedin,
          email_draft, linkedin_draft, approval_token,
          status, llm_score, llm_reason, created_at, apply_url)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+        ON CONFLICT (job_id) DO NOTHING
     """, (job_id, company, role, hiring_manager, hm_email, hm_linkedin,
           email_draft, linkedin_draft, approval_token,
           llm_score, llm_reason, datetime.now().isoformat(), apply_url))
@@ -1157,3 +1337,513 @@ def update_outreach_draft(token: str, email_draft: str = None,
     conn.commit()
     conn.close()
     return updated
+
+
+# ===========================================================================
+# Phase 1: Per-user helpers
+# ===========================================================================
+# job_listings stays shared. Per-user state (applied_status, cv_score,
+# user_notes, follow_up_date, rejection_reason, hidden, preferences, CV,
+# reminders) lives in user-scoped tables and is keyed by user_id.
+
+import json as _json
+
+
+def get_or_create_user(email: str, name: str = None, picture: str = None) -> int:
+    """Look up a user by email; insert if missing. Returns the user's id."""
+    if not email:
+        raise ValueError("email is required")
+    email = email.strip().lower()
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
+    row = cursor.fetchone()
+    now = datetime.now().isoformat()
+    if row:
+        uid = row["id"]
+        cursor.execute(
+            "UPDATE users SET last_login = ?, name = COALESCE(?, name), picture = COALESCE(?, picture) WHERE id = ?",
+            (now, name, picture, uid),
+        )
+    else:
+        if USE_POSTGRES:
+            cursor.execute(
+                "INSERT INTO users (email, name, picture, created_at, last_login) "
+                "VALUES (?, ?, ?, ?, ?) RETURNING id",
+                (email, name, picture, now, now),
+            )
+            uid = cursor.fetchone()["id"]
+        else:
+            cursor.execute(
+                "INSERT INTO users (email, name, picture, created_at, last_login) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (email, name, picture, now, now),
+            )
+            uid = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return uid
+
+
+def get_user_by_email(email: str):
+    if not email:
+        return None
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE email = ?", (email.strip().lower(),))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id: int):
+    if not user_id:
+        return None
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# ---------------------------------------------------------------------------
+# user_preferences
+# ---------------------------------------------------------------------------
+
+def get_user_preferences(user_id: int):
+    """Return prefs dict for the user, or None if not set."""
+    if not user_id:
+        return None
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT prefs_json FROM user_preferences WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    try:
+        return _json.loads(row["prefs_json"])
+    except (ValueError, TypeError):
+        return None
+
+
+def save_user_preferences(user_id: int, prefs: dict) -> None:
+    if not user_id:
+        raise ValueError("user_id is required")
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO user_preferences (user_id, prefs_json, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+            prefs_json = excluded.prefs_json,
+            updated_at = excluded.updated_at
+        """,
+        (user_id, _json.dumps(prefs), datetime.now().isoformat()),
+    )
+    conn.commit()
+    conn.close()
+
+
+# ---------------------------------------------------------------------------
+# user_cv_data
+# ---------------------------------------------------------------------------
+
+def get_user_cv_data(user_id: int):
+    if not user_id:
+        return None
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT cv_json FROM user_cv_data WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    try:
+        return _json.loads(row["cv_json"])
+    except (ValueError, TypeError):
+        return None
+
+
+def save_user_cv_data(user_id: int, cv_data: dict) -> None:
+    if not user_id:
+        raise ValueError("user_id is required")
+    conn = get_connection()
+    cursor = conn.cursor()
+    filename = (cv_data or {}).get("filename")
+    cursor.execute(
+        """
+        INSERT INTO user_cv_data (user_id, cv_json, filename, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+            cv_json = excluded.cv_json,
+            filename = excluded.filename,
+            updated_at = excluded.updated_at
+        """,
+        (user_id, _json.dumps(cv_data), filename, datetime.now().isoformat()),
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_user_cv_data(user_id: int) -> None:
+    if not user_id:
+        return
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM user_cv_data WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+
+# ---------------------------------------------------------------------------
+# user_job_state
+# ---------------------------------------------------------------------------
+
+_UJS_FIELDS = (
+    "applied_status", "applied_date", "cv_score", "user_notes",
+    "follow_up_date", "rejection_reason", "hidden",
+)
+
+
+def upsert_user_job_state(user_id: int, job_id: str, **fields) -> None:
+    """
+    Upsert per-user job state. Only the keys passed in **fields are updated;
+    omitted fields are left untouched on existing rows.
+    """
+    if not user_id or not job_id:
+        raise ValueError("user_id and job_id are required")
+    bad = [k for k in fields if k not in _UJS_FIELDS]
+    if bad:
+        raise ValueError(f"unsupported user_job_state fields: {bad}")
+    conn = get_connection()
+    cursor = conn.cursor()
+    now = datetime.now().isoformat()
+    # Make sure a row exists, then UPDATE only the supplied columns.
+    cursor.execute(
+        "INSERT INTO user_job_state (user_id, job_id, updated_at) VALUES (?, ?, ?) ON CONFLICT (user_id, job_id) DO NOTHING",
+        (user_id, job_id, now),
+    )
+    if fields:
+        set_sql = ", ".join(f"{k} = ?" for k in fields) + ", updated_at = ?"
+        params = list(fields.values()) + [now, user_id, job_id]
+        cursor.execute(
+            f"UPDATE user_job_state SET {set_sql} WHERE user_id = ? AND job_id = ?",
+            params,
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_user_job_state(user_id: int, job_id: str):
+    if not user_id or not job_id:
+        return None
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM user_job_state WHERE user_id = ? AND job_id = ?",
+        (user_id, job_id),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_applied_status_user(user_id: int, job_id: str, status: int,
+                               notes: str = None, follow_up_date: str = None,
+                               rejection_reason: str = None) -> None:
+    """User-scoped equivalent of update_applied_status."""
+    fields = {"applied_status": int(status)}
+    if notes is not None:
+        fields["user_notes"] = notes
+    if status == 1:
+        fields["applied_date"] = datetime.now().isoformat()
+    if follow_up_date is not None:
+        fields["follow_up_date"] = follow_up_date
+    if status == 6 and rejection_reason is not None:
+        fields["rejection_reason"] = rejection_reason
+    upsert_user_job_state(user_id, job_id, **fields)
+
+
+def update_job_notes_user(user_id: int, job_id: str, notes: str) -> None:
+    upsert_user_job_state(user_id, job_id, user_notes=notes)
+
+
+def hide_job_user(user_id: int, job_id: str, hidden: bool = True) -> None:
+    upsert_user_job_state(user_id, job_id, hidden=1 if hidden else 0)
+
+
+def set_user_cv_score(user_id: int, job_id: str, cv_score_val: int) -> None:
+    upsert_user_job_state(user_id, job_id, cv_score=int(cv_score_val or 0))
+
+
+def bulk_set_user_cv_scores(user_id: int, scores: dict) -> int:
+    """
+    scores: { job_id: cv_score_int }. Returns number of rows written.
+    """
+    if not user_id or not scores:
+        return 0
+    conn = get_connection()
+    cursor = conn.cursor()
+    now = datetime.now().isoformat()
+    written = 0
+    for job_id, score in scores.items():
+        cursor.execute(
+            "INSERT INTO user_job_state (user_id, job_id, updated_at) VALUES (?, ?, ?) ON CONFLICT (user_id, job_id) DO NOTHING",
+            (user_id, job_id, now),
+        )
+        cursor.execute(
+            "UPDATE user_job_state SET cv_score = ?, updated_at = ? WHERE user_id = ? AND job_id = ?",
+            (int(score or 0), now, user_id, job_id),
+        )
+        written += 1
+    conn.commit()
+    conn.close()
+    return written
+
+
+# ---------------------------------------------------------------------------
+# User-scoped stats (mirror the global stat helpers above but filter by user)
+# ---------------------------------------------------------------------------
+
+def get_applied_count_user(user_id: int) -> int:
+    if not user_id:
+        return 0
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT COUNT(*) AS cnt FROM user_job_state WHERE user_id = ? AND applied_status = 1",
+        (user_id,),
+    )
+    n = cursor.fetchone()["cnt"]
+    conn.close()
+    return n
+
+
+def get_saved_count_user(user_id: int) -> int:
+    if not user_id:
+        return 0
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT COUNT(*) AS cnt FROM user_job_state WHERE user_id = ? AND applied_status = 2",
+        (user_id,),
+    )
+    n = cursor.fetchone()["cnt"]
+    conn.close()
+    return n
+
+
+def get_application_pipeline_stats_user(user_id: int) -> dict:
+    """Per-user pipeline stage counts. Stages with zero rows still appear."""
+    labels = {
+        0: "New", 1: "Applied", 2: "Saved", 3: "Phone Screen",
+        4: "Interview", 5: "Offer", 6: "Rejected",
+    }
+    result = {label: 0 for label in labels.values()}
+    if not user_id:
+        return result
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT applied_status, COUNT(*) AS cnt FROM user_job_state WHERE user_id = ? GROUP BY applied_status",
+        (user_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    for r in rows:
+        label = labels.get(r["applied_status"], "New")
+        result[label] = r["cnt"]
+    return result
+
+
+def get_comprehensive_stats_user(user_id: int) -> dict:
+    """Per-user variant of get_comprehensive_stats."""
+    return {
+        "total_jobs": get_total_jobs(),
+        "jobs_today": get_jobs_found_today(),
+        "jobs_yesterday": get_jobs_found_yesterday(),
+        "jobs_this_week": get_jobs_found_this_week(),
+        "portal_stats": get_portal_stats(),
+        "top_companies": get_top_companies(5),
+        "top_roles": get_top_roles(5),
+        "applied_count": get_applied_count_user(user_id),
+        "saved_count": get_saved_count_user(user_id),
+    }
+
+
+def get_dashboard_insights_user(user_id: int) -> dict:
+    """Per-user version of get_dashboard_insights."""
+    from datetime import datetime, timedelta
+    result = {
+        "unopened_high_score": 0,
+        "overdue_followups": 0,
+        "avg_cv_this_week": 0,
+        "avg_cv_last_week": 0,
+        "top_missing_skill": None,
+    }
+    if not user_id:
+        return result
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS cnt
+        FROM job_listings j
+        LEFT JOIN user_job_state s ON s.job_id = j.job_id AND s.user_id = ?
+        WHERE j.relevance_score >= 75
+          AND COALESCE(s.applied_status, 0) = 0
+          AND COALESCE(s.hidden, 0) = 0
+        """,
+        (user_id,),
+    )
+    result["unopened_high_score"] = cursor.fetchone()["cnt"]
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS cnt
+        FROM user_job_state
+        WHERE user_id = ?
+          AND follow_up_date IS NOT NULL
+          AND follow_up_date <= ?
+          AND applied_status NOT IN (5, 6)
+        """,
+        (user_id, today),
+    )
+    result["overdue_followups"] = cursor.fetchone()["cnt"]
+
+    week_start = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    prev_week_start = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
+    cursor.execute(
+        """
+        SELECT ROUND(AVG(s.cv_score), 1) AS avg
+        FROM user_job_state s
+        JOIN job_listings j ON j.job_id = s.job_id
+        WHERE s.user_id = ? AND j.date_found >= ? AND s.cv_score > 0
+        """,
+        (user_id, week_start),
+    )
+    r = cursor.fetchone()
+    result["avg_cv_this_week"] = float(r["avg"]) if r and r["avg"] is not None else 0
+
+    cursor.execute(
+        """
+        SELECT ROUND(AVG(s.cv_score), 1) AS avg
+        FROM user_job_state s
+        JOIN job_listings j ON j.job_id = s.job_id
+        WHERE s.user_id = ? AND j.date_found >= ? AND j.date_found < ? AND s.cv_score > 0
+        """,
+        (user_id, prev_week_start, week_start),
+    )
+    r = cursor.fetchone()
+    result["avg_cv_last_week"] = float(r["avg"]) if r and r["avg"] is not None else 0
+
+    cursor.execute(
+        """
+        SELECT j.job_description
+        FROM job_listings j
+        LEFT JOIN user_job_state s ON s.job_id = j.job_id AND s.user_id = ?
+        WHERE COALESCE(s.applied_status, 0) = 0
+          AND COALESCE(s.hidden, 0) = 0
+        ORDER BY j.relevance_score DESC
+        LIMIT 100
+        """,
+        (user_id,),
+    )
+    jd_rows = cursor.fetchall()
+    conn.close()
+
+    from analyzer import extract_skills
+    skill_counts: dict = {}
+    for jd_row in jd_rows:
+        for skill in extract_skills(jd_row["job_description"] or "", max_skills=None):
+            skill_counts[skill] = skill_counts.get(skill, 0) + 1
+    if skill_counts:
+        result["top_missing_skill"] = max(skill_counts, key=skill_counts.get)
+    return result
+
+
+def get_application_pipeline_stats_user_with_legacy_fallback(user_id):
+    """
+    During the rollout window, fall back to legacy job_listings columns when
+    user_job_state has no rows for this user. This keeps the dashboard sensible
+    if the migration script hasn't run yet.
+    """
+    stats = get_application_pipeline_stats_user(user_id)
+    total = sum(stats.values())
+    if total == 0:
+        return get_application_pipeline_stats()
+    return stats
+
+
+# ---------------------------------------------------------------------------
+# user_reminders
+# ---------------------------------------------------------------------------
+
+def get_user_reminders(user_id: int) -> list:
+    if not user_id:
+        return []
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT reminder_json FROM user_reminders WHERE user_id = ? ORDER BY id",
+        (user_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    out = []
+    for r in rows:
+        try:
+            out.append(_json.loads(r["reminder_json"]))
+        except (ValueError, TypeError):
+            continue
+    return out
+
+
+def save_user_reminders(user_id: int, reminders: list) -> None:
+    """Replace the entire reminders list for the user."""
+    if not user_id:
+        raise ValueError("user_id is required")
+    conn = get_connection()
+    cursor = conn.cursor()
+    now = datetime.now().isoformat()
+    cursor.execute("DELETE FROM user_reminders WHERE user_id = ?", (user_id,))
+    for r in (reminders or []):
+        rid = str(r.get("id") or uuid_safe())
+        cursor.execute(
+            """
+            INSERT INTO user_reminders (user_id, reminder_id, reminder_json, updated_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (user_id, rid, _json.dumps(r), now),
+        )
+    conn.commit()
+    conn.close()
+
+
+def uuid_safe() -> str:
+    import uuid as _uuid
+    return _uuid.uuid4().hex
+
+
+# ---------------------------------------------------------------------------
+# Per-user filter clause used by _build_jobs_query and similar consumers.
+# Returns (join_sql, where_clauses, params) where the caller injects join_sql
+# right after `FROM job_listings j` and AND-merges where_clauses.
+# ---------------------------------------------------------------------------
+
+def user_state_join_sql(user_id: int):
+    """
+    Return a LEFT JOIN against user_job_state for the given user.
+    Always returns a tuple (join_sql, params) so callers can inject the
+    parameter at the right position in their SQL parameter list.
+    """
+    join_sql = (
+        "LEFT JOIN user_job_state ujs "
+        "ON ujs.job_id = job_listings.job_id AND ujs.user_id = ?"
+    )
+    return join_sql, [int(user_id or 0)]

@@ -142,16 +142,49 @@ DEFAULT_PREFS = {
 _CREDENTIAL_KEYS = {"gmail_app_password", "telegram_bot_token", "apollo_api_key", "linkedin_password"}
 
 
-def load_preferences():
+def _current_session_user_id():
+    """
+    Look up the current Flask user's DB id if we're inside a request context.
+    Returns None outside Flask (CLI usage) or when no user is logged in.
+    """
+    try:
+        from flask import session as _session, has_request_context
+    except Exception:
+        return None
+    try:
+        if not has_request_context():
+            return None
+        uid = (_session.get("user") or {}).get("id") if _session else None
+        return int(uid) if uid else None
+    except Exception:
+        return None
+
+
+def load_preferences(user_id: int = None):
+    """
+    Load preferences. If user_id is given (or a Flask session user is logged
+    in), read from per-user DB. Otherwise fall back to the legacy JSON file —
+    this preserves CLI / scraper / single-user behaviour during the rollout.
+    """
+    if user_id is None:
+        user_id = _current_session_user_id()
+    if user_id:
+        try:
+            from database import get_user_preferences as _gup
+            prefs = _gup(user_id)
+            if prefs is not None:
+                return prefs
+        except Exception:
+            pass
     if os.path.exists(PREFS_PATH):
         with open(PREFS_PATH, "r") as f:
             return json.load(f)
     return None
 
 
-def save_preferences(prefs):
+def save_preferences(prefs, user_id: int = None):
     # Strip credential keys when corresponding env vars are set so secrets
-    # stay only in .env and never land in the JSON file.
+    # stay only in .env and never land in storage.
     clean = dict(prefs)
     env_cred_map = {
         "gmail_app_password": "GMAIL_APP_PASSWORD",
@@ -162,6 +195,14 @@ def save_preferences(prefs):
     for pref_key, env_key in env_cred_map.items():
         if os.environ.get(env_key):
             clean.pop(pref_key, None)
+
+    if user_id is None:
+        user_id = _current_session_user_id()
+    if user_id:
+        from database import save_user_preferences as _sup
+        _sup(user_id, clean)
+        return
+
     with open(PREFS_PATH, "w") as f:
         json.dump(clean, f, indent=2)
 

@@ -39,6 +39,13 @@ from database import (
     get_application_activity, get_recommended_actions,
     hide_job, update_job_notes, dedup_jobs,
     _INTERNATIONAL_CANONICALS, _INTERNATIONAL_KEYWORDS,
+    # Phase 1 multi-user helpers
+    get_or_create_user, get_user_by_email,
+    update_applied_status_user, update_job_notes_user, hide_job_user,
+    bulk_set_user_cv_scores,
+    get_comprehensive_stats_user, get_dashboard_insights_user,
+    get_application_pipeline_stats_user_with_legacy_fallback,
+    user_state_join_sql,
 )
 from scrapers import scrape_all_portals
 from analyzer import analyze_jobs, generate_tailored_points, parse_nlp_query, parse_cv_text, cv_score, compute_gap_analysis, load_cv_data, save_cv_data, CV_DATA_PATH
@@ -92,6 +99,41 @@ def require_login():
     if request.endpoint and request.endpoint not in allowed_routes:
         if dict(session).get('user') is None:
             return redirect(url_for('login', next=request.url))
+
+
+def current_user_id():
+    """
+    Resolve the DB user id for the current session, creating the user row on
+    first access. Returns None for unauthenticated routes (e.g. localhost API
+    calls). Callers that require a user should treat None as "no user".
+    """
+    user = dict(session).get('user') or {}
+    uid = user.get('id')
+    if uid:
+        try:
+            return int(uid)
+        except (TypeError, ValueError):
+            pass
+    email = (user.get('email') or '').strip()
+    if not email:
+        return None
+    try:
+        uid = get_or_create_user(email, user.get('name'), user.get('picture'))
+    except Exception as e:
+        logger.warning("get_or_create_user failed for %s: %s", email, e)
+        return None
+    # Cache on the session so we don't hit the DB on every request
+    session['user'] = dict(user, id=uid)
+    return uid
+
+
+def require_user_id():
+    """current_user_id() that aborts the request with 401 when no user."""
+    uid = current_user_id()
+    if not uid:
+        from flask import abort
+        abort(401)
+    return uid
 # Initialize the database on startup
 try:
     init_db()
@@ -977,6 +1019,10 @@ def auth_callback():
         token = google.authorize_access_token()
         userinfo = token.get('userinfo')
         if userinfo:
+            email = (userinfo.get('email') or '').strip()
+            if email:
+                uid = get_or_create_user(email, userinfo.get('name'), userinfo.get('picture'))
+                userinfo = dict(userinfo, id=uid)
             session['user'] = userinfo
     except Exception as e:
         logger.error(f"OAuth callback error: {e}")
@@ -986,7 +1032,8 @@ def auth_callback():
 
 @app.route('/auth/demo', methods=['POST'])
 def auth_demo():
-    session['user'] = {'email': 'demo@example.com', 'name': 'Demo User', 'picture': ''}
+    uid = get_or_create_user('demo@example.com', 'Demo User')
+    session['user'] = {'email': 'demo@example.com', 'name': 'Demo User', 'picture': '', 'id': uid}
     return redirect(url_for('dashboard'))
 
 @app.route('/logout')
@@ -1007,14 +1054,20 @@ def favicon():
 
 @app.route("/dashboard")
 def dashboard():
-    from database import get_dashboard_insights
-    stats = get_comprehensive_stats()
+    uid = current_user_id()
+    if uid:
+        stats = get_comprehensive_stats_user(uid)
+        pipeline = get_application_pipeline_stats_user_with_legacy_fallback(uid)
+        insights = get_dashboard_insights_user(uid)
+    else:
+        from database import get_dashboard_insights
+        stats = get_comprehensive_stats()
+        pipeline = get_application_pipeline_stats()
+        insights = get_dashboard_insights()
     portal_quality = get_portal_quality_stats()
-    pipeline = get_application_pipeline_stats()
     categories = get_best_matching_categories()
     activity = get_application_activity()
     recommendations = get_recommended_actions()
-    insights = get_dashboard_insights()
     cv_data = load_cv_data()
     cv_uploaded = cv_data is not None
     user_email = dict(session).get('user', {}).get('email', '')
@@ -1029,10 +1082,34 @@ def dashboard():
 @app.route("/api/dashboard/top-jobs")
 def dashboard_top_jobs():
     """Return top 10 jobs by CV score (or relevance score if no CV)."""
+    uid = current_user_id()
     cv_data = load_cv_data()
     conn = get_connection()
     c = conn.cursor()
-    if cv_data:
+    if uid and cv_data:
+        c.execute("""
+            SELECT j.job_id, j.role, j.company, j.location, j.relevance_score,
+                   COALESCE(s.cv_score, 0) AS cv_score,
+                   j.apply_url, j.date_found, j.portal, j.remote_status
+            FROM job_listings j
+            LEFT JOIN user_job_state s ON s.job_id = j.job_id AND s.user_id = ?
+            WHERE COALESCE(s.cv_score, 0) > 0
+              AND COALESCE(s.hidden, 0) = 0
+            ORDER BY COALESCE(s.cv_score, 0) DESC, j.relevance_score DESC
+            LIMIT 10
+        """, (uid,))
+    elif uid:
+        c.execute("""
+            SELECT j.job_id, j.role, j.company, j.location, j.relevance_score,
+                   COALESCE(s.cv_score, 0) AS cv_score,
+                   j.apply_url, j.date_found, j.portal, j.remote_status
+            FROM job_listings j
+            LEFT JOIN user_job_state s ON s.job_id = j.job_id AND s.user_id = ?
+            WHERE COALESCE(s.hidden, 0) = 0
+            ORDER BY j.relevance_score DESC, j.date_found DESC
+            LIMIT 10
+        """, (uid,))
+    elif cv_data:
         c.execute("""
             SELECT job_id, role, company, location, relevance_score, cv_score,
                    apply_url, date_found, portal, remote_status
@@ -1092,13 +1169,18 @@ def dashboard_create_reminder():
     return jsonify({"ok": True})
 
 
-def _build_jobs_query(filters):
+def _build_jobs_query(filters, user_id: int = None):
     """
     Build SQL WHERE clause and params from a filters dict.
-    Returns (conditions, params, order) where conditions is a list of SQL fragments.
+    Returns (conditions, params, order, join_sql, join_params, select_extra).
+    Callers compose:  SELECT <cols>, <select_extra> FROM job_listings <join_sql>
+                      WHERE <AND of conditions> ORDER BY <order>
+    `user_id` scopes per-user columns (applied_status / hidden / cv_score /
+    notes) via a LEFT JOIN on user_job_state.
     """
     conditions = []
     params = []
+    select_extra = ""
 
     search = filters.get("search", "")
     portal = filters.get("portal", "")
@@ -1114,9 +1196,32 @@ def _build_jobs_query(filters):
     salary_max = filters.get("salary_max", "")
     company_stage = filters.get("company_stage", "")
 
-    # Always exclude hidden jobs (hidden = 1) unless explicitly requested
+    join_sql = ""
+    join_params: list = []
+    if user_id:
+        join_sql = (
+            " LEFT JOIN user_job_state ujs "
+            "ON ujs.job_id = job_listings.job_id AND ujs.user_id = ?"
+        )
+        join_params = [int(user_id)]
+        select_extra = (
+            ", COALESCE(ujs.applied_status, 0) AS user_applied_status, "
+            "COALESCE(ujs.cv_score, 0) AS user_cv_score, "
+            "ujs.user_notes AS user_notes, "
+            "ujs.applied_date AS user_applied_date, "
+            "ujs.follow_up_date AS user_follow_up_date, "
+            "ujs.rejection_reason AS user_rejection_reason, "
+            "COALESCE(ujs.hidden, 0) AS user_hidden"
+        )
+
+    # Always exclude hidden jobs (hidden = 1) unless explicitly requested.
+    # When user_id is in scope we honour the per-user hidden flag; otherwise
+    # fall back to the legacy column on job_listings.
     if not filters.get("show_hidden"):
-        conditions.append("(hidden = 0 OR hidden IS NULL)")
+        if user_id:
+            conditions.append("(COALESCE(ujs.hidden, 0) = 0)")
+        else:
+            conditions.append("(hidden = 0 OR hidden IS NULL)")
 
     # Exclude international locations by default unless a specific location is
     # chosen (in which case the user knows what they're filtering to) or
@@ -1190,15 +1295,26 @@ def _build_jobs_query(filters):
             )
             params.append(cutoff_date)
 
-    applied_map = {
-        "none": "applied_status = 0",
-        "applied": "applied_status = 1",
-        "saved": "applied_status = 2",
-        "phone_screen": "applied_status = 3",
-        "interview": "applied_status = 4",
-        "offer": "applied_status = 5",
-        "rejected": "applied_status = 6",
-    }
+    if user_id:
+        applied_map = {
+            "none": "COALESCE(ujs.applied_status, 0) = 0",
+            "applied": "ujs.applied_status = 1",
+            "saved": "ujs.applied_status = 2",
+            "phone_screen": "ujs.applied_status = 3",
+            "interview": "ujs.applied_status = 4",
+            "offer": "ujs.applied_status = 5",
+            "rejected": "ujs.applied_status = 6",
+        }
+    else:
+        applied_map = {
+            "none": "applied_status = 0",
+            "applied": "applied_status = 1",
+            "saved": "applied_status = 2",
+            "phone_screen": "applied_status = 3",
+            "interview": "applied_status = 4",
+            "offer": "applied_status = 5",
+            "rejected": "applied_status = 6",
+        }
     if applied in applied_map:
         conditions.append(applied_map[applied])
 
@@ -1236,25 +1352,37 @@ def _build_jobs_query(filters):
         conditions.append("company_funding_stage = ?")
         params.append(company_stage)
 
-    sort_map = {
-        "score_desc": "relevance_score DESC, date_found DESC",
-        "score_asc": "relevance_score ASC, date_found DESC",
-        "date_desc": "date_found DESC",
-        "date_asc": "date_found ASC",
-        "company_asc": "company ASC",
-        "cv_score_desc": "cv_score DESC, relevance_score DESC, date_found DESC",
-        "cv_score_asc": "cv_score ASC, relevance_score ASC, date_found DESC",
-    }
+    if user_id:
+        sort_map = {
+            "score_desc": "relevance_score DESC, date_found DESC",
+            "score_asc": "relevance_score ASC, date_found DESC",
+            "date_desc": "date_found DESC",
+            "date_asc": "date_found ASC",
+            "company_asc": "company ASC",
+            "cv_score_desc": "COALESCE(ujs.cv_score, 0) DESC, relevance_score DESC, date_found DESC",
+            "cv_score_asc": "COALESCE(ujs.cv_score, 0) ASC, relevance_score ASC, date_found DESC",
+        }
+    else:
+        sort_map = {
+            "score_desc": "relevance_score DESC, date_found DESC",
+            "score_asc": "relevance_score ASC, date_found DESC",
+            "date_desc": "date_found DESC",
+            "date_asc": "date_found ASC",
+            "company_asc": "company ASC",
+            "cv_score_desc": "cv_score DESC, relevance_score DESC, date_found DESC",
+            "cv_score_asc": "cv_score ASC, relevance_score ASC, date_found DESC",
+        }
     # When CV is uploaded, "score" sorts should use cv_score (the displayed score)
     if filters.get("cv_uploaded") and sort in ("score_desc", "score_asc"):
         sort = "cv_score_desc" if sort == "score_desc" else "cv_score_asc"
     order = sort_map.get(sort, "date_found DESC")
 
-    return conditions, params, order
+    return conditions, params, order, join_sql, join_params, select_extra
 
 
 @app.route("/jobs")
 def jobs():
+    uid = current_user_id()
     cv_data = load_cv_data()
     cv_uploaded = cv_data is not None
 
@@ -1275,7 +1403,7 @@ def jobs():
         "company_stage": request.args.get("company_stage", ""),
         "cv_uploaded": cv_uploaded,
     }
-    conditions, params, order = _build_jobs_query(filters)
+    conditions, params, order, join_sql, join_params, select_extra = _build_jobs_query(filters, user_id=uid)
     where = " WHERE " + " AND ".join(conditions) if conditions else ""
 
     conn = get_connection()
@@ -1290,16 +1418,38 @@ def jobs():
     offset = (page - 1) * per_page
 
     # Fetch total count
-    cursor.execute(f"SELECT COUNT(*) as count FROM job_listings{where}", params)
+    cursor.execute(
+        f"SELECT COUNT(*) as count FROM job_listings{join_sql}{where}",
+        join_params + params,
+    )
     total = cursor.fetchone()["count"]
 
     # Fetch paginated matching jobs
     cursor.execute(
-        f"SELECT * FROM job_listings{where} ORDER BY {order} LIMIT ? OFFSET ?",
-        params + [per_page, offset],
+        f"SELECT job_listings.*{select_extra} FROM job_listings{join_sql}{where} "
+        f"ORDER BY {order} LIMIT ? OFFSET ?",
+        join_params + params + [per_page, offset],
     )
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
+    # Overlay per-user state onto the legacy columns so templates / clients
+    # that still read job.applied_status / cv_score / user_notes keep working.
+    if uid:
+        for r in rows:
+            if "user_applied_status" in r:
+                r["applied_status"] = r.pop("user_applied_status")
+            if "user_cv_score" in r:
+                r["cv_score"] = r.pop("user_cv_score")
+            if "user_notes" in r and r["user_notes"] is not None:
+                pass  # column name already matches
+            if "user_applied_date" in r:
+                r["applied_date"] = r.pop("user_applied_date")
+            if "user_follow_up_date" in r:
+                r["follow_up_date"] = r.pop("user_follow_up_date")
+            if "user_rejection_reason" in r:
+                r["rejection_reason"] = r.pop("user_rejection_reason")
+            if "user_hidden" in r:
+                r["hidden"] = r.pop("user_hidden")
 
     # Attach inline gap data if CV is uploaded
     if cv_uploaded:
@@ -1351,21 +1501,34 @@ def nlp_search():
     if "min_score" not in filters:
         filters["min_score"] = "0"
 
-    conditions, params, order = _build_jobs_query(filters)
+    uid = current_user_id()
+    conditions, params, order, join_sql, join_params, select_extra = _build_jobs_query(filters, user_id=uid)
     where = " WHERE " + " AND ".join(conditions) if conditions else ""
 
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(f"SELECT COUNT(*) as cnt FROM job_listings{where}", params)
+    cursor.execute(
+        f"SELECT COUNT(*) as cnt FROM job_listings{join_sql}{where}",
+        join_params + params,
+    )
     total = cursor.fetchone()["cnt"]
 
     cursor.execute(
-        f"SELECT * FROM job_listings{where} ORDER BY {order} LIMIT 25",
-        params,
+        f"SELECT job_listings.*{select_extra} FROM job_listings{join_sql}{where} "
+        f"ORDER BY {order} LIMIT 25",
+        join_params + params,
     )
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
+    if uid:
+        for r in rows:
+            if "user_applied_status" in r:
+                r["applied_status"] = r.pop("user_applied_status")
+            if "user_cv_score" in r:
+                r["cv_score"] = r.pop("user_cv_score")
+            if "user_hidden" in r:
+                r["hidden"] = r.pop("user_hidden")
 
     # Build human-readable filter descriptions
     filter_labels = []
@@ -1398,6 +1561,7 @@ def nlp_search():
 
 @app.route("/api/jobs/<job_id>/status", methods=["POST"])
 def update_job_status(job_id):
+    uid = require_user_id()
     data = request.get_json(silent=True) or {}
     status = data.get("status", 0)
     notes = data.get("notes")
@@ -1407,25 +1571,27 @@ def update_job_status(job_id):
         status = int(status)
     except (ValueError, TypeError):
         status = 0
-    update_applied_status(job_id, status, notes, follow_up_date, rejection_reason)
+    update_applied_status_user(uid, job_id, status, notes, follow_up_date, rejection_reason)
     return jsonify({"ok": True, "job_id": job_id, "status": status})
 
 
 @app.route("/api/jobs/<job_id>/hide", methods=["POST"])
 def hide_job_route(job_id):
     """Hide or unhide a job. Body: {hidden: true/false}"""
+    uid = require_user_id()
     data = request.get_json(silent=True) or {}
     is_hidden = bool(data.get("hidden", True))
-    hide_job(job_id, is_hidden)
+    hide_job_user(uid, job_id, is_hidden)
     return jsonify({"ok": True, "job_id": job_id, "hidden": is_hidden})
 
 
 @app.route("/api/jobs/<job_id>/notes", methods=["POST"])
 def save_job_notes(job_id):
     """Save user notes for a job without changing other fields."""
+    uid = require_user_id()
     data = request.get_json(silent=True) or {}
     notes = data.get("notes", "")
-    update_job_notes(job_id, notes)
+    update_job_notes_user(uid, job_id, notes)
     return jsonify({"ok": True, "job_id": job_id})
 
 
@@ -1742,32 +1908,61 @@ def scheduler_status():
 
 @app.route("/digests")
 def digests():
+    from digest_generator import list_digests
     files = []
-    if os.path.isdir(DIGEST_DIR):
-        for f in sorted(os.listdir(DIGEST_DIR), reverse=True):
-            if f.endswith(".html"):
-                path = os.path.join(DIGEST_DIR, f)
-                mtime = os.path.getmtime(path)
-                files.append({
-                    "filename": f,
-                    "date": datetime.fromtimestamp(mtime).strftime("%B %d, %Y %I:%M %p"),
-                    "size_kb": round(os.path.getsize(path) / 1024, 1),
-                })
+    for entry in list_digests():
+        try:
+            dt = datetime.fromisoformat(entry["uploaded_at"].replace("Z", "+00:00"))
+            pretty = dt.strftime("%B %d, %Y %I:%M %p")
+        except Exception:
+            pretty = entry["uploaded_at"]
+        files.append({
+            "filename": entry["filename"],
+            "date": pretty,
+            "size_kb": entry["size_kb"],
+        })
     # Top jobs for the latest digest display
     prefs = load_preferences()
     top_n = prefs.get("top_jobs_per_digest", 5) if prefs else 5
     min_score = prefs.get("min_score", 65) if prefs else 65
+    uid = current_user_id()
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""SELECT role, company, location, salary, cv_score as score
-                      FROM job_listings WHERE cv_score >= ? ORDER BY cv_score DESC LIMIT ?""",
-                   (min_score, top_n))
+    if uid:
+        cursor.execute(
+            """
+            SELECT j.role, j.company, j.location, j.salary, s.cv_score AS score
+            FROM job_listings j
+            JOIN user_job_state s ON s.job_id = j.job_id AND s.user_id = ?
+            WHERE s.cv_score >= ?
+            ORDER BY s.cv_score DESC
+            LIMIT ?
+            """,
+            (uid, min_score, top_n),
+        )
+    else:
+        cursor.execute(
+            """SELECT role, company, location, salary, cv_score as score
+               FROM job_listings WHERE cv_score >= ? ORDER BY cv_score DESC LIMIT ?""",
+            (min_score, top_n),
+        )
     top_jobs = [dict(r) for r in cursor.fetchall()]
     cursor.execute("SELECT COUNT(*) as total FROM job_listings")
     total = cursor.fetchone()["total"]
-    cursor.execute("SELECT COUNT(*) as q FROM job_listings WHERE cv_score >= ?", (min_score,))
-    qualified = cursor.fetchone()["q"]
-    cursor.execute("SELECT AVG(cv_score) as avg FROM job_listings WHERE cv_score > 0")
+    if uid:
+        cursor.execute(
+            "SELECT COUNT(*) as q FROM user_job_state WHERE user_id = ? AND cv_score >= ?",
+            (uid, min_score),
+        )
+        qualified = cursor.fetchone()["q"]
+        cursor.execute(
+            "SELECT AVG(cv_score) as avg FROM user_job_state WHERE user_id = ? AND cv_score > 0",
+            (uid,),
+        )
+    else:
+        cursor.execute("SELECT COUNT(*) as q FROM job_listings WHERE cv_score >= ?", (min_score,))
+        qualified = cursor.fetchone()["q"]
+        cursor.execute("SELECT AVG(cv_score) as avg FROM job_listings WHERE cv_score > 0")
     avg_row = cursor.fetchone()
     avg_score = round(avg_row["avg"] or 0, 1)
     conn.close()
@@ -1777,7 +1972,17 @@ def digests():
 
 @app.route("/digests/<filename>")
 def serve_digest(filename):
-    return send_from_directory(DIGEST_DIR, filename)
+    from digest_generator import read_digest
+    # Defence in depth: don't let a crafted filename escape the digest namespace.
+    if "/" in filename or ".." in filename:
+        return "Bad filename", 400
+    data, content_type = read_digest(filename)
+    if data is None:
+        return "Digest not found", 404
+    from flask import Response
+    # Pass `content_type` (not `mimetype`) so Flask doesn't append a second
+    # `; charset=utf-8` onto a mimetype string that already includes one.
+    return Response(data, content_type=content_type)
 
 
 # ---------------------------------------------------------------------------
@@ -1844,8 +2049,8 @@ def cv_page():
     cursor = conn.cursor()
     skill_freq = {}
     for sk in skills:
-        cursor.execute("SELECT COUNT(*) FROM job_listings WHERE LOWER(job_description) LIKE ?", (f"%{sk.lower()}%",))
-        skill_freq[sk] = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) AS cnt FROM job_listings WHERE LOWER(job_description) LIKE ?", (f"%{sk.lower()}%",))
+        skill_freq[sk] = cursor.fetchone()["cnt"]
     max_freq = max(skill_freq.values()) if skill_freq else 1
 
     extracted_skills = [{"name": sk, "in_cv": True, "frequency": skill_freq.get(sk, 0), "pct": round(skill_freq.get(sk, 0) / max(max_freq, 1) * 100)} for sk in skills[:8]]
@@ -1856,8 +2061,8 @@ def cv_page():
     skill_gaps = []
     for sk in common_skills:
         if sk.lower() not in skill_lower:
-            cursor.execute("SELECT COUNT(*) FROM job_listings WHERE LOWER(job_description) LIKE ?", (f"%{sk.lower()}%",))
-            cnt = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) AS cnt FROM job_listings WHERE LOWER(job_description) LIKE ?", (f"%{sk.lower()}%",))
+            cnt = cursor.fetchone()["cnt"]
             if cnt > 0:
                 skill_gaps.append({"skill": sk, "demand_count": cnt})
     skill_gaps.sort(key=lambda x: -x["demand_count"])
@@ -1925,8 +2130,13 @@ def upload_cv():
     })
 
 
-def _rescore_all_jobs(cv_data):
-    """Score every job in the DB against cv_data and persist. Returns count updated."""
+def _rescore_all_jobs(cv_data, user_id: int = None):
+    """
+    Score every job in the DB against cv_data and persist into user_job_state
+    (per-user). When user_id is omitted falls back to the legacy global column.
+    """
+    if user_id is None:
+        user_id = current_user_id()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT job_id, role, job_description FROM job_listings")
@@ -1935,6 +2145,12 @@ def _rescore_all_jobs(cv_data):
 
     if not jobs:
         return 0
+
+    if user_id:
+        scores = {job["job_id"]: cv_score(job, cv_data) for job in jobs}
+        bulk_set_user_cv_scores(user_id, scores)
+        logger.info("Re-scored %d jobs against CV for user %s", len(jobs), user_id)
+        return len(jobs)
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -1946,7 +2162,7 @@ def _rescore_all_jobs(cv_data):
         )
     conn.commit()
     conn.close()
-    logger.info("Re-scored %d jobs against CV", len(jobs))
+    logger.info("Re-scored %d jobs against CV (legacy global)", len(jobs))
     return len(jobs)
 
 
@@ -1961,12 +2177,30 @@ def api_cv_skills():
 @app.route("/api/cv/top_jobs")
 def api_top_jobs():
     """Return top 10 jobs matched to the uploaded CV, sorted by cv_score descending."""
+    uid = current_user_id()
     cv_data = load_cv_data()
     if not cv_data:
         return jsonify({"ok": False, "error": "CV not uploaded yet"}), 400
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT job_id, role, company, apply_url, cv_score FROM job_listings WHERE cv_score IS NOT NULL ORDER BY cv_score DESC LIMIT 10")
+    if uid:
+        cursor.execute(
+            """
+            SELECT j.job_id, j.role, j.company, j.apply_url,
+                   COALESCE(s.cv_score, 0) AS cv_score
+            FROM job_listings j
+            JOIN user_job_state s ON s.job_id = j.job_id AND s.user_id = ?
+            WHERE s.cv_score IS NOT NULL AND s.cv_score > 0
+            ORDER BY s.cv_score DESC
+            LIMIT 10
+            """,
+            (uid,),
+        )
+    else:
+        cursor.execute(
+            "SELECT job_id, role, company, apply_url, cv_score FROM job_listings "
+            "WHERE cv_score IS NOT NULL ORDER BY cv_score DESC LIMIT 10"
+        )
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return jsonify({"ok": True, "jobs": rows})
@@ -2150,8 +2384,13 @@ def approve_outreach(token):
             smtp.sendmail(gmail_address, recipient_email, msg.as_string())
 
         update_outreach_status(token, "sent")
-        # Also mark the job as Applied in job_listings
-        update_applied_status(item["job_id"], 1)
+        # Also mark the job as Applied for the current user (or legacy global
+        # when this is being clicked anonymously from an email link).
+        _uid = current_user_id()
+        if _uid:
+            update_applied_status_user(_uid, item["job_id"], 1)
+        else:
+            update_applied_status(item["job_id"], 1)
         return render_template("approve_result.html",
                                success=True, item=item,
                                message=f"Email sent to {recipient_email}!")
@@ -2202,7 +2441,11 @@ def mark_outreach_applied(token):
     item = get_outreach_by_token(token)
     if not item:
         return jsonify({"ok": False, "error": "Not found"}), 404
-    update_applied_status(item["job_id"], 1)
+    _uid = current_user_id()
+    if _uid:
+        update_applied_status_user(_uid, item["job_id"], 1)
+    else:
+        update_applied_status(item["job_id"], 1)
     return jsonify({"ok": True})
 
 
