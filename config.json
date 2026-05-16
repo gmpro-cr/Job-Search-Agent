@@ -28,31 +28,31 @@
       "page_size": 50
     },
     "angellist": {
-      "enabled": true,
+      "enabled": false,
       "base_url": "https://wellfound.com/jobs",
       "timeout": 30,
       "use_selenium": true,
       "max_pages": 3
     },
     "iimjobs": {
-      "enabled": true,
+      "enabled": false,
       "base_url": "https://www.iimjobs.com",
       "timeout": 30,
       "use_selenium": true,
       "max_pages": 3
     },
     "cutshort": {
-      "enabled": true,
+      "enabled": false,
       "base_url": "https://cutshort.io",
       "timeout": 20
     },
     "instahyre": {
-      "enabled": true,
+      "enabled": false,
       "base_url": "https://www.instahyre.com",
       "timeout": 25
     },
     "remoteok": {
-      "enabled": true,
+      "enabled": false,
       "base_url": "https://remoteok.com",
       "timeout": 20
     },
@@ -62,10 +62,13 @@
       "timeout": 20
     },
     "reddit": {
-      "enabled": true,
+      "enabled": false,
       "base_url": "https://www.reddit.com",
       "timeout": 20,
-      "subreddits": ["forhire", "cscareerquestions"]
+      "subreddits": [
+        "forhire",
+        "cscareerquestions"
+      ]
     },
     "hackernews": {
       "enabled": true,
@@ -73,7 +76,7 @@
       "timeout": 20
     },
     "twitter": {
-      "enabled": true,
+      "enabled": false,
       "base_url": "https://x.com",
       "timeout": 20,
       "max_results": 15
