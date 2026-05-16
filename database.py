@@ -147,15 +147,83 @@ class _PgConn:
         return False
 
 
-def get_connection():
-    """Return a DB connection. Picks psycopg/Postgres when DATABASE_URL is
-    set, sqlite otherwise. Both flavours expose rows as dict-like objects."""
+class _RequestScopedProxy:
+    """
+    Lightweight wrapper that forwards every attribute to the underlying
+    connection EXCEPT `.close()`, which becomes a no-op. The real close
+    is handled once by `close_request_connection()` at request teardown.
+    Lets every call site keep its `conn.close()` line without slamming
+    a fresh TLS connection per query.
+    """
+    __slots__ = ("_real",)
+
+    def __init__(self, real):
+        object.__setattr__(self, "_real", real)
+
+    def close(self):
+        return  # no-op; request teardown will close
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+    def __enter__(self):
+        return self._real.__enter__()
+
+    def __exit__(self, *a, **k):
+        return self._real.__exit__(*a, **k)
+
+
+def _new_raw_connection():
     if USE_POSTGRES:
         pg = psycopg.connect(DATABASE_URL, row_factory=_pg_dict_row, autocommit=False)
         return _PgConn(pg)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def get_connection():
+    """
+    Return a DB connection. Picks psycopg/Postgres when DATABASE_URL is set,
+    sqlite otherwise. Both flavours expose rows as dict-like objects.
+
+    Inside a Flask request context, the same connection is reused across
+    every call so a multi-query page (e.g. /dashboard with 6 stat queries)
+    only pays one TLS handshake instead of six. The connection is closed
+    automatically at request teardown (see close_request_connection).
+
+    Outside a request (CLI scripts, migrations, the GitHub Actions scraper),
+    behaves exactly as before — one owned connection per call.
+    """
+    try:
+        from flask import g, has_app_context
+    except Exception:
+        return _new_raw_connection()
+    if not has_app_context():
+        return _new_raw_connection()
+    cached = getattr(g, "_db_conn", None)
+    if cached is None:
+        cached = _new_raw_connection()
+        g._db_conn = cached
+    return _RequestScopedProxy(cached)
+
+
+def close_request_connection(_exception=None):
+    """Flask teardown_appcontext callback — closes the cached connection."""
+    try:
+        from flask import g, has_app_context
+    except Exception:
+        return
+    if not has_app_context():
+        return
+    conn = getattr(g, "_db_conn", None)
+    if conn is None:
+        return
+    try:
+        conn.close()
+    except Exception:
+        pass
+    g._db_conn = None
 
 
 def _serial_pk():

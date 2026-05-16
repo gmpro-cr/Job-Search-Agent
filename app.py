@@ -134,11 +134,21 @@ def require_user_id():
         from flask import abort
         abort(401)
     return uid
-# Initialize the database on startup
-try:
-    init_db()
-except Exception as e:
-    logger.warning("Database init warning (may be expected on Vercel): %s", e)
+# Initialize the database on startup.
+#
+# init_db() is idempotent (CREATE TABLE IF NOT EXISTS) but issues ~10 DDL
+# round-trips. On Vercel that's wasted latency on every cold start, since
+# the schema is already provisioned. Skip it when SKIP_INIT_DB is set;
+# keep running it locally so dev environments bootstrap fresh tables.
+if not os.environ.get("SKIP_INIT_DB"):
+    try:
+        init_db()
+    except Exception as e:
+        logger.warning("Database init warning (may be expected on Vercel): %s", e)
+
+# Per-request DB connection reuse — see database.get_connection() docstring.
+from database import close_request_connection  # noqa: E402
+app.teardown_appcontext(close_request_connection)
 
 # ---------------------------------------------------------------------------
 # Background scraper state
