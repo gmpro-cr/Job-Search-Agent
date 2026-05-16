@@ -60,8 +60,10 @@
     }
     @media (max-width: 959px) {
       /* On mobile the stage sits BELOW the form, so the wordmark moves
-         to the form panel instead (rendered there). */
-      .login-wordmark-wrap { display: none; }
+         to the form panel instead (rendered there). Compound selector
+         beats `.login-wordmark { display: inline-flex }` which comes
+         later in the source. */
+      .login-wordmark-wrap.login-wordmark { display: none; }
     }
 
     .login-wordmark {
