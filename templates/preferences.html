@@ -1,288 +1,177 @@
 {% extends "base.html" %}
-{% block title %}Settings - Job Search Agent{% endblock %}
+{% block title %}Settings — Job Search Agent{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
-  <div>
-    <h1 style="font-size:1.5rem;font-weight:700;margin:0 0 .25rem;">Settings</h1>
-    <p class="text-muted">Manage your job search preferences and configuration</p>
+
+  <header class="page-header">
+    <span class="eyebrow">Settings</span>
+    <h1>Your preferences &amp; account</h1>
+    <p class="page-lede">The handful of inputs that actually steer the scraper, plus your account details.</p>
+  </header>
+
+  {# ── Job Preferences ────────────────────────────────────────── #}
+  <form method="POST" action="{{ url_for('preferences') }}" class="space-y-4">
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Job titles</div>
+        <div class="card-description">Roles you want surfaced. Press Enter to add.</div>
+      </div>
+      <div class="card-content">
+        <div style="display:flex;gap:.5rem;margin-bottom:.875rem;">
+          <input id="new-title" type="text" class="input" style="flex:1;" placeholder="e.g. Senior Product Manager"
+                 onkeypress="if(event.key==='Enter'){event.preventDefault();addTag('titles',this);}">
+          <button type="button" onclick="addTag('titles',document.getElementById('new-title'))" class="btn btn-default">Add</button>
+        </div>
+        <div id="titles-list" class="tag-list">
+          {% for title in prefs.get('job_titles', []) %}
+          <span class="tag-pill">{{ title }}<button type="button" onclick="removeTag(this)" aria-label="Remove">×</button></span>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="job_titles" id="titles-hidden" value="{{ prefs.get('job_titles', []) | join(',') }}">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Preferred locations</div>
+        <div class="card-description">Cities and modes you'll accept.</div>
+      </div>
+      <div class="card-content">
+        <div style="display:flex;gap:.5rem;margin-bottom:.875rem;">
+          <input id="new-location" type="text" class="input" style="flex:1;" placeholder="e.g. Pune, Remote"
+                 onkeypress="if(event.key==='Enter'){event.preventDefault();addTag('locations',this);}">
+          <button type="button" onclick="addTag('locations',document.getElementById('new-location'))" class="btn btn-default">Add</button>
+        </div>
+        <div id="locations-list" class="tag-list">
+          {% for loc in prefs.get('locations', []) %}
+          <span class="tag-pill">{{ loc }}<button type="button" onclick="removeTag(this)" aria-label="Remove">×</button></span>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="locations" id="locations-hidden" value="{{ prefs.get('locations', []) | join(',') }}">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Transferable skills</div>
+        <div class="card-description">Skills used to lift the CV match score.</div>
+      </div>
+      <div class="card-content">
+        <div style="display:flex;gap:.5rem;margin-bottom:.875rem;">
+          <input id="new-skill" type="text" class="input" style="flex:1;" placeholder="e.g. Stakeholder Management"
+                 onkeypress="if(event.key==='Enter'){event.preventDefault();addTag('skills',this);}">
+          <button type="button" onclick="addTag('skills',document.getElementById('new-skill'))" class="btn btn-default">Add</button>
+        </div>
+        <div id="skills-list" class="tag-list">
+          {% for skill in prefs.get('transferable_skills', []) %}
+          <span class="tag-pill">{{ skill }}<button type="button" onclick="removeTag(this)" aria-label="Remove">×</button></span>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="transferable_skills" id="skills-hidden" value="{{ prefs.get('transferable_skills', []) | join(',') }}">
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;">
+      <button type="submit" class="btn btn-accent">Save preferences</button>
+    </div>
+  </form>
+
+  {# ── Account ────────────────────────────────────────────────── #}
+  {% set _u = session.get('user') %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Account</div>
+      <div class="card-description">Signed in with Google.</div>
+    </div>
+    <div class="card-content">
+      {% if _u %}
+      <div class="account-row">
+        <span class="user-avatar" style="width:2.75rem;height:2.75rem;font-size:1rem;">{{ (_u.get('name') or _u.get('email'))[0]|upper }}</span>
+        <div class="account-row-info">
+          <span class="account-name">{{ _u.get('name') or _u.get('email').split('@')[0] }}</span>
+          <span class="account-email">{{ _u.get('email') }}</span>
+        </div>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          Sign out
+        </a>
+      </div>
+      {% else %}
+      <p class="text-muted">Not signed in.</p>
+      {% endif %}
+    </div>
   </div>
 
-  <form method="POST" action="{{ url_for('preferences') }}">
-
-    <!-- Tabs -->
-    <div class="tabs-list" style="margin-bottom:1.5rem;">
-      <button type="button" class="tabs-trigger active" onclick="switchTab('preferences',this)">Job Preferences</button>
-      <button type="button" class="tabs-trigger" onclick="switchTab('agent',this)">Agent Settings</button>
-      <button type="button" class="tabs-trigger" onclick="switchTab('notifications',this)">Notifications</button>
-      <button type="button" class="tabs-trigger" onclick="switchTab('integrations',this)">Integrations</button>
-    </div>
-
-    <!-- Job Preferences -->
-    <div id="tab-preferences" style="display:flex;flex-direction:column;gap:1rem;">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Job Titles</div>
-          <div class="card-description">Specify the job titles you're interested in</div>
-        </div>
-        <div class="card-content" style="display:flex;flex-direction:column;gap:1rem;">
-          <div style="display:flex;gap:.5rem;">
-            <input id="new-title" type="text" class="input" style="flex:1;" placeholder="e.g., Senior React Developer" onkeypress="if(event.key==='Enter'){event.preventDefault();addTag('titles',this);}">
-            <button type="button" onclick="addTag('titles',document.getElementById('new-title'))" class="btn btn-primary">Add</button>
-          </div>
-          <div id="titles-tags" style="display:flex;flex-wrap:wrap;gap:.5rem;">
-            {% for title in prefs.get('job_titles', []) %}
-            <span class="badge badge-secondary tag-item" style="padding:.375rem .75rem;gap:.375rem;" data-group="titles">
-              {{ title }}
-              <button type="button" onclick="removeTag(this)" style="background:none;border:none;cursor:pointer;padding:0;color:inherit;font-size:1rem;line-height:1;">×</button>
-            </span>
-            {% endfor %}
-          </div>
-          <input type="hidden" name="job_titles" id="titles-hidden" value="{{ prefs.get('job_titles', []) | join(',') }}">
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Preferred Locations</div>
-          <div class="card-description">Add your preferred work locations</div>
-        </div>
-        <div class="card-content" style="display:flex;flex-direction:column;gap:1rem;">
-          <div style="display:flex;gap:.5rem;">
-            <input id="new-location" type="text" class="input" style="flex:1;" placeholder="e.g., Remote, San Francisco" onkeypress="if(event.key==='Enter'){event.preventDefault();addTag('locations',this);}">
-            <button type="button" onclick="addTag('locations',document.getElementById('new-location'))" class="btn btn-primary">Add</button>
-          </div>
-          <div id="locations-tags" style="display:flex;flex-wrap:wrap;gap:.5rem;">
-            {% for loc in prefs.get('locations', []) %}
-            <span class="badge badge-secondary tag-item" style="padding:.375rem .75rem;gap:.375rem;" data-group="locations">
-              {{ loc }}
-              <button type="button" onclick="removeTag(this)" style="background:none;border:none;cursor:pointer;padding:0;color:inherit;font-size:1rem;line-height:1;">×</button>
-            </span>
-            {% endfor %}
-          </div>
-          <input type="hidden" name="locations" id="locations-hidden" value="{{ prefs.get('locations', []) | join(',') }}">
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Transferable Skills</div>
-          <div class="card-description">Key skills that match your capabilities</div>
-        </div>
-        <div class="card-content" style="display:flex;flex-direction:column;gap:1rem;">
-          <div style="display:flex;gap:.5rem;">
-            <input id="new-skill" type="text" class="input" style="flex:1;" placeholder="e.g., React, Python, AWS" onkeypress="if(event.key==='Enter'){event.preventDefault();addTag('skills',this);}">
-            <button type="button" onclick="addTag('skills',document.getElementById('new-skill'))" class="btn btn-primary">Add</button>
-          </div>
-          <div id="skills-tags" style="display:flex;flex-wrap:wrap;gap:.5rem;">
-            {% for skill in prefs.get('transferable_skills', []) %}
-            <span class="badge badge-secondary tag-item" style="padding:.375rem .75rem;gap:.375rem;" data-group="skills">
-              {{ skill }}
-              <button type="button" onclick="removeTag(this)" style="background:none;border:none;cursor:pointer;padding:0;color:inherit;font-size:1rem;line-height:1;">×</button>
-            </span>
-            {% endfor %}
-          </div>
-          <input type="hidden" name="transferable_skills" id="skills-hidden" value="{{ prefs.get('transferable_skills', []) | join(',') }}">
-        </div>
-      </div>
-    </div>
-
-    <!-- Agent Settings -->
-    <div id="tab-agent" style="display:none;flex-direction:column;gap:1rem;">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">AI Scoring Settings</div>
-          <div class="card-description">Configure how jobs are scored and filtered</div>
-        </div>
-        <div class="card-content" style="display:flex;flex-direction:column;gap:1.5rem;">
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">Minimum Score Threshold</label>
-            <input type="number" name="agent_score_threshold" class="input" style="max-width:180px;"
-              value="{{ prefs.get('agent_score_threshold', 65) }}" min="0" max="100">
-            <p class="text-muted" style="font-size:.875rem;">Only jobs scoring above this will be included in digests</p>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">Top Jobs per Digest</label>
-            <input type="number" name="top_jobs" class="input" style="max-width:180px;"
-              value="{{ prefs.get('top_jobs_per_digest', 5) }}" min="1" max="20">
-            <p class="text-muted" style="font-size:.875rem;">Number of top-scoring jobs to include in daily digest</p>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">Maximum Jobs per Scrape</label>
-            <input type="number" name="agent_job_cap" class="input" style="max-width:180px;"
-              value="{{ prefs.get('agent_job_cap', 200) }}" min="10" max="1000">
-            <p class="text-muted" style="font-size:.875rem;">Cap the number of jobs fetched per scraping session</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Scraper Configuration</div>
-        </div>
-        <div class="card-content" style="display:flex;flex-direction:column;gap:1rem;">
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">Agent Host URL</label>
-            <input type="text" name="agent_host" class="input"
-              value="{{ prefs.get('agent_host', 'http://localhost:5001') }}"
-              placeholder="http://localhost:5001">
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Notifications -->
-    <div id="tab-notifications" style="display:none;flex-direction:column;gap:1rem;">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Email Configuration</div>
-          <div class="card-description">Configure email notifications for job digests</div>
-        </div>
-        <div class="card-content" style="display:flex;flex-direction:column;gap:1rem;">
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">Email Address</label>
-            <input type="email" name="email" class="input"
-              value="{{ prefs.get('email', '') }}"
-              placeholder="your.email@example.com">
-          </div>
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">Gmail Address</label>
-            <input type="email" name="gmail_address" class="input"
-              value="{{ prefs.get('gmail_address', '') }}"
-              placeholder="yourgmail@gmail.com">
-          </div>
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">Gmail App Password
-              {% if env_credentials and env_credentials.gmail_app_password %}<span class="badge badge-secondary" style="margin-left:.5rem;font-size:.7rem;">Set via ENV</span>{% endif %}
-            </label>
-            <input type="password" name="gmail_app_password" class="input" placeholder="Enter app password">
-          </div>
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">Daily Digest Time</label>
-            <input type="text" name="digest_time" class="input" style="max-width:180px;"
-              value="{{ prefs.get('digest_time', '11:00 AM') }}" placeholder="e.g., 08:00 AM">
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Telegram Integration</div>
-          <div class="card-description">Get instant alerts on Telegram</div>
-        </div>
-        <div class="card-content" style="display:flex;flex-direction:column;gap:1rem;">
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">Bot Token
-              {% if env_credentials and env_credentials.telegram_bot_token %}<span class="badge badge-secondary" style="margin-left:.5rem;font-size:.7rem;">Set via ENV</span>{% endif %}
-            </label>
-            <input type="text" name="telegram_bot_token" class="input"
-              value="{{ prefs.get('telegram_bot_token', '') }}"
-              placeholder="123456:ABC-DEF...">
-          </div>
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">Chat ID</label>
-            <input type="text" name="telegram_chat_id" class="input"
-              value="{{ prefs.get('telegram_chat_id', '') }}"
-              placeholder="123456789">
-          </div>
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">Minimum Score for Alert</label>
-            <input type="number" name="telegram_min_score" class="input" style="max-width:180px;"
-              value="{{ prefs.get('telegram_min_score', 65) }}" min="0" max="100">
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Integrations -->
-    <div id="tab-integrations" style="display:none;flex-direction:column;gap:1rem;">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">LinkedIn Credentials</div>
-          <div class="card-description">Optional: Enhance scraping with LinkedIn integration</div>
-        </div>
-        <div class="card-content" style="display:flex;flex-direction:column;gap:1rem;">
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">LinkedIn Email</label>
-            <input type="email" name="linkedin_email" class="input"
-              value="{{ prefs.get('linkedin_email', '') }}"
-              placeholder="your.linkedin@email.com">
-          </div>
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">LinkedIn Password
-              {% if env_credentials and env_credentials.linkedin_password %}<span class="badge badge-secondary" style="margin-left:.5rem;font-size:.7rem;">Set via ENV</span>{% endif %}
-            </label>
-            <input type="password" name="linkedin_password" class="input" placeholder="Enter password">
-          </div>
-          <p class="text-muted" style="font-size:.875rem;">Credentials stored locally, used only for scraping job listings.</p>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Apollo API</div>
-          <div class="card-description">For company email enrichment</div>
-        </div>
-        <div class="card-content">
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            <label style="font-size:.875rem;font-weight:500;">Apollo API Key
-              {% if env_credentials and env_credentials.apollo_api_key %}<span class="badge badge-secondary" style="margin-left:.5rem;font-size:.7rem;">Set via ENV</span>{% endif %}
-            </label>
-            <input type="password" name="apollo_api_key" class="input"
-              value="{{ prefs.get('apollo_api_key', '') }}"
-              placeholder="Enter Apollo API key">
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1.5rem;">
-      <a href="{{ url_for('preferences') }}" class="btn btn-outline">Reset to Defaults</a>
-      <button type="submit" class="btn btn-primary">Save Settings</button>
-    </div>
-
-  </form>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-  function switchTab(name, btn) {
-    ['preferences','agent','notifications','integrations'].forEach(t => {
-      document.getElementById('tab-' + t).style.display = (t === name) ? 'flex' : 'none';
-    });
-    document.querySelectorAll('.tabs-trigger').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
+<style>
+  .tag-list { display:flex; flex-wrap:wrap; gap:.5rem; min-height:1rem; }
+  .tag-pill {
+    display:inline-flex; align-items:center; gap:.5rem;
+    padding:.3125rem .75rem;
+    border-radius:999px;
+    background:var(--muted);
+    color:var(--foreground);
+    font-size:.8125rem;
+    font-weight:500;
+    border:1px solid var(--border);
   }
+  .tag-pill button {
+    background:none; border:none; cursor:pointer; padding:0;
+    color:var(--muted-foreground); font-size:1rem; line-height:1;
+    transition:color var(--duration-snap) var(--ease-out-snappy);
+  }
+  .tag-pill button:hover { color:var(--destructive); }
 
+  .account-row { display:flex; align-items:center; gap:1rem; }
+  .account-row-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:.125rem; }
+  .account-name { font-size:.9375rem; font-weight:600; color:var(--foreground); }
+  .account-email { font-family:var(--font-mono); font-size:.8125rem; color:var(--muted-foreground); }
+</style>
+<script>
+  function _pillText(pill) {
+    return Array.from(pill.childNodes)
+      .filter(n => n.nodeType === Node.TEXT_NODE)
+      .map(n => n.textContent.trim())
+      .join('').trim();
+  }
   function addTag(group, input) {
-    const val = input.value.trim();
+    const val = (input.value || '').trim();
     if (!val) return;
-    const container = document.getElementById(group + '-tags');
+    const list = document.getElementById(group + '-list');
+    if (!list) return;
+    const existing = Array.from(list.querySelectorAll('.tag-pill')).map(p => _pillText(p).toLowerCase());
+    if (existing.includes(val.toLowerCase())) { input.value = ''; return; }
     const span = document.createElement('span');
-    span.className = 'badge badge-secondary tag-item';
-    span.setAttribute('data-group', group);
-    span.style.cssText = 'padding:.375rem .75rem;gap:.375rem;';
-    span.innerHTML = val + ' <button type="button" onclick="removeTag(this)" style="background:none;border:none;cursor:pointer;padding:0;color:inherit;font-size:1rem;line-height:1;">×</button>';
-    container.appendChild(span);
+    span.className = 'tag-pill';
+    span.textContent = val;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Remove');
+    btn.textContent = '×';
+    btn.onclick = function () { removeTag(btn); };
+    span.appendChild(btn);
+    list.appendChild(span);
     input.value = '';
     syncHidden(group);
   }
-
   function removeTag(btn) {
-    const span = btn.parentElement;
-    const group = span.getAttribute('data-group');
-    span.remove();
+    const pill = btn.parentElement;
+    const list = pill.parentElement;
+    const group = list.id.replace(/-list$/, '');
+    pill.remove();
     syncHidden(group);
   }
-
   function syncHidden(group) {
-    const tags = [...document.querySelectorAll(`[data-group="${group}"]`)].map(el => {
-      const t = el.cloneNode(true);
-      t.querySelector('button')?.remove();
-      return t.textContent.trim();
-    });
-    document.getElementById(group + '-hidden').value = tags.join(',');
+    const list = document.getElementById(group + '-list');
+    const hidden = document.getElementById(group + '-hidden');
+    if (!list || !hidden) return;
+    const values = Array.from(list.querySelectorAll('.tag-pill')).map(_pillText);
+    hidden.value = values.join(',');
   }
 </script>
 {% endblock %}

@@ -99,6 +99,23 @@
         </li>
       </ul>
     </nav>
+
+    {% set _u = session.get('user') %}
+    {% if _u and _u.get('email') %}
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <span class="user-avatar">{{ (_u.get('name') or _u.get('email'))[0]|upper }}</span>
+        <div class="sidebar-user-info">
+          <span class="sidebar-user-name">{{ _u.get('name') or _u.get('email').split('@')[0] }}</span>
+          <span class="sidebar-user-email">{{ _u.get('email') }}</span>
+        </div>
+      </div>
+      <a href="{{ url_for('logout') }}" class="sidebar-signout" aria-label="Sign out">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Sign out
+      </a>
+    </div>
+    {% endif %}
   </aside>
 
   <!-- ── Main content ── -->

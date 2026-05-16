@@ -3,10 +3,33 @@
 
 {% block content %}
 <div class="space-y-6">
-  <div>
-    <h1 style="font-size:1.5rem;font-weight:700;margin:0 0 .25rem;">Profile & CV Management</h1>
-    <p class="text-muted">Upload and analyze your CV to optimize job matching</p>
+  <header class="page-header">
+    <span class="eyebrow">Profile</span>
+    <h1>Profile &amp; CV</h1>
+    <p class="page-lede">Upload your CV so jobs get scored against your real experience and skills.</p>
+  </header>
+
+  {% if cv_filename %}
+  <div class="cv-current">
+    <div class="cv-current-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+    </div>
+    <div class="cv-current-body">
+      <span class="eyebrow">Currently on file</span>
+      <p class="cv-current-name">{{ cv_filename }}</p>
+      <p class="cv-current-meta">
+        {{ cv_skills_count }} skill{{ '' if cv_skills_count == 1 else 's' }} detected
+        {% if cv_uploaded_at %}· uploaded {{ cv_uploaded_at[:10] }}{% endif %}
+      </p>
+    </div>
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}" class="cv-current-replace">
+      <label class="btn btn-outline btn-sm">
+        Replace CV
+        <input type="file" name="cv_file" accept=".pdf,.doc,.docx" style="display:none;" onchange="this.form.submit()">
+      </label>
+    </form>
   </div>
+  {% endif %}
 
   <div style="display:grid;grid-template-columns:1fr 2fr;gap:1.5rem;align-items:start;">
 

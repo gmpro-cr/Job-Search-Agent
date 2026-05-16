@@ -1995,13 +1995,65 @@ def get_hiring_managers(limit: int = 300) -> list[dict]:
         existing["email"] = existing["email"] or candidate["email"]
         existing["linkedin"] = existing["linkedin"] or candidate["linkedin"]
 
-    # Keep only entries we can actually act on — must have at least one of
-    # linkedin / email. The contact-scraper occasionally puts a role title
-    # into poster_name when no real person was found, and a row with no
-    # contact channel is useless in this view.
+    # Keep only entries we can actually act on:
+    #   1. must have at least one of linkedin / email
+    #   2. the "name" must look like a person, not a job title — the
+    #      contact-scraper sometimes captures the role text into
+    #      poster_name when no real human was found. We drop anything
+    #      that smells like a role.
     actionable = [
         d for d in by_name.values()
-        if d["linkedin"] or d["email"]
+        if (d["linkedin"] or d["email"]) and _looks_like_person_name(d["name"])
     ]
     actionable.sort(key=lambda d: d["last_seen"] or "", reverse=True)
     return actionable[: int(limit)]
+
+
+# Words that almost certainly mean the field is a job title, not a person.
+_ROLE_WORDS = frozenset({
+    "manager", "engineer", "analyst", "developer", "designer", "architect",
+    "consultant", "specialist", "lead", "director", "executive", "officer",
+    "head", "vp", "founder", "owner", "principal", "associate", "intern",
+    "scientist", "researcher", "writer", "editor", "marketer", "salesperson",
+    "salesman", "saleswoman", "recruiter", "coordinator", "supervisor",
+    "administrator", "technician", "operator", "assistant", "advisor",
+    "strategist", "evangelist", "advocate", "trainee",
+    # multi-word role markers
+    "product", "data", "software", "marketing", "growth", "operations",
+    "finance", "hr", "talent", "people", "customer", "client", "service",
+    "support", "frontend", "backend", "full-stack", "fullstack", "devops",
+    "platform", "infrastructure", "security", "qa", "test", "automation",
+    "business", "digital", "content", "social",
+    # generic noise
+    "hiring", "team", "office", "remote", "fresher",
+})
+
+def _looks_like_person_name(name: str) -> bool:
+    """
+    Heuristic: does this string read like a person's name?
+    Returns False for things like "Business Analyst", "Junior Developer",
+    "Manager - Product", "Social Listening Analyst" — i.e. anything where
+    a role-word appears at the start, plus a few structural giveaways.
+    """
+    if not name or not name.strip():
+        return False
+    n = name.strip()
+    if len(n) > 60:
+        return False
+    # Job titles often use connector punctuation; person names don't.
+    if any(ch in n for ch in (" - ", " | ", "/", "—", ":")):
+        return False
+    tokens = [t.lower().strip(",.()") for t in n.split() if t.strip()]
+    if not tokens:
+        return False
+    # Lone token: only accept if it's clearly capitalised and not a role word.
+    if len(tokens) == 1:
+        return tokens[0] not in _ROLE_WORDS and n[0:1].isalpha() and n[0:1].isupper()
+    # Multi-token: reject if ANY token is a role-word. People's names rarely
+    # contain words like "Manager" or "Analyst".
+    if any(t in _ROLE_WORDS for t in tokens):
+        return False
+    # Reject "all-caps shouting" — usually company names.
+    if n.isupper() and len(n) > 4:
+        return False
+    return True

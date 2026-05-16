@@ -233,6 +233,64 @@ body {
 .sidebar-link:hover svg { opacity: 1; }
 .sidebar-link.active svg { opacity: 1; color: var(--accent); }
 
+/* Sidebar footer — user identity + logout */
+.sidebar-footer {
+  border-top: 1px solid var(--sidebar-border);
+  padding: 0.875rem 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.25rem 0.5rem;
+}
+.sidebar-user .user-avatar { width: 2rem; height: 2rem; font-size: 0.8125rem; }
+.sidebar-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.sidebar-user-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-user-email {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-signout {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  transition: background var(--duration-snap) var(--ease-out-snappy),
+              color var(--duration-snap) var(--ease-out-snappy);
+}
+.sidebar-signout:hover {
+  background: var(--muted);
+  color: var(--destructive);
+}
+.sidebar-signout svg { opacity: 0.7; }
+.sidebar-signout:hover svg { opacity: 1; }
+
 /* ── Main content ── */
 .main-content {
   flex: 1;
@@ -403,50 +461,6 @@ body.sidebar-collapsed .main-content { margin-left: 0; }
 @media (max-width: 560px) {
   .jobs-search { flex-direction: column; }
   .jobs-sort { width: 100%; }
-}
-
-/* Horizontal filter bar — replaces the old sidebar rail. */
-.jobs-filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.875rem 1.25rem;
-  padding: 0.875rem 1rem;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-}
-.jobs-filter-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.jobs-filter-label {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-}
-.jobs-filter-num,
-.jobs-filter-select {
-  height: 2rem;
-  font-size: 0.875rem;
-  padding: 0.25rem 0.5rem;
-  width: auto;
-  min-width: 0;
-}
-.jobs-filter-num { width: 3.75rem; text-align: center; }
-.jobs-filter-select { padding-right: 1.75rem; min-width: 7rem; }
-.jobs-filter-dash {
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-}
-.jobs-filter-reset {
-  margin-left: auto;
-  color: var(--muted-foreground);
 }
 
 .jobs-list-wrap { display: flex; flex-direction: column; gap: 1rem; }
@@ -963,6 +977,49 @@ body.sidebar-collapsed .main-content { margin-left: 0; }
   color: var(--muted-foreground);
   margin-top: 0.5rem;
 }
+
+/* Current CV banner (on the Profile & CV page) */
+.cv-current {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+}
+.cv-current-icon {
+  width: 2.5rem; height: 2.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-foreground);
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.cv-current-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.cv-current-body .eyebrow { color: var(--accent); margin-bottom: 0.25rem; }
+.cv-current-body .eyebrow::before { background: var(--accent); }
+.cv-current-name {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cv-current-meta {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+.cv-current-replace { margin: 0; flex-shrink: 0; }
 
 /* Toast */
 .toast {

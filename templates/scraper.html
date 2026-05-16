@@ -3,22 +3,25 @@
 
 {% block content %}
 <div class="space-y-6">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
-    <div>
-      <h1 style="font-size:1.5rem;font-weight:700;margin:0 0 0.25rem;">Run Scraper</h1>
-      <p class="text-muted">Configure and run job scraping across multiple portals</p>
+  <header class="page-header">
+    <div class="page-header-row">
+      <div style="flex:1;min-width:0;">
+        <span class="eyebrow">Manual run</span>
+        <h1>Run Scraper</h1>
+        <p class="page-lede">Toggle the portals you want, then trigger a scrape. The selection here drives the actual scrape on the GitHub Actions cron too.</p>
+      </div>
+      <div id="header-btns" style="display:flex;gap:.5rem;flex-shrink:0;">
+        <button id="run-btn" onclick="startScraper()" class="btn btn-accent magnetic">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Run Scraper
+        </button>
+        <button id="stop-btn" onclick="stopScraper()" class="btn btn-destructive" style="display:none;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h6v6H9z"/><circle cx="12" cy="12" r="10" stroke-width="2"/></svg>
+          Stop
+        </button>
+      </div>
     </div>
-    <div id="header-btns">
-      <button id="run-btn" onclick="startScraper()" class="btn btn-primary btn-lg">
-        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        Run Scraper
-      </button>
-      <button id="stop-btn" onclick="stopScraper()" class="btn btn-destructive btn-lg" style="display:none;">
-        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10h6v4H9z"/></svg>
-        Stop Scraper
-      </button>
-    </div>
-  </div>
+  </header>
 
   <!-- Progress card (shown while running) -->
   <div id="progress-card" class="card" style="display:none;border-color:rgba(3,2,19,0.2);background:rgba(3,2,19,0.03);">
@@ -90,21 +93,18 @@
           <div style="display:flex;flex-direction:column;gap:.75rem;">
             {% for name, portal in config.get('portals', {}).items() %}
             <div class="portal-row" id="portal-row-{{ name }}"
-              style="display:flex;align-items:center;justify-content:space-between;padding:1rem;border-radius:.5rem;border:1px solid var(--border);cursor:pointer;"
+              style="display:flex;align-items:center;justify-content:space-between;padding:.875rem 1rem;border-radius:.5rem;border:1px solid var(--border);cursor:pointer;"
               onclick="togglePortal('{{ name }}')">
               <div style="display:flex;align-items:center;gap:.75rem;">
                 <input type="checkbox" id="chk-{{ name }}" class="portal-checkbox" value="{{ name }}"
                   {% if portal.get('enabled', false) %}checked{% endif %}
                   onclick="event.stopPropagation();updatePortalRow(this)"
-                  style="width:1rem;height:1rem;cursor:pointer;accent-color:var(--primary);">
+                  style="width:1rem;height:1rem;cursor:pointer;accent-color:var(--accent);">
                 <label for="chk-{{ name }}" style="cursor:pointer;font-weight:500;">{{ name|capitalize }}</label>
               </div>
-              <div style="display:flex;align-items:center;gap:1rem;font-size:.875rem;color:var(--muted-foreground);">
-                <span>Last run: {{ portal.get('last_run', 'Never') }}</span>
-                {% if portal.get('jobs_found', 0) > 0 %}
-                <span class="badge badge-secondary">{{ portal.get('jobs_found', 0) }} jobs</span>
-                {% endif %}
-              </div>
+              {% if not portal.get('enabled', false) %}
+              <span style="font-size:.6875rem;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.1em;">disabled</span>
+              {% endif %}
             </div>
             {% endfor %}
           </div>
@@ -114,43 +114,21 @@
       <!-- Right sidebar -->
       <div style="display:flex;flex-direction:column;gap:1rem;">
 
-        <!-- Last Run Summary -->
+        <!-- About the schedule -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">Last Run Summary</div>
-          </div>
-          <div class="card-content" style="display:flex;flex-direction:column;gap:.75rem;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span class="text-muted" style="font-size:.875rem;">Date & Time</span>
-              <span id="last-run-time" style="font-weight:500;">—</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span class="text-muted" style="font-size:.875rem;">Total Jobs Found</span>
-              <span id="last-total" style="font-weight:500;">—</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span class="text-muted" style="font-size:.875rem;">Qualified Jobs</span>
-              <span id="last-qualified" style="font-weight:500;">—</span>
-            </div>
-            <div id="last-status-ok" style="display:none;align-items:center;gap:.5rem;padding-top:.5rem;">
-              <svg width="16" height="16" fill="none" stroke="var(--success)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <span style="font-size:.875rem;color:var(--success);">Completed successfully</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Next Scheduled Run -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">Next Scheduled Run</div>
+            <div class="card-title">Daily cron</div>
           </div>
           <div class="card-content" style="display:flex;flex-direction:column;gap:.5rem;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span class="text-muted" style="font-size:.875rem;">Scheduled for</span>
-              <span id="next-run-time" style="font-weight:500;">Loading...</span>
-            </div>
-            <div class="progress" style="height:.5rem;"><div class="progress-bar" id="schedule-progress" style="width:0%"></div></div>
-            <p id="next-run-remaining" class="text-muted" style="font-size:.75rem;text-align:center;"></p>
+            <p class="text-muted" style="font-size:.875rem;line-height:1.55;margin:0;">
+              The scheduled scrape runs twice a day at <strong>07:00 IST</strong> and <strong>19:00 IST</strong> on GitHub Actions &mdash; using whatever portals you've toggled here.
+            </p>
+            <a href="https://github.com/gmpro-cr/Job-Search-Agent/actions/workflows/scrape.yml"
+               target="_blank" rel="noopener noreferrer"
+               class="btn btn-outline btn-sm" style="justify-content:flex-start;width:100%;margin-top:.5rem;">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path d="M12 .297C5.373.297 0 5.67 0 12.297c0 5.302 3.438 9.8 8.207 11.387.6.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.082-.729.082-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.107-.776.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.398 3.003-.404 1.02.006 2.047.138 3.006.404 2.291-1.553 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 22.092 24 17.595 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+              View GitHub Actions runs
+            </a>
           </div>
         </div>
 
@@ -379,23 +357,10 @@
       document.getElementById('progress-card').style.display = 'block';
       pollInterval = setInterval(pollStatus, 2000);
       pollStatus();
-    } else {
-      if (s.finished_at) {
-        document.getElementById('last-run-time').textContent = toRelative(s.finished_at) || '—';
-        if (s.total_jobs !== undefined) document.getElementById('last-total').textContent = s.total_jobs;
-        if (s.qualified_jobs !== undefined) document.getElementById('last-qualified').textContent = s.qualified_jobs;
-        if (s.phase === 'done') document.getElementById('last-status-ok').style.display = 'flex';
-      }
     }
-    if (sched.next_run_human) {
-      document.getElementById('next-run-time').textContent = sched.next_run_human;
-    }
-    if (sched.next_run_pct !== undefined) {
-      document.getElementById('schedule-progress').style.width = sched.next_run_pct + '%';
-    }
-    if (sched.next_run_remaining) {
-      document.getElementById('next-run-remaining').textContent = sched.next_run_remaining;
-    }
+    // Last-run + next-scheduled card was removed; we don't surface those
+    // numbers on this page anymore. Status comes from the progress card
+    // while a scrape is running, and from GitHub Actions for the cron.
   }).catch(() => {});
 </script>
 {% endblock %}

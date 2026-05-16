@@ -26,7 +26,6 @@
               <th style="padding:.75rem 1rem;font-weight:500;color:var(--muted-foreground);font-size:.8125rem;text-transform:uppercase;letter-spacing:.04em;">Name</th>
               <th style="padding:.75rem 1rem;font-weight:500;color:var(--muted-foreground);font-size:.8125rem;text-transform:uppercase;letter-spacing:.04em;">Role &amp; Company</th>
               <th style="padding:.75rem 1rem;font-weight:500;color:var(--muted-foreground);font-size:.8125rem;text-transform:uppercase;letter-spacing:.04em;">Contact</th>
-              <th style="padding:.75rem 1rem;font-weight:500;color:var(--muted-foreground);font-size:.8125rem;text-transform:uppercase;letter-spacing:.04em;">Last Seen</th>
             </tr>
           </thead>
           <tbody>
@@ -56,9 +55,6 @@
                   </a>
                   {% endif %}
                 </div>
-              </td>
-              <td style="padding:.75rem 1rem;vertical-align:top;color:var(--muted-foreground);font-size:.875rem;white-space:nowrap;">
-                {{ m.last_seen[:10] if m.last_seen else '—' }}
               </td>
             </tr>
             {% endfor %}

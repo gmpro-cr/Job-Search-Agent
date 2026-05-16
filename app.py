@@ -1685,74 +1685,38 @@ def admin_dedup():
 
 @app.route("/preferences", methods=["GET", "POST"])
 def preferences():
-    config = load_config()
+    """
+    Simplified settings page: job preferences + account + sign-out only.
+    The other fields (email creds, telegram, linkedin, apollo, agent
+    config) still exist in storage — they're managed via .env / Vercel
+    project env now, not via UI — so the POST handler MERGES form values
+    into the stored prefs instead of replacing the whole dict.
+    """
     if request.method == "POST":
-        # Normalize digest_time: "11.00 AM" → "11:00 AM"
-        raw_dt = request.form.get("digest_time", "11:00 AM").strip()
-        if "." in raw_dt:
-            dt_parts = raw_dt.split(" ", 1)
-            dt_parts[0] = dt_parts[0].replace(".", ":")
-            raw_dt = " ".join(dt_parts)
+        existing = load_preferences() or DEFAULT_PREFS.copy()
+        updated = dict(existing)
 
-        prefs = {
-            "job_titles": [
+        # Job preferences (the only fields this UI exposes)
+        if "job_titles" in request.form:
+            updated["job_titles"] = [
                 t.strip() for t in request.form.get("job_titles", "").split(",") if t.strip()
-            ],
-            "locations": [
+            ]
+        if "locations" in request.form:
+            updated["locations"] = [
                 l.strip() for l in request.form.get("locations", "").split(",") if l.strip()
-            ],
-            "industries": [
-                i.strip() for i in request.form.get("industries", "").split(",") if i.strip()
-            ],
-            "transferable_skills": [
+            ]
+        if "transferable_skills" in request.form:
+            updated["transferable_skills"] = [
                 s.strip() for s in request.form.get("transferable_skills", "").split(",") if s.strip()
-            ],
-            "top_jobs_per_digest": max(3, min(10, int(request.form.get("top_jobs", "5")))),
-            "digest_time": raw_dt,
-            "email": request.form.get("email", "").strip(),
-            "gmail_address": request.form.get("gmail_address", "").strip(),
-            "gmail_app_password": request.form.get("gmail_app_password", "").strip(),
-            "apollo_api_key": request.form.get("apollo_api_key", "").strip(),
-            "telegram_bot_token": request.form.get("telegram_bot_token", "").strip(),
-            "telegram_chat_id": request.form.get("telegram_chat_id", "").strip(),
-            "telegram_min_score": max(0, min(100, int(request.form.get("telegram_min_score", "65")))),
-            "linkedin_email": request.form.get("linkedin_email", "").strip(),
-            "linkedin_password": request.form.get("linkedin_password", "").strip(),
-            "agent_score_threshold": max(0, min(100, int(request.form.get("agent_score_threshold", "50")))),
-            "agent_job_cap": max(10, min(500, int(request.form.get("agent_job_cap", "200")))),
-            "agent_host": request.form.get("agent_host", "http://localhost:5001").strip(),
-        }
-        save_preferences(prefs)
-        flash("Preferences saved successfully!", "success")
+            ]
+        save_preferences(updated)
+        flash("Job preferences saved.", "success")
         return redirect(url_for("preferences"))
 
     prefs = load_preferences() or DEFAULT_PREFS.copy()
     if not prefs.get("transferable_skills"):
         prefs["transferable_skills"] = DEFAULT_PREFS["transferable_skills"]
-    env_credentials = {
-        "gmail_app_password": bool(os.environ.get("GMAIL_APP_PASSWORD")),
-        "telegram_bot_token": bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
-        "apollo_api_key": bool(os.environ.get("APOLLO_API_KEY")),
-        "linkedin_password": bool(os.environ.get("LINKEDIN_PASSWORD")),
-    }
-    from reminder_runner import load_reminders
-    all_reminders = load_reminders()
-    user_email = dict(session).get('user', {}).get('email')
-    if user_email:
-        all_reminders = [r for r in all_reminders if not r.get('owner_email') or r.get('owner_email') == user_email]
-    prds = []
-    today_prd = None
-    try:
-        from prd_generator import list_prds, generate_daily_prd
-        prds = list_prds()
-        today_prd = generate_daily_prd()
-    except Exception:
-        pass
-    return render_template(
-        "preferences.html",
-        prefs=prefs, config=config, env_credentials=env_credentials,
-        reminders=all_reminders, prds=prds, today_prd=today_prd,
-    )
+    return render_template("preferences.html", prefs=prefs)
 
 
 @app.route("/api/jobs/<job_id>/tailored-points")
@@ -2125,6 +2089,8 @@ def cv_page():
 
     # Build template variables
     cv_filename = cv_data.get("filename") if cv_data else None
+    cv_uploaded_at = cv_data.get("uploaded_at") if cv_data else None
+    cv_skills_count = len(cv_data.get("skills", [])) if cv_data else 0
     skills = cv_data.get("skills", []) if cv_data else []
     completeness = min(100, len(skills) * 5 + (50 if cv_data else 0)) if cv_data else 0
 
@@ -2168,6 +2134,8 @@ def cv_page():
     return render_template("cv.html",
         cv_data=cv_data,
         cv_filename=cv_filename,
+        cv_uploaded_at=cv_uploaded_at,
+        cv_skills_count=cv_skills_count,
         completeness=completeness,
         cv_sections=cv_sections,
         extracted_skills=extracted_skills,

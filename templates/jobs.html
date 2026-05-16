@@ -17,66 +17,18 @@
     </div>
   </header>
 
-  <!-- Search bar -->
+  <!-- Search + sort (filters intentionally removed; the score sort is enough) -->
   <div class="jobs-search">
     <svg class="jobs-search-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
     </svg>
     <input id="search-input" type="text" placeholder="Search jobs, companies, or keywords…"
-      class="input jobs-search-input" oninput="filterJobs()">
-    <select id="sort-select" class="input jobs-sort" onchange="filterJobs()">
+      class="input jobs-search-input" oninput="filterJobs()" autocomplete="off">
+    <select id="sort-select" class="input jobs-sort" onchange="filterJobs()" aria-label="Sort">
       <option value="score">Relevance score</option>
       <option value="date">Date posted</option>
       <option value="company">Company</option>
     </select>
-  </div>
-
-  <!-- Horizontal filter bar -->
-  <div class="jobs-filter-bar">
-    <div class="jobs-filter-group">
-      <label class="jobs-filter-label">Score</label>
-      <input id="score-min" type="number" min="0" max="100" value="0" class="input jobs-filter-num" oninput="filterJobs()" aria-label="Minimum score">
-      <span class="jobs-filter-dash">–</span>
-      <input id="score-max" type="number" min="0" max="100" value="100" class="input jobs-filter-num" oninput="filterJobs()" aria-label="Maximum score">
-    </div>
-
-    <div class="jobs-filter-group">
-      <label class="jobs-filter-label" for="filter-status">Status</label>
-      <select id="filter-status" class="input jobs-filter-select" onchange="filterJobs()">
-        <option value="">All</option>
-        <option value="new">New</option>
-        <option value="saved">Saved</option>
-        <option value="applied">Applied</option>
-        <option value="rejected">Rejected</option>
-      </select>
-    </div>
-
-    <div class="jobs-filter-group">
-      <label class="jobs-filter-label" for="filter-remote">Remote</label>
-      <select id="filter-remote" class="input jobs-filter-select" onchange="filterJobs()">
-        <option value="">All</option>
-        <option value="remote">Remote</option>
-        <option value="hybrid">Hybrid</option>
-        <option value="onsite">On-site</option>
-      </select>
-    </div>
-
-    <div class="jobs-filter-group">
-      <label class="jobs-filter-label" for="filter-portal">Portal</label>
-      <select id="filter-portal" class="input jobs-filter-select" onchange="filterJobs()">
-        <option value="">All</option>
-        <option value="linkedin">LinkedIn</option>
-        <option value="indeed">Indeed</option>
-        <option value="naukri">Naukri</option>
-        <option value="wellfound">Wellfound</option>
-        <option value="hiringcafe">HiringCafe</option>
-      </select>
-    </div>
-
-    <button onclick="resetFilters()" class="btn btn-ghost btn-sm jobs-filter-reset">
-      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-      Reset
-    </button>
   </div>
 
   <!-- Job list (full width now) -->
@@ -207,38 +159,17 @@
   }
 
   function filterJobs() {
-    const q = document.getElementById('search-input').value.toLowerCase();
-    const scoreMin = parseInt(document.getElementById('score-min').value) || 0;
-    const scoreMax = parseInt(document.getElementById('score-max').value) || 100;
-    const statusFilter = document.getElementById('filter-status').value;
-    const remoteFilter = document.getElementById('filter-remote').value;
-    const portalFilter = document.getElementById('filter-portal').value;
+    const q = (document.getElementById('search-input').value || '').toLowerCase().trim();
     const sort = document.getElementById('sort-select').value;
 
-    let filtered = allJobs.filter(j => {
-      const score = j.cv_score || j.relevance_score || 0;
-      if (score < scoreMin || score > scoreMax) return false;
-      if (q && !((j.role||'').toLowerCase().includes(q) ||
-                 (j.company||'').toLowerCase().includes(q) ||
-                 (j.job_description||'').toLowerCase().includes(q))) return false;
-      if (statusFilter) {
-        const statusName = STATUS_LABELS[j.applied_status] || 'new';
-        if (statusFilter === 'new' && statusName !== 'new') return false;
-        if (statusFilter === 'applied' && statusName !== 'applied') return false;
-        if (statusFilter === 'saved' && statusName !== 'saved') return false;
-        if (statusFilter === 'rejected' && statusName !== 'rejected') return false;
-      }
-      if (remoteFilter) {
-        const remote = (j.remote_status||'').toLowerCase();
-        if (remoteFilter === 'remote' && !remote.includes('remote')) return false;
-        if (remoteFilter === 'hybrid' && !remote.includes('hybrid')) return false;
-        if (remoteFilter === 'onsite' && remote.includes('remote')) return false;
-      }
-      if (portalFilter && (j.portal||'').toLowerCase() !== portalFilter) return false;
-      return true;
-    });
+    let filtered = q
+      ? allJobs.filter(j =>
+          (j.role||'').toLowerCase().includes(q) ||
+          (j.company||'').toLowerCase().includes(q) ||
+          (j.job_description||'').toLowerCase().includes(q) ||
+          (j.location||'').toLowerCase().includes(q))
+      : allJobs.slice();
 
-    // Sort
     filtered.sort((a, b) => {
       if (sort === 'score') return (b.cv_score || b.relevance_score || 0) - (a.cv_score || a.relevance_score || 0);
       if (sort === 'date') return new Date(b.date_found||0) - new Date(a.date_found||0);
@@ -399,12 +330,8 @@
   }
 
   function resetFilters() {
-    document.getElementById('search-input').value = '';
-    document.getElementById('score-min').value = 0;
-    document.getElementById('score-max').value = 100;
-    document.getElementById('filter-status').value = '';
-    document.getElementById('filter-remote').value = '';
-    document.getElementById('filter-portal').value = '';
+    const search = document.getElementById('search-input');
+    if (search) search.value = '';
     filterJobs();
   }
 
