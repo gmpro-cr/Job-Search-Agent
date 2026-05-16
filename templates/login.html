@@ -14,22 +14,30 @@
       background-image:
         radial-gradient(at 14% 105%, rgba(0,102,255,0.13), transparent 55%),
         radial-gradient(at 92% 5%, rgba(10,10,12,0.06), transparent 55%);
-      display: grid;
-      grid-template-columns: 1fr;
-      align-items: stretch;
+      display: flex;
+      flex-direction: column-reverse; /* on mobile: form panel above marketing */
     }
     @media (min-width: 960px) {
-      body { grid-template-columns: 1.15fr 1fr; }
+      body {
+        display: grid;
+        grid-template-columns: 1.05fr 1fr;
+        align-items: stretch;
+      }
     }
 
     .login-stage {
-      padding: clamp(2rem, 5vw, 4.5rem);
+      padding: clamp(2rem, 5vw, 4rem);
       display: flex;
       flex-direction: column;
-      gap: 2.25rem;
+      gap: 2rem;
       position: relative;
       overflow: hidden;
-      min-height: 100vh;
+    }
+    @media (min-width: 960px) {
+      .login-stage {
+        min-height: 100vh;
+        justify-content: center; /* vertically centre marketing content on desktop */
+      }
     }
     .login-stage::before {
       content: "";
@@ -37,11 +45,24 @@
       background-image:
         radial-gradient(circle at center, rgba(10,10,12,0.18) 1px, transparent 1px);
       background-size: 26px 26px;
-      mask-image: radial-gradient(ellipse at 30% 55%, #000 0%, transparent 70%);
-      opacity: 0.55;
+      mask-image: radial-gradient(ellipse at 50% 50%, #000 0%, transparent 70%);
+      opacity: 0.45;
       pointer-events: none;
     }
     .login-stage > * { position: relative; z-index: 1; }
+
+    /* Wordmark pins to top corner of stage; doesn't take part in centering */
+    .login-wordmark-wrap {
+      position: absolute;
+      top: clamp(1.5rem, 3vw, 2rem);
+      left: clamp(1.5rem, 3vw, 2rem);
+      z-index: 2;
+    }
+    @media (max-width: 959px) {
+      /* On mobile the stage sits BELOW the form, so the wordmark moves
+         to the form panel instead (rendered there). */
+      .login-wordmark-wrap { display: none; }
+    }
 
     .login-wordmark {
       display: inline-flex; align-items: center; gap: 0.625rem;
@@ -78,7 +99,6 @@
 
     .login-headline {
       max-width: 26ch;
-      margin-top: auto;
     }
     .login-headline .eyebrow { margin-bottom: 1.25rem; }
     .login-headline h1 {
@@ -138,15 +158,34 @@
     .login-panel {
       background: var(--card);
       border-left: 1px solid var(--border);
-      padding: clamp(2rem, 5vw, 4.5rem);
+      padding: clamp(2.5rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3rem);
       display: flex; flex-direction: column; justify-content: center;
       align-items: center;
       position: relative;
+      min-height: 100vh;
     }
     @media (max-width: 959px) {
-      .login-panel { border-left: none; border-top: 1px solid var(--border); }
+      .login-panel {
+        border-left: none;
+        border-bottom: 1px solid var(--border);  /* sits ABOVE stage on mobile */
+        min-height: auto;
+        padding-top: clamp(2.25rem, 7vw, 3.5rem);
+        padding-bottom: clamp(2.25rem, 6vw, 3rem);
+      }
     }
     .login-form { width: 100%; max-width: 22rem; }
+    .login-form-wordmark {
+      display: none;
+    }
+    @media (max-width: 959px) {
+      /* Mobile-only wordmark sits at top of form so users see the brand
+         without scrolling past the marketing. */
+      .login-form-wordmark {
+        display: inline-flex; align-items: center; gap: 0.625rem;
+        font-family: var(--font-sans);
+        margin-bottom: 2rem;
+      }
+    }
     .login-form h2 {
       font-family: var(--font-sans);
       font-weight: 600;
@@ -230,7 +269,7 @@
 <body>
 
   <div class="login-stage">
-    <div class="login-wordmark seq seq-1">
+    <div class="login-wordmark-wrap login-wordmark seq seq-1">
       <span class="dot">JS</span>
       <span class="name">Job Search</span>
       <span class="badge">Agent</span>
@@ -266,6 +305,11 @@
 
   <div class="login-panel">
     <div class="login-form seq seq-3">
+      <div class="login-form-wordmark login-wordmark">
+        <span class="dot">JS</span>
+        <span class="name">Job Search</span>
+        <span class="badge">Agent</span>
+      </div>
       <h2>Welcome back.</h2>
       <p>Sign in to pick up where you left off.</p>
 
