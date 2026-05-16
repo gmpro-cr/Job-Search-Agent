@@ -2,66 +2,52 @@
 {% block title %}Autoresearch — Job Agent{% endblock %}
 
 {% block content %}
-<div class="mb-8 flex items-start justify-between gap-4 flex-wrap">
-  <div>
-    <h1 class="text-2xl font-bold tracking-tight" style="color:#111111;">Autoresearch</h1>
-    <p class="mt-1 text-sm font-medium" style="color:#6b7280;">
-      Self-improving CV scoring — Karpathy-style autonomous prompt optimization.
-    </p>
+<header class="page-header">
+  <div class="page-header-row">
+    <div style="flex:1;min-width:0;">
+      <span class="eyebrow">Self-improving CV scoring</span>
+      <h1>Autoresearch</h1>
+      <p class="page-lede">Karpathy-style autonomous prompt optimisation — propose an experiment, measure against the test set, keep the winner.</p>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap" style="flex-shrink:0;">
+      <button onclick="seedTestset()" class="btn btn-outline btn-sm" id="seed-btn">Seed Test Set</button>
+      <button onclick="startLoop(10)" class="btn btn-default btn-sm" id="run-btn">Run 10</button>
+      <button onclick="startLoop(100)" class="btn btn-default btn-sm" id="overnight-btn">Run 100</button>
+      <button onclick="stopLoop()" id="stop-btn" class="hidden btn btn-destructive btn-sm">Stop</button>
+    </div>
   </div>
+</header>
 
-  <!-- Controls -->
-  <div class="flex items-center gap-3 flex-shrink-0 flex-wrap">
-    <button onclick="seedTestset()"
-      class="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-all"
-      id="seed-btn">Seed Test Set</button>
+<div id="status-bar" class="hidden flash flash-info" style="margin-bottom:1.5rem;"></div>
 
-    <button onclick="startLoop(10)"
-      class="px-4 py-2 text-white text-sm font-bold rounded-xl transition-all bg-gray-900 hover:bg-gray-900"
-      id="run-btn">Run 10 Experiments</button>
-
-    <button onclick="startLoop(100)"
-      class="px-4 py-2 text-white text-sm font-bold rounded-xl transition-all bg-gray-900 hover:bg-gray-800"
-      id="overnight-btn">Run Overnight (100)</button>
-
-    <button onclick="stopLoop()" id="stop-btn"
-      class="hidden px-4 py-2 text-sm font-semibold rounded-xl border"
-      style="background:rgba(17,17,17,0.05); border-color:rgba(17,17,17,0.15); color:#666666;">Stop</button>
+<div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="card stat-card">
+    <div class="card-header"><div class="card-header-row"><span class="card-title">Baseline Spearman</span></div></div>
+    <div class="card-content pt-0">
+      <div class="stat-value tabular" id="metric-baseline">{% if baseline %}{{ "%.4f"|format(baseline.spearman) }}{% else %}—{% endif %}</div>
+      <p class="stat-change">initial score before experiments</p>
+    </div>
   </div>
-</div>
-
-<!-- Status bar -->
-<div id="status-bar" class="hidden mb-6 px-5 py-3.5 rounded-xl text-sm font-medium"
-  style="background:rgba(17,17,17,0.06); border:1px solid rgba(17,17,17,0.12); color:#333333; backdrop-filter:blur(12px);">
-</div>
-
-<!-- Metric cards -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-  <div class="stat-card">
-    <p class="text-xs font-semibold uppercase tracking-wider" style="color:#9ca3af;">Baseline Spearman</p>
-    <p class="text-3xl font-bold mt-2" style="color:#111111;" id="metric-baseline">
-      {% if baseline %}{{ "%.4f"|format(baseline.spearman) }}{% else %}—{% endif %}
-    </p>
-    <p class="text-xs mt-2" style="color:#9ca3af;">initial score before experiments</p>
+  <div class="card stat-card">
+    <div class="card-header"><div class="card-header-row"><span class="card-title">Best Spearman</span></div></div>
+    <div class="card-content pt-0">
+      <div class="stat-value tabular" id="metric-best">{% if status.best_spearman %}{{ "%.4f"|format(status.best_spearman) }}{% else %}—{% endif %}</div>
+      <p class="stat-change">best achieved so far</p>
+    </div>
   </div>
-  <div class="stat-card">
-    <p class="text-xs font-semibold uppercase tracking-wider" style="color:#9ca3af;">Best Spearman</p>
-    <p class="text-3xl font-bold mt-2" style="color:#555555;" id="metric-best">
-      {% if status.best_spearman %}{{ "%.4f"|format(status.best_spearman) }}{% else %}—{% endif %}
-    </p>
-    <p class="text-xs mt-2" style="color:#9ca3af;">best achieved so far</p>
+  <div class="card stat-card">
+    <div class="card-header"><div class="card-header-row"><span class="card-title">Experiments</span></div></div>
+    <div class="card-content pt-0">
+      <div class="stat-value tabular" id="metric-experiments">{{ results|length }}</div>
+      <p class="stat-change">total iterations run</p>
+    </div>
   </div>
-  <div class="stat-card">
-    <p class="text-xs font-semibold uppercase tracking-wider" style="color:#9ca3af;">Experiments</p>
-    <p class="text-3xl font-bold mt-2" style="color:#111111;" id="metric-experiments">{{ results|length }}</p>
-    <p class="text-xs mt-2" style="color:#9ca3af;">total iterations run</p>
-  </div>
-  <div class="stat-card">
-    <p class="text-xs font-semibold uppercase tracking-wider" style="color:#9ca3af;">Improvements</p>
-    <p class="text-3xl font-bold mt-2" style="color:#444444;" id="metric-improvements">
-      {{ results | selectattr("committed") | list | length }}
-    </p>
-    <p class="text-xs mt-2" style="color:#9ca3af;">commits that beat the baseline</p>
+  <div class="card stat-card">
+    <div class="card-header"><div class="card-header-row"><span class="card-title">Improvements</span></div></div>
+    <div class="card-content pt-0">
+      <div class="stat-value tabular" id="metric-improvements">{{ results | selectattr("committed") | list | length }}</div>
+      <p class="stat-change">commits that beat the baseline</p>
+    </div>
   </div>
 </div>
 
@@ -69,33 +55,33 @@
 {% if results %}
 <div class="glass-panel mb-8">
   <div class="glass-panel-header flex items-center justify-between">
-    <h2 class="text-sm font-bold uppercase tracking-wider" style="color:#374151;">Experiment Log</h2>
-    <span class="text-xs" style="color:#9ca3af;">newest first</span>
+    <h2 class="text-sm font-bold uppercase tracking-wider" style="color:var(--foreground);">Experiment Log</h2>
+    <span class="text-xs" style="color:var(--muted-foreground);">newest first</span>
   </div>
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
       <thead>
         <tr style="background:rgba(243,244,246,0.5);">
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style="color:#6b7280;">#</th>
-          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style="color:#6b7280;">Hypothesis</th>
-          <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider" style="color:#6b7280;">Δ Spearman</th>
-          <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider" style="color:#6b7280;">Outcome</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--muted-foreground);">#</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style="color:var(--muted-foreground);">Hypothesis</th>
+          <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider" style="color:var(--muted-foreground);">Δ Spearman</th>
+          <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider" style="color:var(--muted-foreground);">Outcome</th>
         </tr>
       </thead>
       <tbody>
         {% for r in results %}
         <tr style="border-top:1px solid rgba(255,255,255,0.4);" class="hover:bg-white/20 transition-colors">
-          <td class="px-4 py-3 font-mono text-xs" style="color:#9ca3af;">{{ r.experiment }}</td>
-          <td class="px-4 py-3 text-sm max-w-md" style="color:#374151;">{{ r.hypothesis }}</td>
+          <td class="px-4 py-3 font-mono text-xs" style="color:var(--muted-foreground);">{{ r.experiment }}</td>
+          <td class="px-4 py-3 text-sm max-w-md" style="color:var(--foreground);">{{ r.hypothesis }}</td>
           <td class="px-4 py-3 text-right font-bold font-mono text-sm
             {% if r.delta > 0 %}text-gray-700{% elif r.delta < 0 %}text-gray-500{% else %}text-gray-400{% endif %}">
             {{ "%+.4f"|format(r.delta) }}
           </td>
           <td class="px-4 py-3 text-center">
             {% if r.committed %}
-            <span class="px-2 py-1 rounded-md text-xs font-bold" style="background:#F3F4F6; color:#444444;">✓ committed</span>
+            <span class="badge badge-success">✓ committed</span>
             {% else %}
-            <span class="px-2 py-1 rounded-md text-xs font-bold" style="background:rgba(243,244,246,0.7); color:#9ca3af;">✗ reset</span>
+            <span class="badge badge-outline">✗ reset</span>
             {% endif %}
           </td>
         </tr>
@@ -110,16 +96,16 @@
 {% if current_prompt %}
 <div class="glass-panel">
   <div class="glass-panel-header">
-    <h2 class="text-sm font-bold uppercase tracking-wider" style="color:#374151;">Current Scoring Prompt</h2>
+    <h2 class="text-sm font-bold uppercase tracking-wider" style="color:var(--foreground);">Current Scoring Prompt</h2>
   </div>
   <div class="p-6">
-    <pre class="text-xs leading-relaxed whitespace-pre-wrap rounded-xl p-4"
-      style="background:rgba(248,248,255,0.6); color:#374151; font-family:ui-monospace,monospace;">{{ current_prompt }}</pre>
+    <pre class="text-xs leading-relaxed whitespace-pre-wrap"
+      style="background:var(--muted); color:var(--foreground); font-family:var(--font-mono); padding:1rem; border-radius:var(--radius);">{{ current_prompt }}</pre>
   </div>
 </div>
 {% else %}
 <div class="glass-panel p-8 text-center">
-  <p class="text-sm font-medium mb-4" style="color:#6b7280;">No test set yet. Click <strong>Seed Test Set</strong> to get started.</p>
+  <p class="text-sm font-medium mb-4" style="color:var(--muted-foreground);">No test set yet. Click <strong>Seed Test Set</strong> to get started.</p>
 </div>
 {% endif %}
 
@@ -130,7 +116,7 @@ function showStatus(msg, color) {
   const bar = document.getElementById('status-bar');
   bar.textContent = msg;
   bar.style.display = 'block';
-  bar.style.color = color || '#333333';
+  bar.style.color = color || '';
 }
 
 function seedTestset() {
@@ -148,7 +134,7 @@ function startLoop(n) {
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({max_experiments: n})
   }).then(r => r.json()).then(d => {
-    if (!d.ok) { showStatus('Error: ' + d.error, '#666666'); return; }
+    if (!d.ok) { showStatus('Error: ' + d.error, ''); return; }
     document.getElementById('stop-btn').classList.remove('hidden');
     showStatus('Running experiment loop (' + n + ' experiments)…');
     startPolling();

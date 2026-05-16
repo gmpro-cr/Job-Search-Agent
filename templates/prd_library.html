@@ -1,316 +1,286 @@
 {% extends "base.html" %}
-{% block title %}PRD Library · Job Search Agent{% endblock %}
+{% block title %}PRD Library — Job Search Agent{% endblock %}
 
 {% block content %}
-<div class="flex-1 overflow-y-auto p-6 lg:p-8" style="position:relative;z-index:1;">
+<div class="space-y-6">
 
-  <!-- Page header -->
-  <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900">PRD Library</h1>
-      <p class="text-sm text-gray-500 mt-1">One new Product Requirements Document, delivered to your inbox every morning at 8 AM.</p>
-    </div>
-    <div class="flex items-center gap-3">
-      <button onclick="sendNow()" id="sendBtn"
-        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all bg-gray-900 hover:bg-gray-900">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-        </svg>
+  <header class="page-header">
+    <div class="page-header-row">
+      <div style="flex:1;min-width:0;">
+        <span class="eyebrow">Daily product practice</span>
+        <h1>PRD Library</h1>
+        <p class="page-lede">One new Product Requirements Document, delivered to your inbox every morning at 8 AM.</p>
+      </div>
+      <button onclick="sendNow()" id="sendBtn" class="btn btn-accent">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
         Send Today's PRD Now
       </button>
     </div>
-  </div>
+  </header>
 
   {% if detail %}
-  <!-- ── Full PRD Detail View ── -->
-  <div class="mb-6">
-    <a href="{{ url_for('prd_library') }}" class="inline-flex items-center gap-1 text-sm font-medium" style="color:#111111;">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-      </svg>
-      Back to Library
-    </a>
-  </div>
+  {# ── Full PRD detail view ── #}
+  <a href="{{ url_for('prd_library') }}" class="prd-back-link">
+    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    Back to Library
+  </a>
+
   {% set prd = detail %}
   {% set p = prd.product %}
   {% set s = prd.sections %}
 
-  <!-- PRD header card -->
-  <div class="rounded-2xl p-8 mb-6 text-white"
-    style="background:linear-gradient(135deg,#1D1D1F 0%,#2A2A2D 100%);">
-    <div class="flex flex-wrap gap-2 mb-3">
-      <span class="text-xs font-bold uppercase tracking-widest" style="color:#111111;">📋 Daily PRD</span>
-      <span class="text-xs text-white/50">·</span>
-      <span class="text-xs text-white/50">{{ prd.date }}</span>
-      <span class="text-xs text-white/50">·</span>
-      <span class="text-xs text-white/50">via {{ prd.get('generated_by', 'template')|title }}</span>
+  <article class="prd-hero">
+    <div class="prd-hero-meta">
+      <span class="eyebrow">Daily PRD · {{ prd.date }} · via {{ prd.get('generated_by', 'template')|title }}</span>
     </div>
-    <h2 class="text-3xl font-extrabold mb-2">{{ p.name }}</h2>
-    <p class="text-white/60 text-sm leading-relaxed mb-5">{{ p.tagline }}</p>
-    <div class="flex flex-wrap gap-2">
-      <span class="text-xs font-bold px-3 py-1 rounded-full border"
-        style="background:rgba(17,17,17,0.06);color:#111111;border-color:rgba(17,17,17,0.12);">
-        {{ p.domain }}
-      </span>
-      <span class="text-xs font-bold px-3 py-1 rounded-full"
-        style="background:rgba(255,255,255,0.10);color:rgba(255,255,255,0.65);">
-        {{ p.type }} Product
-      </span>
+    <h2 class="prd-hero-title">{{ p.name }}</h2>
+    <p class="prd-hero-tagline">{{ p.tagline }}</p>
+    <div class="prd-hero-badges">
+      <span class="badge badge-accent">{{ p.domain }}</span>
+      <span class="badge badge-outline">{{ p.type }} Product</span>
     </div>
-  </div>
+  </article>
 
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-    <!-- Problem Statement -->
-    <div class="lg:col-span-2 rounded-2xl p-6" style="background:#fff;border:1px solid #e5e7eb;">
-      <h3 class="text-xs font-bold uppercase tracking-widest mb-3" style="color:#111111;">🎯 Problem Statement</h3>
-      <p class="text-sm text-gray-700 leading-relaxed">{{ s.problem_statement }}</p>
-    </div>
-
-    <!-- Target Users -->
-    <div class="rounded-2xl p-6" style="background:#fff;border:1px solid #e5e7eb;">
-      <h3 class="text-xs font-bold uppercase tracking-widest mb-3" style="color:#111111;">👥 Target Users</h3>
-      <ul class="space-y-2">
-        {% for u in s.target_users %}
-        <li class="flex items-start gap-2 text-sm text-gray-700">
-          <span class="mt-1 w-2 h-2 rounded-full flex-shrink-0" style="background:#111111;"></span>{{ u }}
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-
-    <!-- User Stories -->
-    <div class="rounded-2xl p-6" style="background:#fff;border:1px solid #e5e7eb;">
-      <h3 class="text-xs font-bold uppercase tracking-widest mb-3" style="color:#111111;">📖 User Stories</h3>
-      <ul class="space-y-2">
-        {% for story in s.user_stories %}
-        <li class="text-sm text-gray-700 leading-relaxed pl-3 border-l-2" style="border-color:#F3F4F6;">{{ story }}</li>
-        {% endfor %}
-      </ul>
-    </div>
-
-    <!-- MVP Features -->
-    <div class="rounded-2xl p-6" style="background:#fff;border:1px solid #e5e7eb;">
-      <h3 class="text-xs font-bold uppercase tracking-widest mb-3" style="color:#111111;">🚀 MVP Features</h3>
-      <ul class="space-y-2">
-        {% for f in s.mvp_features %}
-        <li class="flex items-start gap-2 text-sm text-gray-700">
-          <span class="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white" style="background:#111111;">✓</span>
-          {{ f }}
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-
-    <!-- Future Roadmap -->
-    <div class="rounded-2xl p-6" style="background:#fff;border:1px solid #e5e7eb;">
-      <h3 class="text-xs font-bold uppercase tracking-widest mb-3" style="color:#111111;">🔮 Future Roadmap</h3>
-      <ul class="space-y-2">
-        {% for f in s.future_features %}
-        <li class="flex items-start gap-2 text-sm text-gray-700">
-          <span class="mt-1 w-2 h-2 rounded-full flex-shrink-0" style="background:#9CA3AF;"></span>{{ f }}
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-
-    <!-- Success Metrics -->
-    <div class="lg:col-span-2 rounded-2xl p-6" style="background:#fff;border:1px solid #e5e7eb;">
-      <h3 class="text-xs font-bold uppercase tracking-widest mb-3" style="color:#111111;">📊 Success Metrics (KPIs)</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {% for m in s.success_metrics %}
-        <div class="rounded-xl p-4" style="background:#F3F4F6;border:1px solid #E5E7EB;">
-          <p class="text-sm text-gray-700">{{ m }}</p>
-        </div>
-        {% endfor %}
+  <div class="prd-grid">
+    {% if s.problem_statement %}
+    <section class="card prd-section prd-section-wide">
+      <div class="card-content">
+        <h3 class="prd-section-title">Problem Statement</h3>
+        <p class="prd-section-text">{{ s.problem_statement }}</p>
       </div>
-    </div>
+    </section>
+    {% endif %}
 
-    <!-- Go-to-Market -->
-    <div class="rounded-2xl p-6" style="background:#fff;border:1px solid #e5e7eb;">
-      <h3 class="text-xs font-bold uppercase tracking-widest mb-3" style="color:#111111;">📣 Go-To-Market</h3>
-      <p class="text-sm text-gray-700 leading-relaxed">{{ s.go_to_market }}</p>
-    </div>
+    {% if s.target_users %}
+    <section class="card prd-section">
+      <div class="card-content">
+        <h3 class="prd-section-title">Target Users</h3>
+        <p class="prd-section-text">{{ s.target_users }}</p>
+      </div>
+    </section>
+    {% endif %}
 
-    <!-- Monetisation -->
-    <div class="rounded-2xl p-6" style="background:#fff;border:1px solid #e5e7eb;">
-      <h3 class="text-xs font-bold uppercase tracking-widest mb-3" style="color:#111111;">💰 Monetisation</h3>
-      <p class="text-sm text-gray-700 leading-relaxed">{{ s.monetisation }}</p>
-    </div>
+    {% if s.user_persona %}
+    <section class="card prd-section">
+      <div class="card-content">
+        <h3 class="prd-section-title">User Persona</h3>
+        <p class="prd-section-text">{{ s.user_persona }}</p>
+      </div>
+    </section>
+    {% endif %}
 
-    <!-- Tech Approach -->
-    <div class="lg:col-span-2 rounded-2xl p-6" style="background:#fff;border:1px solid #e5e7eb;">
-      <h3 class="text-xs font-bold uppercase tracking-widest mb-3" style="color:#111111;">⚙️ Tech Approach</h3>
-      <p class="text-sm text-gray-700 leading-relaxed">{{ s.tech_stack_suggestion }}</p>
-    </div>
+    {% if s.core_features %}
+    <section class="card prd-section">
+      <div class="card-content">
+        <h3 class="prd-section-title">Core Features (MVP)</h3>
+        <ul class="prd-list">
+          {% for f in s.core_features %}
+          <li class="prd-list-item prd-list-item-accent">{{ f }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+    {% endif %}
 
-    <!-- Risks & Assumptions -->
-    <div class="rounded-2xl p-6" style="background:#fff;border:1px solid #e5e7eb;">
-      <h3 class="text-xs font-bold uppercase tracking-widest mb-3" style="color:#111111;">⚠️ Risks & Mitigation</h3>
-      <ul class="space-y-2">
-        {% for r in s.risks %}
-        <li class="text-sm text-gray-700 leading-relaxed pl-3 border-l-2" style="border-color:#E5E7EB;">{{ r }}</li>
-        {% endfor %}
-      </ul>
-    </div>
+    {% if s.future_features %}
+    <section class="card prd-section">
+      <div class="card-content">
+        <h3 class="prd-section-title">Future Roadmap</h3>
+        <ul class="prd-list">
+          {% for f in s.future_features %}
+          <li class="prd-list-item">{{ f }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+    {% endif %}
 
-    <div class="rounded-2xl p-6" style="background:#fff;border:1px solid #e5e7eb;">
-      <h3 class="text-xs font-bold uppercase tracking-widest mb-3" style="color:#111111;">🔧 Assumptions</h3>
-      <ul class="space-y-2">
-        {% for a in s.assumptions %}
-        <li class="flex items-start gap-2 text-sm text-gray-700">
-          <span class="mt-1 w-2 h-2 rounded-full flex-shrink-0" style="background:#111111;"></span>{{ a }}
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
+    {% if s.success_metrics %}
+    <section class="card prd-section prd-section-wide">
+      <div class="card-content">
+        <h3 class="prd-section-title">Success Metrics (KPIs)</h3>
+        <div class="prd-metrics">
+          {% for m in s.success_metrics %}
+          <div class="prd-metric">{{ m }}</div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+    {% endif %}
 
-    <!-- Timeline -->
-    <div class="lg:col-span-2 rounded-2xl p-6" style="background:#fff;border:1px solid #e5e7eb;">
-      <h3 class="text-xs font-bold uppercase tracking-widest mb-4" style="color:#111111;">📅 High-Level Timeline</h3>
-      <div class="flex flex-wrap gap-4">
-        {% if s.timeline_weeks %}
+    {% if s.go_to_market %}
+    <section class="card prd-section">
+      <div class="card-content">
+        <h3 class="prd-section-title">Go-to-Market</h3>
+        <p class="prd-section-text">{{ s.go_to_market }}</p>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if s.monetisation %}
+    <section class="card prd-section">
+      <div class="card-content">
+        <h3 class="prd-section-title">Monetisation</h3>
+        <p class="prd-section-text">{{ s.monetisation }}</p>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if s.tech_stack_suggestion %}
+    <section class="card prd-section prd-section-wide">
+      <div class="card-content">
+        <h3 class="prd-section-title">Tech Approach</h3>
+        <p class="prd-section-text">{{ s.tech_stack_suggestion }}</p>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if s.risks %}
+    <section class="card prd-section">
+      <div class="card-content">
+        <h3 class="prd-section-title">Risks &amp; Mitigation</h3>
+        <ul class="prd-list">
+          {% for r in s.risks %}
+          <li class="prd-list-item prd-list-item-bordered">{{ r }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if s.assumptions %}
+    <section class="card prd-section">
+      <div class="card-content">
+        <h3 class="prd-section-title">Assumptions</h3>
+        <ul class="prd-list">
+          {% for a in s.assumptions %}
+          <li class="prd-list-item">{{ a }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if s.timeline_weeks %}
+    <section class="card prd-section prd-section-wide">
+      <div class="card-content">
+        <h3 class="prd-section-title">High-Level Timeline</h3>
+        <div class="prd-timeline">
           {% for phase, weeks in s.timeline_weeks.items() %}
-          <div class="rounded-xl p-4 text-center min-w-24" style="background:#F3F4F6;border:1px solid #E5E7EB;">
-            <div class="text-2xl font-extrabold" style="color:#111111;">{{ weeks }}w</div>
-            <div class="text-xs text-gray-500 mt-1 capitalize">{{ phase.replace('_', ' ') }}</div>
+          <div class="prd-timeline-block">
+            <div class="prd-timeline-num tabular">{{ weeks }}<span>w</span></div>
+            <div class="prd-timeline-label">{{ phase.replace('_', ' ') }}</div>
           </div>
           {% endfor %}
-        {% endif %}
+        </div>
       </div>
-    </div>
-
+    </section>
+    {% endif %}
   </div>
 
   {% else %}
-  <!-- ── Today's PRD preview ── -->
+
   {% if today_prd %}
-  <div class="rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-5"
-    style="background:linear-gradient(135deg,#1D1D1F 0%,#2A2A2D 100%);">
-    <div class="flex-1">
-      <div class="text-xs font-bold uppercase tracking-widest mb-1" style="color:#111111;">Today's PRD</div>
-      <h2 class="text-xl font-extrabold text-white mb-1">{{ today_prd.product.name }}</h2>
-      <p class="text-sm text-white/55 leading-relaxed mb-3">{{ today_prd.product.tagline }}</p>
-      <div class="flex flex-wrap gap-2">
-        <span class="text-xs font-bold px-3 py-1 rounded-full border"
-          style="background:rgba(17,17,17,0.06);color:#111111;border-color:rgba(17,17,17,0.12);">
-          {{ today_prd.product.domain }}
-        </span>
-        <span class="text-xs font-bold px-3 py-1 rounded-full"
-          style="background:rgba(255,255,255,0.10);color:rgba(255,255,255,0.65);">
-          {{ today_prd.product.type }} Product
-        </span>
+  {# Today's PRD hero #}
+  <article class="prd-today">
+    <div style="flex:1;min-width:0;">
+      <span class="eyebrow">Today's PRD</span>
+      <h2 class="prd-today-name">{{ today_prd.product.name }}</h2>
+      <p class="prd-today-tagline">{{ today_prd.product.tagline }}</p>
+      <div class="flex gap-2" style="flex-wrap:wrap;">
+        <span class="badge badge-accent">{{ today_prd.product.domain }}</span>
+        <span class="badge badge-outline">{{ today_prd.product.type }} Product</span>
       </div>
     </div>
-    <a href="{{ url_for('prd_detail', date_str=today_prd.date) }}"
-      class="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-      style="background:rgba(17,17,17,0.10);border:1px solid rgba(17,17,17,0.18);">
+    <a href="{{ url_for('prd_detail', date_str=today_prd.date) }}" class="btn btn-default">
       Read Full PRD
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-      </svg>
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
     </a>
-  </div>
+  </article>
   {% endif %}
 
-  <!-- ── PRD Library Grid ── -->
   {% if prds %}
-  <h2 class="text-base font-bold text-gray-700 mb-4">All PRDs ({{ prds|length }})</h2>
-  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+  <div class="prd-library-head">
+    <h2 style="margin:0;">All PRDs <span class="text-muted tabular">({{ prds|length }})</span></h2>
+  </div>
+  <div class="prd-grid-cards">
     {% for prd in prds %}
-    <a href="{{ url_for('prd_detail', date_str=prd.id) }}"
-      class="group block rounded-2xl p-5 transition-all hover:-translate-y-0.5"
-      style="background:#fff;border:1px solid #e5e7eb;box-shadow:0 2px 8px rgba(0,0,0,0.04);"
-      onmouseover="this.style.boxShadow='0 8px 24px rgba(17,17,17,0.06)';this.style.borderColor='rgba(17,17,17,0.15)'"
-      onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)';this.style.borderColor='#e5e7eb'">
-      <div class="flex items-start justify-between gap-3 mb-3">
-        <div>
-          <span class="inline-block text-xs font-bold px-2.5 py-0.5 rounded-full mb-2"
-            style="background:#F3F4F6;color:#333333;">{{ prd.domain }}</span>
-          <h3 class="font-bold text-gray-900 text-sm leading-snug group-hover:text-gray-700 transition-colors">
-            {{ prd.product_name }}
-          </h3>
+    <a href="{{ url_for('prd_detail', date_str=prd.id) }}" class="card card-interactive prd-card">
+      <div class="card-content">
+        <div class="prd-card-meta">
+          <span class="badge {% if prd.generated_by == 'gemini-2.0-flash' %}badge-accent{% else %}badge-outline{% endif %}">
+            {{ prd.generated_by|title }}
+          </span>
+          <span class="text-muted tabular text-xs">{{ prd.date }}</span>
         </div>
-        <span class="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-base"
-          style="background:#F3F4F6;">
-          {% if prd.type == 'Technical' %}⚙️{% else %}💼{% endif %}
-        </span>
-      </div>
-      <p class="text-xs text-gray-500 leading-relaxed mb-4">{{ prd.tagline }}</p>
-      <div class="flex items-center justify-between">
-        <span class="text-xs text-gray-400">{{ prd.date }}</span>
-        <span class="text-xs font-medium px-2 py-0.5 rounded-full"
-          style="{% if prd.generated_by == 'ollama' %}background:#F3F4F6;color:#333333;{% else %}background:#F3F4F6;color:#9CA3AF;{% endif %}">
-          {{ prd.generated_by|title }}
-        </span>
+        <h3 class="prd-card-title">{{ prd.product_name }}</h3>
+        <p class="prd-card-tagline">{{ prd.tagline }}</p>
+        <div class="prd-card-footer">
+          <span class="text-muted text-xs">{{ prd.domain }}</span>
+          <span class="text-muted text-xs">{{ prd.type }}</span>
+        </div>
       </div>
     </a>
     {% endfor %}
   </div>
   {% else %}
-  <!-- Empty state -->
-  <div class="flex flex-col items-center justify-center py-24 text-center">
-    <div class="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl mb-5"
-      style="background:#F3F4F6;">📋</div>
-    <h3 class="text-lg font-bold text-gray-700 mb-2">No PRDs yet</h3>
-    <p class="text-sm text-gray-400 max-w-sm mb-6">
-      Daily PRDs are sent every morning at 8 AM. Click below to send today's PRD now and add it to the library.
-    </p>
-    <button onclick="sendNow()"
-      class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
-      style="background:#111111;">
-      Generate & Send Today's PRD
-    </button>
+  {# Empty state #}
+  <div class="card">
+    <div class="card-content" style="text-align:center;padding:3rem 1.5rem;">
+      <div style="font-size:2rem;margin-bottom:.5rem;">📋</div>
+      <h3 style="margin:.5rem 0;">No PRDs yet</h3>
+      <p class="text-muted" style="max-width:40ch;margin:.5rem auto 1.5rem;">
+        Daily PRDs are sent every morning at 8 AM. Generate today's now and add it to the library.
+      </p>
+      <button onclick="sendNow()" class="btn btn-accent">Generate &amp; Send Today's PRD</button>
+    </div>
   </div>
   {% endif %}
+
   {% endif %}
 
 </div>
 
 <!-- Toast notification -->
-<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
-  <div class="flex items-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-white shadow-xl"
-    id="toastInner" style="background:#111111;">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-    </svg>
-    <span id="toastMsg">Done</span>
-  </div>
+<div id="toast" class="toast hidden" role="status" aria-live="polite">
+  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+  <span id="toastMsg">Done</span>
 </div>
 
 <script>
 async function sendNow() {
   const btn = document.getElementById('sendBtn');
-  const origText = btn.innerHTML;
+  if (!btn) return _sendInner();
+  const orig = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Sending…';
-
+  btn.textContent = 'Sending…';
+  try {
+    await _sendInner();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+async function _sendInner() {
   try {
     const res = await fetch('/api/prd/send-now', { method: 'POST' });
     const data = await res.json();
     if (data.ok) {
-      showToast('PRD email queued! Check your inbox in a moment.', '#111111');
+      showToast('PRD queued. Check your inbox in a moment.');
       setTimeout(() => location.reload(), 2500);
     } else {
-      showToast('Error: ' + (data.error || 'Unknown error'), '#777777');
+      showToast('Error: ' + (data.error || 'Unknown error'));
     }
   } catch (e) {
-    showToast('Network error — is the server running?', '#777777');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = origText;
+    showToast('Network error — is the server running?');
   }
 }
-
-function showToast(msg, color) {
+function showToast(msg) {
   const toast = document.getElementById('toast');
-  const inner = document.getElementById('toastInner');
   const msgEl = document.getElementById('toastMsg');
-  inner.style.background = color;
   msgEl.textContent = msg;
   toast.classList.remove('hidden');
-  setTimeout(() => toast.classList.add('hidden'), 4000);
+  setTimeout(() => toast.classList.add('hidden'), 3500);
 }
 </script>
 {% endblock %}

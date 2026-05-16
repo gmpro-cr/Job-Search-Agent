@@ -1,65 +1,63 @@
 {% extends "base.html" %}
 {% block title %}How it Works — Job Search Agent{% endblock %}
 
+{% block page_body_class %}is-airy{% endblock %}
+
 {% block head %}
 <style>
+  /* How-it-works specific shapes, re-tokenized to the design system. */
   .hiw-page { max-width: 900px; margin: 0 auto; }
 
-  /* ── Main diagram ── */
   .diagram {
-    background: #fff;
-    border: 1px solid #E5E7EB;
-    border-radius: 16px;
-    padding: 32px 28px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 2rem 1.75rem;
     overflow-x: auto;
   }
 
-  /* Swimlane rows */
   .lane {
     display: grid;
     grid-template-columns: 88px 1fr;
-    gap: 0 16px;
-    margin-bottom: 0;
+    gap: 0 1rem;
   }
   .lane-label {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    padding-right: 12px;
-    border-right: 2px solid #E5E7EB;
+    padding-right: 0.75rem;
+    border-right: 2px solid var(--border);
   }
   .lane-label span {
-    font-size: 9px;
+    font-size: 0.5625rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #9CA3AF;
-    writing-mode: horizontal-tb;
+    color: var(--muted-foreground);
     text-align: right;
     line-height: 1.3;
   }
   .lane-body {
-    padding: 12px 0;
+    padding: 0.75rem 0;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.5rem;
     flex-wrap: wrap;
-    border-bottom: 1px solid #F3F4F6;
+    border-bottom: 1px solid var(--border);
   }
   .lane:last-child .lane-body { border-bottom: none; }
 
-  /* Connector line on the label column */
   .lane-connector {
     grid-column: 1;
     display: flex;
     justify-content: flex-end;
-    padding-right: 12px;
-    border-right: 2px solid #E5E7EB;
+    padding-right: 0.75rem;
+    border-right: 2px solid var(--border);
   }
   .lane-connector-inner {
     width: 2px;
-    height: 24px;
-    background: #E5E7EB;
+    height: 1.5rem;
+    background: var(--border);
     position: relative;
     left: 1px;
   }
@@ -67,123 +65,125 @@
     display: flex;
     justify-content: flex-end;
     padding-right: 11px;
-    border-right: 2px solid #E5E7EB;
-    color: #9CA3AF;
+    border-right: 2px solid var(--border);
+    color: var(--muted-foreground);
   }
 
-  /* Nodes */
   .node {
     display: inline-flex;
     flex-direction: column;
     align-items: center;
-    background: #F9FAFB;
-    border: 1px solid #E5E7EB;
-    border-radius: 10px;
-    padding: 10px 14px;
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.625rem 0.875rem;
     min-width: 100px;
     text-align: center;
-    transition: box-shadow 0.18s, transform 0.18s;
-    cursor: default;
+    transition: box-shadow var(--duration-snap) var(--ease-out-snappy),
+                transform var(--duration-snap) var(--ease-out-snappy);
   }
   .node:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.07);
-    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    transform: translateY(-1px);
   }
   .node.dark {
-    background: #111111;
-    border-color: #111111;
+    background: var(--primary);
+    border-color: var(--primary);
   }
   .node.accent {
-    background: #F3F4F6;
-    border-color: #111111;
+    background: var(--accent-soft);
+    border-color: var(--accent);
     border-width: 1.5px;
   }
   .node-icon {
-    width: 28px; height: 28px;
-    border-radius: 7px;
-    background: #E5E7EB;
+    width: 1.75rem; height: 1.75rem;
+    border-radius: 6px;
+    background: var(--card);
     display: flex; align-items: center; justify-content: center;
-    margin-bottom: 7px;
+    margin-bottom: 0.4375rem;
     flex-shrink: 0;
+    color: var(--foreground);
   }
-  .node.dark .node-icon { background: rgba(255,255,255,0.12); }
+  .node.dark .node-icon { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); }
+  .node.accent .node-icon { background: var(--card); color: var(--accent); }
   .node-title {
-    font-size: 11px;
+    font-size: 0.6875rem;
     font-weight: 700;
-    color: #111111;
+    color: var(--foreground);
     line-height: 1.3;
   }
-  .node.dark .node-title { color: #ffffff; }
+  .node.dark .node-title { color: var(--primary-foreground); }
+  .node.accent .node-title { color: var(--accent); }
   .node-sub {
-    font-size: 9.5px;
-    color: #9CA3AF;
+    font-size: 0.5938rem;
+    color: var(--muted-foreground);
     margin-top: 3px;
     line-height: 1.4;
   }
-  .node.dark .node-sub { color: rgba(255,255,255,0.45); }
+  .node.dark .node-sub { color: rgba(255,255,255,0.55); }
 
-  /* Arrow between nodes */
   .arr {
-    color: #D1D5DB;
+    color: var(--border-strong);
     flex-shrink: 0;
     display: flex;
     align-items: center;
   }
-  .arr svg { width: 16px; height: 16px; }
+  .arr svg { width: 1rem; height: 1rem; }
 
-  /* Down-arrow connector between lanes */
   .down-arr {
     grid-column: 2;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 2px 0 2px 4px;
-    color: #D1D5DB;
-    font-size: 10px;
+    gap: 0.375rem;
+    padding: 0.125rem 0 0.125rem 0.25rem;
+    color: var(--border-strong);
+    font-size: 0.625rem;
     font-weight: 600;
   }
   .down-arr svg { width: 14px; height: 14px; flex-shrink:0; }
-  .down-arr span { color: #9CA3AF; }
+  .down-arr span { color: var(--muted-foreground); }
 
-  /* Tags inside nodes */
   .tag {
     display: inline-block;
-    background: #E5E7EB;
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: 4px;
     padding: 1px 6px;
-    font-size: 9px;
+    font-size: 0.5625rem;
     font-weight: 600;
-    color: #374151;
+    color: var(--foreground);
     margin-top: 4px;
   }
-  .node.dark .tag { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); }
+  .node.dark .tag {
+    background: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.85);
+    border-color: transparent;
+  }
 
-  /* ── Step cards ── */
   .step-card {
-    background: #fff;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
-    padding: 16px 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
     display: flex;
-    gap: 14px;
+    gap: 0.875rem;
     align-items: flex-start;
   }
   .step-num {
-    width: 28px; height: 28px; flex-shrink: 0;
-    border-radius: 50%;
-    background: #111111;
-    color: #fff;
-    font-weight: 700; font-size: 12px;
+    width: 1.75rem; height: 1.75rem; flex-shrink: 0;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-foreground);
+    font-weight: 700; font-size: 0.75rem;
     display: flex; align-items: center; justify-content: center;
   }
 
-  /* Data flow legend */
   .legend-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: #6B7280;
+    gap: 0.375rem;
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
   }
   .legend-box {
     width: 12px; height: 12px;
@@ -196,11 +196,11 @@
 {% block content %}
 <div class="hiw-page">
 
-<!-- Header -->
-<div class="mb-8">
-  <h1 class="text-2xl font-semibold tracking-tight" style="color:#111111;">How it Works</h1>
-  <p class="text-sm mt-1" style="color:#6B7280;">Architecture of the job search pipeline — from scraping to application</p>
-</div>
+<header class="page-header">
+  <span class="eyebrow">Architecture</span>
+  <h1>How it works</h1>
+  <p class="page-lede">Every stage of the pipeline, from portal scraping through CV scoring to outreach and tracking.</p>
+</header>
 
 <!-- ══════════════════════════════════════════
      MAIN DIAGRAM

@@ -87,23 +87,28 @@
   }
 
   // ─── 3. Magnetic hover ──────────────────────────────────────────
-  // Subtle: max 6px translate. Only on coarse-pointer = false (mouse).
+  // Subtle: max ~6px translate. Only on coarse-pointer = false (mouse).
+  // Delayed slightly so the .page-body page-rise animation (320ms) fully
+  // settles before we start writing transforms onto child elements; otherwise
+  // the magnetic transform fights the parent's translateY and snaps in.
   function initMagnetic() {
     if (reduce) return;
     const coarse = window.matchMedia('(pointer: coarse)').matches;
     if (coarse) return;
-    document.querySelectorAll('.magnetic').forEach(el => {
-      const strength = parseFloat(el.dataset.magneticStrength || '0.18');
-      el.addEventListener('pointermove', (e) => {
-        const r = el.getBoundingClientRect();
-        const dx = (e.clientX - r.left - r.width / 2) * strength;
-        const dy = (e.clientY - r.top - r.height / 2) * strength;
-        el.style.transform = `translate(${dx}px, ${dy}px)`;
+    setTimeout(() => {
+      document.querySelectorAll('.magnetic').forEach(el => {
+        const strength = parseFloat(el.dataset.magneticStrength || '0.18');
+        el.addEventListener('pointermove', (e) => {
+          const r = el.getBoundingClientRect();
+          const dx = (e.clientX - r.left - r.width / 2) * strength;
+          const dy = (e.clientY - r.top - r.height / 2) * strength;
+          el.style.transform = `translate(${dx}px, ${dy}px)`;
+        });
+        el.addEventListener('pointerleave', () => {
+          el.style.transform = '';
+        });
       });
-      el.addEventListener('pointerleave', () => {
-        el.style.transform = '';
-      });
-    });
+    }, 360);
   }
 
   // ─── Boot ───────────────────────────────────────────────────────

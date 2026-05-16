@@ -25,7 +25,7 @@
               <p style="font-weight:500;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ cv_filename }}</p>
               <p class="text-muted" style="font-size:.8125rem;margin:.125rem 0 0;">Uploaded successfully</p>
             </div>
-            <svg width="20" height="20" fill="none" stroke="#16a34a" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <svg width="20" height="20" fill="none" stroke="var(--success)" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
           <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}">
             <label class="btn btn-outline" style="width:100%;cursor:pointer;display:block;text-align:center;">
@@ -67,11 +67,11 @@
             {% for section in cv_sections %}
             <div style="display:flex;align-items:center;gap:.625rem;">
               {% if section.status == 'complete' %}
-              <svg width="16" height="16" fill="none" stroke="#16a34a" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <svg width="16" height="16" fill="none" stroke="var(--success)" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               {% elif section.status == 'partial' %}
-              <svg width="16" height="16" fill="none" stroke="#d97706" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <svg width="16" height="16" fill="none" stroke="var(--warning)" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               {% else %}
-              <svg width="16" height="16" fill="none" stroke="#dc2626" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <svg width="16" height="16" fill="none" stroke="var(--destructive)" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               {% endif %}
               <span style="flex:1;font-size:.875rem;">{{ section.name }}</span>
               <span class="badge {% if section.status == 'complete' %}badge-default{% elif section.status == 'partial' %}badge-secondary{% else %}badge-outline{% endif %}" style="font-size:.7rem;">{{ section.percentage }}%</span>
@@ -124,7 +124,7 @@
           {% for gap in skill_gaps %}
           <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem;border-radius:.5rem;border:1px solid var(--border);">
             <div style="display:flex;align-items:center;gap:.5rem;">
-              <svg width="16" height="16" fill="none" stroke="#f97316" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+              <svg width="16" height="16" fill="none" stroke="var(--warning)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
               <span style="font-weight:500;font-size:.875rem;">{{ gap.skill }}</span>
             </div>
             <div style="display:flex;align-items:center;gap:.5rem;">
@@ -170,7 +170,7 @@
       data: {
         datasets: [{
           data: [completeness, 100 - completeness],
-          backgroundColor: ['#030213', 'rgba(3,2,19,.08)'],
+          backgroundColor: ['var(--primary)', 'rgba(3,2,19,.08)'],
           borderWidth: 0,
         }]
       },

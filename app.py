@@ -2427,13 +2427,44 @@ def cv_profile_score():
 
 @app.route("/outbox")
 def outbox():
-    """Outbox page showing all outreach drafts (pending/sent/skipped)."""
+    """
+    Outbox page showing outreach drafts (pending/sent/skipped).
+    Paginated server-side — the queue has ~1k+ rows and rendering all of
+    them shipped 10+ MB of HTML per request.
+    """
     from database import get_outreach_queue
-    pending = get_outreach_queue("pending")
-    sent = get_outreach_queue("sent")
-    skipped = get_outreach_queue("skipped")
-    return render_template("outbox.html",
-                           pending=pending, sent=sent, skipped=skipped)
+    PER_PAGE = 25
+    tab = (request.args.get("tab") or "pending").lower()
+    if tab not in ("pending", "sent", "skipped"):
+        tab = "pending"
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except (ValueError, TypeError):
+        page = 1
+
+    all_pending = get_outreach_queue("pending")
+    all_sent    = get_outreach_queue("sent")
+    all_skipped = get_outreach_queue("skipped")
+    totals = {
+        "pending": len(all_pending),
+        "sent": len(all_sent),
+        "skipped": len(all_skipped),
+    }
+    active_rows = {"pending": all_pending, "sent": all_sent, "skipped": all_skipped}[tab]
+    total_pages = max(1, (len(active_rows) + PER_PAGE - 1) // PER_PAGE)
+    page = min(page, total_pages)
+    start = (page - 1) * PER_PAGE
+    page_rows = active_rows[start:start + PER_PAGE]
+
+    return render_template(
+        "outbox.html",
+        tab=tab,
+        rows=page_rows,
+        totals=totals,
+        page=page,
+        total_pages=total_pages,
+        per_page=PER_PAGE,
+    )
 
 
 @app.route("/api/approve/<token>")

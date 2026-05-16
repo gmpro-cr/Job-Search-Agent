@@ -49,7 +49,7 @@
       <div id="portal-list" style="display:flex;flex-direction:column;gap:.5rem;"></div>
       <!-- Completion actions -->
       <div id="result-section" style="display:none;padding-top:.5rem;border-top:1px solid var(--border);display:none;">
-        <p style="color:#16a34a;font-weight:500;margin-bottom:.75rem;">Scraping completed successfully!</p>
+        <p style="color:var(--success);font-weight:500;margin-bottom:.75rem;">Scraping completed successfully!</p>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
           <a href="{{ url_for('jobs') }}" class="btn btn-primary btn-sm">View Jobs</a>
           <a id="digest-link" href="{{ url_for('digests') }}" class="btn btn-outline btn-sm">View Digest</a>
@@ -57,14 +57,14 @@
         </div>
       </div>
       <div id="stopped-section" style="display:none;padding-top:.5rem;border-top:1px solid var(--border);">
-        <p style="color:#d97706;font-weight:500;margin-bottom:.75rem;">Scraper stopped by user</p>
+        <p style="color:var(--warning);font-weight:500;margin-bottom:.75rem;">Scraper stopped by user</p>
         <div style="display:flex;gap:.5rem;">
           <a href="{{ url_for('jobs') }}" class="btn btn-primary btn-sm">View Jobs</a>
           <button onclick="location.reload()" class="btn btn-outline btn-sm">Run Again</button>
         </div>
       </div>
       <div id="error-section" style="display:none;padding-top:.5rem;border-top:1px solid var(--border);">
-        <p id="error-text" style="color:#dc2626;font-weight:500;margin-bottom:.75rem;"></p>
+        <p id="error-text" style="color:var(--destructive);font-weight:500;margin-bottom:.75rem;"></p>
         <button onclick="location.reload()" class="btn btn-outline btn-sm">Try Again</button>
       </div>
     </div>
@@ -133,8 +133,8 @@
               <span id="last-qualified" style="font-weight:500;">—</span>
             </div>
             <div id="last-status-ok" style="display:none;align-items:center;gap:.5rem;padding-top:.5rem;">
-              <svg width="16" height="16" fill="none" stroke="#16a34a" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <span style="font-size:.875rem;color:#16a34a;">Completed successfully</span>
+              <svg width="16" height="16" fill="none" stroke="var(--success)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span style="font-size:.875rem;color:var(--success);">Completed successfully</span>
             </div>
           </div>
         </div>
@@ -285,7 +285,7 @@
         if (portals.length > 0) {
           document.getElementById('portal-list').innerHTML = portals.map(([name, info]) => {
             const ok = info.status === 'success';
-            const color = ok ? '#16a34a' : '#6b7280';
+            const color = ok ? 'var(--success)' : 'var(--muted-foreground)';
             return `<div style="display:flex;align-items:center;justify-content:space-between;font-size:.875rem;padding:.25rem 0;">
               <span style="display:flex;align-items:center;gap:.5rem;color:${color};">
                 <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">

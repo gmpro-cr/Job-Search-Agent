@@ -186,7 +186,7 @@
         labels: ['90-100','80-89','70-79','60-69','0-59'],
         datasets: [{
           data: dist,
-          backgroundColor: ['#030213','#333','#666','#999','#ccc'],
+          backgroundColor: ['var(--primary)','var(--foreground)','var(--muted-strong)','var(--muted-foreground)','var(--border-strong)'],
           borderRadius: 6,
         }]
       },
@@ -235,8 +235,8 @@
       data: {
         labels: portals.map(([p]) => p),
         datasets: [
-          { label: 'Total Jobs', data: portals.map(([,d]) => d.count), backgroundColor: '#030213', borderRadius: 6 },
-          { label: 'Avg Score', data: portals.map(([,d]) => d.count ? Math.round(d.scoreSum/d.count) : 0), backgroundColor: '#666', borderRadius: 6 }
+          { label: 'Total Jobs', data: portals.map(([,d]) => d.count), backgroundColor: 'var(--primary)', borderRadius: 6 },
+          { label: 'Avg Score', data: portals.map(([,d]) => d.count ? Math.round(d.scoreSum/d.count) : 0), backgroundColor: 'var(--muted-strong)', borderRadius: 6 }
         ]
       },
       options: { plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true}}, responsive:true }
@@ -276,9 +276,9 @@
       data: {
         labels,
         datasets: [
-          { label: 'Scraped', data: days.map(d => dayMap[d].scraped), borderColor: '#030213', backgroundColor: 'rgba(3,2,19,.08)', fill: true, tension: .4, pointRadius: 4 },
-          { label: 'High Score', data: days.map(d => dayMap[d].high), borderColor: '#444', borderDash: [4,4], tension: .4, pointRadius: 4 },
-          { label: 'Applied', data: days.map(d => dayMap[d].applied), borderColor: '#999', tension: .4, pointRadius: 4 },
+          { label: 'Scraped', data: days.map(d => dayMap[d].scraped), borderColor: 'var(--primary)', backgroundColor: 'rgba(3,2,19,.08)', fill: true, tension: .4, pointRadius: 4 },
+          { label: 'High Score', data: days.map(d => dayMap[d].high), borderColor: 'var(--muted-strong)', borderDash: [4,4], tension: .4, pointRadius: 4 },
+          { label: 'Applied', data: days.map(d => dayMap[d].applied), borderColor: 'var(--muted-foreground)', tension: .4, pointRadius: 4 },
         ]
       },
       options: { plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true}}, responsive:true }

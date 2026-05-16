@@ -1,4 +1,4 @@
-{% set avatar_colors = ['#111111','#333333','#555555','#777777','#444444','#666666','#222222','#999999'] %}
+{% set avatar_colors = ['var(--foreground)','var(--muted-strong)','var(--muted-strong)','var(--muted-foreground)','var(--muted-strong)','var(--muted-strong)','var(--foreground)','var(--muted-foreground)'] %}
 {% for job in jobs %}
 {% set s = job.applied_status | int %}
 {% if cv_uploaded %}

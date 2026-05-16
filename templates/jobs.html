@@ -11,101 +11,85 @@
         <p class="page-lede">Filter, sort, and act on the freshest matches across all the portals we watch.</p>
       </div>
       <div class="jobs-count-display">
-        <div class="stat-figure tabular" id="jobs-count-figure" data-count-to="0">0</div>
+        <div class="stat-figure tabular" id="jobs-count-figure">—</div>
         <div class="stat-label">Showing</div>
       </div>
     </div>
   </header>
 
-  <!-- Search + Sort -->
-  <div style="display:flex;gap:1rem;flex-wrap:wrap;">
-    <div style="position:relative;flex:1;min-width:200px;">
-      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-        style="position:absolute;left:.75rem;top:50%;transform:translateY(-50%);color:var(--muted-foreground);pointer-events:none;">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-      </svg>
-      <input id="search-input" type="text" placeholder="Search jobs, companies, or keywords..."
-        class="input" style="padding-left:2.5rem;width:100%;"
-        oninput="filterJobs()">
-    </div>
-    <select id="sort-select" class="input" style="width:180px;" onchange="filterJobs()">
-      <option value="score">Relevance Score</option>
-      <option value="date">Date Posted</option>
+  <!-- Search bar -->
+  <div class="jobs-search">
+    <svg class="jobs-search-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+    </svg>
+    <input id="search-input" type="text" placeholder="Search jobs, companies, or keywords…"
+      class="input jobs-search-input" oninput="filterJobs()">
+    <select id="sort-select" class="input jobs-sort" onchange="filterJobs()">
+      <option value="score">Relevance score</option>
+      <option value="date">Date posted</option>
       <option value="company">Company</option>
     </select>
   </div>
 
-  <!-- 3-col grid: filters | job list (2 cols) -->
-  <div class="jobs-grid">
-
-    <!-- Filters (sticky) -->
-    <div class="card jobs-filter-rail">
-      <div class="card-header">
-        <div class="card-title" style="display:flex;align-items:center;gap:.5rem;">
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
-          Filters
-        </div>
-      </div>
-      <div class="card-content" style="display:flex;flex-direction:column;gap:1.25rem;">
-
-        <div style="display:flex;flex-direction:column;gap:.5rem;">
-          <label style="font-size:.875rem;font-weight:500;">Score Range</label>
-          <div style="display:flex;gap:.5rem;align-items:center;">
-            <input id="score-min" type="number" min="0" max="100" value="0" class="input" style="width:60px;padding:.25rem .5rem;font-size:.875rem;" oninput="filterJobs()">
-            <span class="text-muted" style="font-size:.75rem;">–</span>
-            <input id="score-max" type="number" min="0" max="100" value="100" class="input" style="width:60px;padding:.25rem .5rem;font-size:.875rem;" oninput="filterJobs()">
-          </div>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:.5rem;">
-          <label style="font-size:.875rem;font-weight:500;">Status</label>
-          <select id="filter-status" class="input" style="font-size:.875rem;" onchange="filterJobs()">
-            <option value="">All Jobs</option>
-            <option value="new">New</option>
-            <option value="saved">Saved</option>
-            <option value="applied">Applied</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:.5rem;">
-          <label style="font-size:.875rem;font-weight:500;">Remote Status</label>
-          <select id="filter-remote" class="input" style="font-size:.875rem;" onchange="filterJobs()">
-            <option value="">All Types</option>
-            <option value="remote">Remote</option>
-            <option value="hybrid">Hybrid</option>
-            <option value="onsite">On-site</option>
-          </select>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:.5rem;">
-          <label style="font-size:.875rem;font-weight:500;">Portal</label>
-          <select id="filter-portal" class="input" style="font-size:.875rem;" onchange="filterJobs()">
-            <option value="">All Portals</option>
-            <option value="linkedin">LinkedIn</option>
-            <option value="indeed">Indeed</option>
-            <option value="naukri">Naukri</option>
-            <option value="wellfound">Wellfound</option>
-            <option value="hiringcafe">HiringCafe</option>
-          </select>
-        </div>
-
-        <button onclick="resetFilters()" class="btn btn-outline btn-sm" style="width:100%;">Reset Filters</button>
-      </div>
+  <!-- Horizontal filter bar -->
+  <div class="jobs-filter-bar">
+    <div class="jobs-filter-group">
+      <label class="jobs-filter-label">Score</label>
+      <input id="score-min" type="number" min="0" max="100" value="0" class="input jobs-filter-num" oninput="filterJobs()" aria-label="Minimum score">
+      <span class="jobs-filter-dash">–</span>
+      <input id="score-max" type="number" min="0" max="100" value="100" class="input jobs-filter-num" oninput="filterJobs()" aria-label="Maximum score">
     </div>
 
-    <!-- Job list -->
-    <div style="display:flex;flex-direction:column;gap:1rem;">
-      <div id="jobs-loading" style="text-align:center;padding:3rem;color:var(--muted-foreground);">
-        <svg class="spin" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin:0 auto 1rem;display:block;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
-        Loading jobs...
-      </div>
-      <div id="jobs-empty" style="display:none;text-align:center;padding:3rem;color:var(--muted-foreground);">
-        No jobs match your filters.
-      </div>
-      <div id="jobs-list" style="display:flex;flex-direction:column;gap:.75rem;"></div>
-      <div id="jobs-count" style="font-size:.875rem;color:var(--muted-foreground);text-align:center;display:none;"></div>
+    <div class="jobs-filter-group">
+      <label class="jobs-filter-label" for="filter-status">Status</label>
+      <select id="filter-status" class="input jobs-filter-select" onchange="filterJobs()">
+        <option value="">All</option>
+        <option value="new">New</option>
+        <option value="saved">Saved</option>
+        <option value="applied">Applied</option>
+        <option value="rejected">Rejected</option>
+      </select>
     </div>
+
+    <div class="jobs-filter-group">
+      <label class="jobs-filter-label" for="filter-remote">Remote</label>
+      <select id="filter-remote" class="input jobs-filter-select" onchange="filterJobs()">
+        <option value="">All</option>
+        <option value="remote">Remote</option>
+        <option value="hybrid">Hybrid</option>
+        <option value="onsite">On-site</option>
+      </select>
+    </div>
+
+    <div class="jobs-filter-group">
+      <label class="jobs-filter-label" for="filter-portal">Portal</label>
+      <select id="filter-portal" class="input jobs-filter-select" onchange="filterJobs()">
+        <option value="">All</option>
+        <option value="linkedin">LinkedIn</option>
+        <option value="indeed">Indeed</option>
+        <option value="naukri">Naukri</option>
+        <option value="wellfound">Wellfound</option>
+        <option value="hiringcafe">HiringCafe</option>
+      </select>
+    </div>
+
+    <button onclick="resetFilters()" class="btn btn-ghost btn-sm jobs-filter-reset">
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      Reset
+    </button>
+  </div>
+
+  <!-- Job list (full width now) -->
+  <div class="jobs-list-wrap">
+    <div id="jobs-loading" style="text-align:center;padding:3rem;color:var(--muted-foreground);">
+      <svg class="spin" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin:0 auto 1rem;display:block;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+      Loading jobs…
+    </div>
+    <div id="jobs-empty" style="display:none;text-align:center;padding:3rem;color:var(--muted-foreground);">
+      No jobs match your filters.
+    </div>
+    <div id="jobs-list" class="jobs-list"></div>
+    <div id="jobs-count" style="font-size:.875rem;color:var(--muted-foreground);text-align:center;display:none;margin-top:1rem;"></div>
   </div>
 </div>
 
