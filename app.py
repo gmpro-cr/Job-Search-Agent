@@ -1559,6 +1559,77 @@ def nlp_search():
     })
 
 
+@app.route("/api/jobs", methods=["GET"])
+def api_jobs_list():
+    """
+    Lightweight JSON list of jobs used by the /jobs page client-side render.
+
+    Returns the freshest visible jobs joined with the current user's per-user
+    state (cv_score, applied_status, hidden) so the UI can show personalised
+    badges without re-running the heavy SQL builder.
+
+    Query params:
+        limit    int (default 200, max 500)
+        min_score int (default 0)
+    """
+    uid = current_user_id()
+    try:
+        limit = max(1, min(500, int(request.args.get("limit", 200))))
+    except (ValueError, TypeError):
+        limit = 200
+    try:
+        min_score = max(0, min(100, int(request.args.get("min_score", 0))))
+    except (ValueError, TypeError):
+        min_score = 0
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    if uid:
+        cursor.execute(
+            """
+            SELECT j.job_id, j.role, j.company, j.location, j.salary,
+                   j.salary_currency, j.remote_status, j.portal, j.apply_url,
+                   j.job_description, j.relevance_score, j.date_found,
+                   j.date_posted, j.experience_min, j.experience_max,
+                   COALESCE(s.cv_score, 0)       AS cv_score,
+                   COALESCE(s.applied_status, 0) AS applied_status,
+                   s.applied_date                AS applied_date,
+                   s.user_notes                  AS user_notes,
+                   COALESCE(s.hidden, 0)         AS hidden
+            FROM job_listings j
+            LEFT JOIN user_job_state s
+              ON s.job_id = j.job_id AND s.user_id = ?
+            WHERE j.relevance_score >= ?
+              AND COALESCE(s.hidden, 0) = 0
+            ORDER BY j.date_found DESC
+            LIMIT ?
+            """,
+            (uid, min_score, limit),
+        )
+    else:
+        cursor.execute(
+            """
+            SELECT job_id, role, company, location, salary, salary_currency,
+                   remote_status, portal, apply_url, job_description,
+                   relevance_score, date_found, date_posted,
+                   experience_min, experience_max,
+                   COALESCE(cv_score, 0) AS cv_score,
+                   COALESCE(applied_status, 0) AS applied_status,
+                   applied_date, user_notes,
+                   COALESCE(hidden, 0) AS hidden
+            FROM job_listings
+            WHERE relevance_score >= ?
+              AND (hidden = 0 OR hidden IS NULL)
+            ORDER BY date_found DESC
+            LIMIT ?
+            """,
+            (min_score, limit),
+        )
+    jobs = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return jsonify({"jobs": jobs, "count": len(jobs)})
+
+
 @app.route("/api/jobs/<job_id>/status", methods=["POST"])
 def update_job_status(job_id):
     uid = require_user_id()
