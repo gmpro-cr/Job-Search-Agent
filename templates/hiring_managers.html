@@ -4,19 +4,17 @@
 {% block content %}
 <div class="space-y-6">
 
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
-    <div>
-      <h1 style="font-size:1.5rem;font-weight:700;margin:0 0 .25rem;">Hiring Managers</h1>
-      <p class="text-muted">
-        People associated with the jobs we've scraped &mdash; reach out via LinkedIn or email.
-      </p>
+  <header class="page-header">
+    <div class="page-header-row">
+      <div style="flex:1;min-width:0;">
+        <span class="eyebrow">{{ counts.total }} contacts · {{ counts.with_linkedin }} on LinkedIn</span>
+        <h1>People who post the roles.</h1>
+        <p class="page-lede">
+          Recruiters and hiring managers extracted from the listings we've scraped. Reach out via LinkedIn or email.
+        </p>
+      </div>
     </div>
-    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-      <span class="badge">{{ counts.total }} contacts</span>
-      <span class="badge">{{ counts.with_linkedin }} LinkedIn</span>
-      <span class="badge">{{ counts.with_email }} Email</span>
-    </div>
-  </div>
+  </header>
 
   <div class="card">
     <div class="card-content" style="padding:0;">

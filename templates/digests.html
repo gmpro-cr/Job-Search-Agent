@@ -3,22 +3,25 @@
 
 {% block content %}
 <div class="space-y-6">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
-    <div>
-      <h1 style="font-size:1.5rem;font-weight:700;margin:0 0 .25rem;">Job Digest</h1>
-      <p class="text-muted">View and manage your daily job digests</p>
+  <header class="page-header">
+    <div class="page-header-row">
+      <div style="flex:1;min-width:0;">
+        <span class="eyebrow">{{ stats.qualified or 0 }} qualified · avg {{ stats.avg_score or 0 }} match</span>
+        <h1>Daily digest, end-to-end.</h1>
+        <p class="page-lede">A rolling archive of every digest the scraper has generated &mdash; from inbox-ready to in-page.</p>
+      </div>
+      <div style="display:flex;gap:.5rem;">
+        <button onclick="emailDigest()" class="btn btn-outline">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          Email Digest
+        </button>
+        <a href="{{ url_for('scraper') }}" class="btn btn-default">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+          Generate New Digest
+        </a>
+      </div>
     </div>
-    <div style="display:flex;gap:.5rem;">
-      <button onclick="emailDigest()" class="btn btn-outline">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-        Email Digest
-      </button>
-      <a href="{{ url_for('scraper') }}" class="btn btn-primary">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-        Generate New Digest
-      </a>
-    </div>
-  </div>
+  </header>
 
   <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;align-items:start;">
 

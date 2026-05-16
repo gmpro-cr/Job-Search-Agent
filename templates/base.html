@@ -22,70 +22,75 @@
   <!-- ── Sidebar ── -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <span class="sidebar-logo">Job Search Agent</span>
+      <span class="sidebar-logo">Job Search</span>
+      <span class="sidebar-logo-mark">— Agent</span>
     </div>
 
     <nav class="sidebar-nav">
-      <p class="sidebar-group-label">Navigation</p>
+      <p class="sidebar-group-label">Discover</p>
       <ul class="sidebar-menu">
         <li>
-          <a href="{{ url_for('dashboard') }}"
+          <a href="{{ url_for('dashboard') }}" data-title="Today"
              class="sidebar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-            Home
+            Today
           </a>
         </li>
         <li>
-          <a href="{{ url_for('jobs') }}"
+          <a href="{{ url_for('jobs') }}" data-title="Jobs"
              class="sidebar-link {% if request.endpoint == 'jobs' %}active{% endif %}">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/></svg>
             Jobs
           </a>
         </li>
         <li>
-          <a href="{{ url_for('scraper') }}"
-             class="sidebar-link {% if request.endpoint == 'scraper' %}active{% endif %}">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            Run Scraper
-          </a>
-        </li>
-        <li>
-          <a href="{{ url_for('pipeline') }}"
-             class="sidebar-link {% if request.endpoint == 'pipeline' %}active{% endif %}">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-            Analytics
-          </a>
-        </li>
-        <li>
-          <a href="{{ url_for('cv_page') }}"
-             class="sidebar-link {% if request.endpoint == 'cv_page' %}active{% endif %}">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-            Profile &amp; CV
-          </a>
-        </li>
-        <li>
-          <a href="{{ url_for('digests') }}"
-             class="sidebar-link {% if request.endpoint == 'digests' %}active{% endif %}">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            Digest
-          </a>
-        </li>
-        <li>
-          <a href="{{ url_for('hiring_managers') }}"
+          <a href="{{ url_for('hiring_managers') }}" data-title="Hiring Managers"
              class="sidebar-link {% if request.endpoint == 'hiring_managers' %}active{% endif %}">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             Hiring Managers
           </a>
         </li>
         <li>
-          <a href="{{ url_for('autoresearch_page') }}"
+          <a href="{{ url_for('digests') }}" data-title="Daily Digest"
+             class="sidebar-link {% if request.endpoint == 'digests' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Daily Digest
+          </a>
+        </li>
+      </ul>
+
+      <p class="sidebar-group-label">Workspace</p>
+      <ul class="sidebar-menu">
+        <li>
+          <a href="{{ url_for('cv_page') }}" data-title="Profile &amp; CV"
+             class="sidebar-link {% if request.endpoint == 'cv_page' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            Profile &amp; CV
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('pipeline') }}" data-title="Analytics"
+             class="sidebar-link {% if request.endpoint == 'pipeline' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Analytics
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('scraper') }}" data-title="Run Scraper"
+             class="sidebar-link {% if request.endpoint == 'scraper' %}active{% endif %}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Run Scraper
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('autoresearch_page') }}" data-title="Schedule"
              class="sidebar-link {% if request.endpoint == 'autoresearch_page' %}active{% endif %}">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             Schedule
           </a>
         </li>
         <li>
-          <a href="{{ url_for('preferences') }}"
+          <a href="{{ url_for('preferences') }}" data-title="Settings"
              class="sidebar-link {% if request.endpoint == 'preferences' %}active{% endif %}">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             Settings
@@ -103,6 +108,15 @@
       <button id="sidebar-toggle" class="btn btn-ghost btn-icon-sm mobile-sidebar-toggle" aria-label="Toggle sidebar" aria-controls="sidebar">
         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
+      <span class="topbar-title" id="topbar-title">{% block topbar_title %}{% endblock %}</span>
+      <span class="topbar-spacer"></span>
+      {% set _u = session.get('user') %}
+      {% if _u and _u.get('email') %}
+      <a href="{{ url_for('preferences') }}" class="user-chip" aria-label="Open preferences">
+        <span class="user-avatar">{{ (_u.get('name') or _u.get('email'))[0]|upper }}</span>
+        <span class="user-chip-email">{{ _u.get('email') }}</span>
+      </a>
+      {% endif %}
     </div>
 
     <!-- Flash messages -->
@@ -170,6 +184,15 @@
         try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
       }
     });
+  })();
+
+  // Topbar title mirrors the active sidebar item's data-title so every
+  // page gets a sense of place without touching individual templates.
+  (function () {
+    var slot = document.getElementById('topbar-title');
+    if (!slot || slot.textContent.trim()) return;  // page provided its own
+    var active = document.querySelector('.sidebar-link.active');
+    if (active) slot.textContent = active.getAttribute('data-title') || active.textContent.trim();
   })();
 </script>
 {% block scripts %}{% endblock %}
