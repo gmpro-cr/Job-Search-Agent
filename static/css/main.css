@@ -132,6 +132,11 @@ body {
 /* ── Main content ── */
 .main-content {
   flex: 1;
+  /* Without `min-width: 0` a flex child refuses to shrink below its
+     content's intrinsic width, so a wide page (long job titles, the
+     job-detail modal, etc.) was pushing the right side past the
+     viewport while the sidebar was open. */
+  min-width: 0;
   margin-left: 272px;
   min-height: 100vh;
   display: flex;
@@ -157,6 +162,12 @@ body.sidebar-collapsed .main-content { margin-left: 0; }
 .page-body {
   padding: 1.5rem;
   flex: 1;
+  /* Belt-and-braces — clip any stray horizontal overflow inside a single
+     wide element (e.g. a non-wrapping job title) instead of stretching the
+     page. Tables that genuinely need to scroll wrap themselves in their
+     own overflow:auto container. */
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* ── Typography ── */
