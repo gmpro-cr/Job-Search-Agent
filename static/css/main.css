@@ -7,6 +7,21 @@
 
 @import url('https://rsms.me/inter/inter.css');
 
+/* Metrics-adjusted fallback so the layout doesn't shift when Inter swaps
+   in. These overrides make the system Arial fallback occupy the same
+   vertical box as Inter — without them, the initial render uses
+   system-ui (taller line-heights) and the whole page shrinks ~120px
+   when Inter finishes loading ~300ms later. Numbers from
+   capsizecss.com / font-fallback-tools for Inter. */
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Arial');
+  ascent-override: 90.20%;
+  descent-override: 22.48%;
+  line-gap-override: 0%;
+  size-adjust: 107.40%;
+}
+
 /* ── CSS Variables ── */
 :root {
   --font-size: 16px;
@@ -62,9 +77,10 @@
   --sidebar-border: #e3e3dc;
   --sidebar-muted: #696970;
 
-  /* Type stacks — Inter only; mono kept for any technical data we
-     want to differentiate (timestamps, IDs, the user-chip email). */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  /* Type stacks. 'Inter Fallback' is the metrics-adjusted local Arial
+     declared above — it occupies the same vertical box as Inter so the
+     swap-in causes no layout shift. */
+  --font-sans: 'Inter', 'Inter Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, monospace;
 
   /* Motion */
@@ -77,7 +93,7 @@
 /* Inter variable-font opt-in (rsms.me's stylesheet handles this when the
    browser supports it) — gives access to the optical-size / weight axes. */
 @supports (font-variation-settings: normal) {
-  :root { --font-sans: 'InterVariable', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+  :root { --font-sans: 'InterVariable', 'Inter Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
 }
 
 /* ── Reset ── */
