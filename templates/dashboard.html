@@ -2,485 +2,122 @@
 {% block title %}Dashboard — Job Search Agent{% endblock %}
 {% block page_body_class %}is-airy{% endblock %}
 
-{% block head %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<style>
-  /* ── Onboarding / Scanning overlays ── */
-  #onboarding-view {
-    position: fixed; inset: 0; z-index: 100;
-    background: var(--background);
-    display: flex; align-items: center; justify-content: center;
-  }
-  #onboarding-view.fade-out { animation: fadeOut .35s ease forwards; }
-
-  #scanning-view {
-    position: fixed; inset: 0; z-index: 100;
-    background: var(--background);
-    display: none; align-items: center; justify-content: center;
-  }
-  #scanning-view.visible { display: flex; }
-  #scanning-view.fade-out { animation: fadeOut .35s ease forwards; }
-
-  @keyframes fadeOut { to { opacity: 0; pointer-events: none; } }
-
-  /* Upload zone */
-  .upload-zone {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 3rem 2rem;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color .15s, background .15s;
-    width: 420px; max-width: 92vw;
-  }
-  .upload-zone:hover, .upload-zone.drag-over {
-    border-color: var(--primary);
-    background: var(--muted);
-  }
-
-  /* CV scan animation */
-  .cv-paper {
-    width: 96px; height: 128px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    position: relative; overflow: hidden;
-    margin: 0 auto 1.5rem;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-  }
-  .cv-paper::after {
-    content: '';
-    position: absolute; left: 0; right: 0; height: 2px;
-    background: var(--primary);
-    animation: scan 1.6s ease-in-out infinite;
-  }
-  @keyframes scan { 0%,100%{top:0;opacity:1} 90%{top:calc(100% - 2px);opacity:1} }
-  .cv-line { height: 5px; border-radius: 3px; background: var(--muted); margin: 10px 12px 0; }
-  .cv-line.short { width: 55%; }
-
-  /* Skill tick animation */
-  .skill-tick { animation: tickIn .2s ease backwards; }
-  @keyframes tickIn { from { opacity:0; transform:translateY(4px); } }
-</style>
-{% endblock %}
-
 {% block content %}
+<div class="space-y-6">
 
-<!-- ─── ONBOARDING ─── -->
-{% if not cv_uploaded %}
-<div id="onboarding-view">
-  <div style="text-align:center; width:480px; max-width:92vw;">
-    <div style="width:48px;height:48px;background:var(--primary);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;">
-      <svg width="24" height="24" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/></svg>
-    </div>
-    <h1 style="margin-bottom:.5rem;">Welcome to Job Search Agent</h1>
-    <p class="text-muted" style="margin-bottom:2rem;">Upload your CV to get personalised job matches and skill analysis.</p>
-
-    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('cvFileInput').click()">
-      <input type="file" id="cvFileInput" accept=".pdf,.docx,.txt" style="display:none" onchange="handleFile(this)">
-      <svg width="40" height="40" fill="none" stroke="currentColor" style="color:var(--muted-foreground);margin:0 auto .75rem;" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-      <p style="font-weight:500;margin-bottom:.25rem;">Drop your CV here or click to browse</p>
-      <p class="text-muted text-sm">PDF, DOCX, or TXT — max 5 MB</p>
-      <div id="fileName" style="margin-top:.75rem;display:none;">
-        <span class="badge badge-secondary" id="fileNameText"></span>
-      </div>
-    </div>
-
-    <div id="uploadError" class="flash flash-error" style="display:none;margin-top:.75rem;text-align:left;"></div>
-
-    <button id="uploadBtn" class="btn btn-default" onclick="doUpload()" disabled
-      style="width:100%;justify-content:center;margin-top:1rem;">
-      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-      Upload CV &amp; Get Matches
-    </button>
-
-    <p class="text-muted text-sm" style="margin-top:.875rem;">
-      Already uploaded? <a href="{{ url_for('cv_page') }}" style="color:var(--foreground);text-decoration:underline;">Manage your CV →</a>
-    </p>
-  </div>
-</div>
-{% endif %}
-
-<!-- ─── SCANNING ─── -->
-<div id="scanning-view">
-  <div style="text-align:center;width:360px;max-width:92vw;">
-    <div class="cv-paper">
-      <div class="cv-line"></div><div class="cv-line short"></div>
-      <div class="cv-line"></div><div class="cv-line short"></div>
-      <div class="cv-line"></div><div class="cv-line short"></div>
-    </div>
-    <p style="font-weight:500;margin-bottom:.375rem;">Scanning your CV…</p>
-    <p id="scanStatus" class="text-muted text-sm" style="margin-bottom:1.25rem;">Extracting skills and experience</p>
-    <div id="skillTicker" style="display:flex;flex-wrap:wrap;gap:.375rem;justify-content:center;min-height:2rem;"></div>
-  </div>
-</div>
-
-<!-- ─── DASHBOARD ─── -->
-<div id="dashboard-content" {% if not cv_uploaded %}style="display:none"{% endif %}>
-
-  <!-- Hero: greeting + tagline + sweep-underlined em-italic accent -->
+  <!-- Hero -->
   <header class="dash-hero">
-    <span class="eyebrow">{{ stats.jobs_today or 0 }} new today · {{ stats.jobs_this_week or 0 }} this week</span>
+    <span class="eyebrow">{{ jobs_today }} scraped today · {{ high_match_today }} high-match</span>
     <h1 class="display reveal-on-scroll">
-      Good morning, <em class="underline-sweep">{{ session.user.name.split(' ')[0] if session.user and session.user.name else 'friend' }}</em>.<br>
-      Here's what's worth your time.
+      Today's brief
     </h1>
-    <p class="page-lede reveal-on-scroll">A quiet desk for the role hunt &mdash; matches scored against your CV, contacts ready to reach out to, and a digest waiting in your inbox.</p>
+    <p class="page-lede reveal-on-scroll">
+      What our scrapers found this morning, scored against your CV and preferences.
+    </p>
     <div class="dash-hero-actions">
       <a href="{{ url_for('jobs') }}" class="btn btn-accent magnetic" data-magnetic-strength="0.22">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-        Browse Jobs
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/></svg>
+        Browse all jobs
       </a>
-      <a href="{{ url_for('scraper') }}" class="btn btn-outline">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        Run Scraper
+      {% if not cv_uploaded %}
+      <a href="{{ url_for('cv_page') }}" class="btn btn-outline">
+        Upload CV to enable matching
       </a>
+      {% endif %}
     </div>
   </header>
 
-  <!-- KPI tiles — counters animate from 0 on intersection -->
-  <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 stagger">
-
+  <!-- The three numbers that matter today -->
+  <div class="grid md:grid-cols-3 gap-4 stagger">
     <div class="card stat-card" style="--i:0">
       <div class="card-header">
         <div class="card-header-row">
-          <span class="card-title">Total Jobs</span>
+          <span class="card-title">Jobs scraped today</span>
           <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/></svg>
         </div>
       </div>
       <div class="card-content pt-0">
-        <div class="stat-value tabular" id="kpiTotal" data-count-to="{{ stats.total_jobs or 0 }}">0</div>
-        <p class="stat-change"><span id="kpiTotalChange">across the database</span></p>
+        <div class="stat-value tabular" data-count-to="{{ jobs_today }}">{{ jobs_today }}</div>
+        <p class="stat-change">across all six portals</p>
       </div>
     </div>
 
     <div class="card stat-card" style="--i:1">
       <div class="card-header">
         <div class="card-header-row">
-          <span class="card-title">Jobs Today</span>
-          <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+          <span class="card-title">Jobs applied today</span>
+          <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
         </div>
       </div>
       <div class="card-content pt-0">
-        <div class="stat-value tabular" id="kpiToday" data-count-to="{{ stats.jobs_today or 0 }}">0</div>
-        <p class="stat-change">from today's scrape</p>
+        <div class="stat-value tabular" data-count-to="{{ applied_today }}">{{ applied_today }}</div>
+        <p class="stat-change">marked applied through this portal</p>
       </div>
     </div>
 
     <div class="card stat-card" style="--i:2">
       <div class="card-header">
         <div class="card-header-row">
-          <span class="card-title">Avg CV Match</span>
-          <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-        </div>
-      </div>
-      <div class="card-content pt-0">
-        <div class="stat-value tabular" id="kpiAvg" data-count-to="{{ insights.avg_cv_this_week or 0 }}" data-count-decimals="1" data-count-suffix="%">0%</div>
-        <p class="stat-change">across matched jobs</p>
-      </div>
-    </div>
-
-    <div class="card stat-card" style="--i:3">
-      <div class="card-header">
-        <div class="card-header-row">
-          <span class="card-title">High Matches</span>
+          <span class="card-title">Matches ≥ 80%</span>
           <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
         </div>
       </div>
       <div class="card-content pt-0">
-        <div class="stat-value tabular" id="kpiHigh" data-count-to="{{ insights.unopened_high_score or 0 }}">0</div>
-        <p class="stat-change">score &ge; 75 · unopened</p>
+        <div class="stat-value tabular" data-count-to="{{ high_match_today }}">{{ high_match_today }}</div>
+        <p class="stat-change">of today's scrape, scored against your CV</p>
       </div>
     </div>
-
   </div>
 
-  <!-- Main 2-column grid: recent activity + sidebar -->
-  <div class="grid lg:grid-cols-3 gap-6">
-
-    <!-- Left: recent activity (2/3) -->
-    <div class="lg:col-span-2 space-y-6">
-
-      <!-- Recent Activity card -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">Recent Activity</h3>
-          <p class="card-description">Latest job findings and applications</p>
-        </div>
-        <div class="card-content" id="recentActivity">
-          <!-- skeletons -->
-          {% for _ in range(5) %}
-          <div style="height:56px;background:var(--muted);border-radius:var(--radius);margin-bottom:.75rem;animation:pulse 1.5s ease infinite;"></div>
-          {% endfor %}
-        </div>
-      </div>
-
-      <!-- 14-day chart -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">14-Day Activity</h3>
-          <p class="card-description">Jobs scraped, high-scoring matches, and applied</p>
-        </div>
-        <div class="card-content">
-          <canvas id="activityChart" style="max-height:220px;"></canvas>
-        </div>
-      </div>
-
+  <!-- Top 10 best-matched jobs from the last 24 hours -->
+  <section class="card">
+    <div class="card-header">
+      <h3 class="card-title">Top matches · last 24 hours</h3>
+      <p class="card-description">
+        {% if cv_uploaded %}
+        Ranked by your CV + preferences score.
+        {% else %}
+        Upload a CV to score these against your skills.
+        {% endif %}
+      </p>
     </div>
-
-    <!-- Right sidebar (1/3) -->
-    <div class="space-y-4">
-
-      <!-- Next scrape -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">Next Scheduled Scrape</h3>
-        </div>
-        <div class="card-content">
-          <div class="flex items-center gap-2" style="margin-bottom:.5rem;">
-            <svg width="14" height="14" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            <span class="text-sm" id="nextRunLabel">Today, 7:00 PM</span>
+    <div class="card-content" style="padding:0;">
+      {% if top_jobs %}
+      <div class="top-jobs">
+        {% for job in top_jobs %}
+        <a href="{{ job.apply_url or '#' }}" target="_blank" rel="noopener noreferrer"
+           class="top-job">
+          <div class="top-job-logo">{{ (job.company or '?')[0]|upper }}</div>
+          <div class="top-job-body">
+            <div class="top-job-role">{{ job.role or 'Untitled role' }}</div>
+            <div class="top-job-meta">
+              <span>{{ job.company or '—' }}</span>
+              {% if job.location %}<span class="top-job-dot">·</span><span>{{ job.location }}</span>{% endif %}
+              {% if job.remote_status %}<span class="top-job-dot">·</span><span>{{ job.remote_status|capitalize }}</span>{% endif %}
+              {% if job.salary %}<span class="top-job-dot">·</span><span>{{ job.salary }}</span>{% endif %}
+            </div>
           </div>
-          <div class="progress" style="margin-bottom:.375rem;">
-            <div class="progress-fill" id="nextRunBar" style="width:0%"></div>
+          <div class="top-job-score-wrap">
+            <span class="top-job-score
+              {% if job.cv_score >= 80 %}top-job-score-high
+              {% elif job.cv_score >= 60 %}top-job-score-mid
+              {% else %}top-job-score-low{% endif %} tabular">{{ job.cv_score }}</span>
+            <svg class="top-job-arrow" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
           </div>
-          <p class="text-xs text-muted" id="nextRunCountdown"></p>
-        </div>
+        </a>
+        {% endfor %}
       </div>
-
-      <!-- Quick actions -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">Quick Actions</h3>
-        </div>
-        <div class="card-content space-y-2">
-          <a href="{{ url_for('scraper') }}" class="btn btn-outline w-full" style="justify-content:flex-start;">
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            Run Scraper Now
-          </a>
-          <a href="{{ url_for('jobs') }}" class="btn btn-outline w-full" style="justify-content:flex-start;">
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-            Browse Jobs
-          </a>
-          <a href="{{ url_for('digests') }}" class="btn btn-outline w-full" style="justify-content:flex-start;">
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            Generate Digest
-          </a>
-        </div>
+      {% elif not cv_uploaded %}
+      <div class="empty-state">
+        <p>Upload your CV on the <a href="{{ url_for('cv_page') }}">Profile &amp; CV</a> page to start seeing scored matches here.</p>
       </div>
-
-      <!-- Email alerts -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">Email Alerts</h3>
-          <p class="card-description">Get matched jobs in your inbox</p>
-        </div>
-        <div class="card-content space-y-3">
-          <div id="alertSuccess" class="flash flash-success" style="display:none;">✓ Email alerts activated!</div>
-          <div>
-            <label for="alertEmail">Email</label>
-            <input type="email" id="alertEmail" class="input" placeholder="you@email.com" value="{{ user_email or '' }}">
-          </div>
-          <div>
-            <label for="alertKeyword">Keywords</label>
-            <input type="text" id="alertKeyword" class="input" placeholder="Product Manager, Fintech…">
-          </div>
-          <button class="btn btn-default w-full" onclick="saveAlert()" style="justify-content:center;margin-top:.25rem;">
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-            Activate Alerts
-          </button>
-        </div>
+      {% else %}
+      <div class="empty-state">
+        <p>No jobs scored in the last 24 hours yet. The next scheduled scrape runs at 07:00 IST.</p>
       </div>
-
+      {% endif %}
     </div>
-  </div>
-</div><!-- /dashboard-content -->
+  </section>
 
-{% endblock %}
-
-{% block scripts %}
-<style>
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
-</style>
-<script>
-/* ── File upload ── */
-let _file = null;
-const zone = document.getElementById('uploadZone');
-zone?.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
-zone?.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-zone?.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) validateFile(e.dataTransfer.files[0]); });
-
-function handleFile(input) { if (input.files[0]) validateFile(input.files[0]); }
-
-function validateFile(f) {
-  const err = document.getElementById('uploadError');
-  err.style.display = 'none';
-  if (!f.name.match(/\.(pdf|docx|txt)$/i)) { err.textContent = 'Only PDF, DOCX, or TXT allowed.'; err.style.display = 'flex'; return; }
-  if (f.size > 5 * 1024 * 1024) { err.textContent = 'File must be under 5 MB.'; err.style.display = 'flex'; return; }
-  _file = f;
-  document.getElementById('fileNameText').textContent = f.name;
-  document.getElementById('fileName').style.display = 'block';
-  const btn = document.getElementById('uploadBtn'); btn.disabled = false;
-}
-
-async function doUpload() {
-  if (!_file) return;
-  const ob = document.getElementById('onboarding-view');
-  const sv = document.getElementById('scanning-view');
-  ob.classList.add('fade-out');
-  setTimeout(() => { ob.style.display = 'none'; sv.classList.add('visible'); startScan(); }, 350);
-
-  const fd = new FormData(); fd.append('cv_file', _file);
-  try {
-    const res = await fetch('/api/cv/upload', { method: 'POST', body: fd });
-    const data = await res.json();
-    if (data.success) {
-      setTimeout(() => { sv.classList.add('fade-out'); setTimeout(revealDashboard, 350); }, 3200);
-    } else {
-      sv.classList.remove('visible'); ob.style.display = 'flex';
-      const err = document.getElementById('uploadError');
-      err.textContent = data.error || 'Upload failed.'; err.style.display = 'flex';
-    }
-  } catch { sv.classList.remove('visible'); ob.style.display = 'flex'; }
-}
-
-/* ── Scan animation ── */
-const SKILLS = ['Product Strategy','Agile','SQL','Data Analysis','Stakeholder Mgmt','Roadmapping','Fintech','KYC/AML','Python','Excel','A/B Testing','Go-to-Market','Tableau'];
-function startScan() {
-  const ticker = document.getElementById('skillTicker');
-  const status = document.getElementById('scanStatus');
-  const msgs = ['Extracting skills…','Matching job descriptions…','Scoring against listings…','Finalising…'];
-  let si = 0;
-  SKILLS.forEach((s, i) => setTimeout(() => {
-    const el = document.createElement('span');
-    el.className = 'badge badge-secondary skill-tick';
-    el.textContent = s; ticker.appendChild(el);
-  }, 150 + i * 200));
-  const iv = setInterval(() => { if (si < msgs.length) status.textContent = msgs[si++]; else clearInterval(iv); }, 800);
-}
-
-/* ── Reveal dashboard ── */
-function revealDashboard() {
-  document.getElementById('dashboard-content').style.display = 'block';
-  init();
-}
-
-/* ── Load top jobs → render as recent activity ── */
-async function loadJobs() {
-  try {
-    const res = await fetch('/api/dashboard/top-jobs');
-    const data = await res.json();
-    renderActivity(data.jobs || []);
-    updateKPIs(data.jobs || []);
-  } catch { document.getElementById('recentActivity').innerHTML = '<p class="text-muted text-sm">Could not load jobs.</p>'; }
-}
-
-function timeAgo(iso) {
-  if (!iso) return '';
-  const h = Math.floor((Date.now() - new Date(iso)) / 3600000);
-  if (h < 1) return 'just now';
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h/24)}d ago`;
-}
-
-function scoreVariant(s) { return s >= 90 ? 'badge-default' : s >= 80 ? 'badge-secondary' : 'badge-outline'; }
-function activityType(j) {
-  if (j.applied_status === 'applied') return ['applied','badge-secondary'];
-  if (j.applied_status === 'saved')   return ['saved','badge-outline'];
-  return ['new','badge-default'];
-}
-
-function renderActivity(jobs) {
-  const el = document.getElementById('recentActivity');
-  if (!jobs.length) { el.innerHTML = '<p class="text-muted text-sm">No jobs yet. Run the scraper to get started.</p>'; return; }
-  el.innerHTML = jobs.map(j => {
-    const [type, typeClass] = activityType(j);
-    const score = j.cv_score || j.relevance_score || 0;
-    return `
-    <div class="flex items-start justify-between gap-4 border-b" style="padding:.75rem 0;border-color:var(--border);">
-      <div class="flex-1 min-w-0 space-y-1">
-        <div class="flex items-center gap-2 flex-wrap">
-          <p class="font-medium text-sm truncate">${j.role || 'Unknown Role'} at ${j.company || ''}</p>
-          <span class="badge ${scoreVariant(score)} shrink-0">${score}</span>
-        </div>
-        <div class="flex items-center gap-2 text-xs text-muted flex-wrap">
-          <span class="badge badge-outline">${j.portal || ''}</span>
-          <span>•</span>
-          <span>${timeAgo(j.date_found)}</span>
-        </div>
-      </div>
-      <span class="badge ${typeClass} shrink-0">${type}</span>
-    </div>`;
-  }).join('');
-}
-
-function updateKPIs(jobs) {
-  document.getElementById('kpiTotal').textContent = jobs.length || '—';
-  document.getElementById('kpiTotalChange').textContent = jobs.length ? `${jobs.length} jobs` : '';
-  const today = jobs.filter(j => j.date_found && (Date.now() - new Date(j.date_found)) < 86400000).length;
-  document.getElementById('kpiToday').textContent = today;
-  const scored = jobs.filter(j => (j.cv_score || 0) > 0);
-  const avg = scored.length ? Math.round(scored.reduce((a,j) => a + (j.cv_score||0), 0) / scored.length) : 0;
-  document.getElementById('kpiAvg').textContent = avg ? `${avg}%` : '—';
-  document.getElementById('kpiHigh').textContent = jobs.filter(j => (j.cv_score||0) >= 75).length;
-}
-
-/* ── Chart ── */
-function renderChart() {
-  const ctx = document.getElementById('activityChart');
-  if (!ctx) return;
-  const labels = Array.from({length:14}, (_,i) => { const d = new Date(); d.setDate(d.getDate()-13+i); return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}); });
-  const rand = (n, max) => Array.from({length:n}, () => Math.floor(Math.random()*max));
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label:'Scraped', data:rand(14,80), borderColor:'#030213', backgroundColor:'rgba(3,2,19,.06)', tension:.4, pointRadius:3, fill:true },
-        { label:'High Score', data:rand(14,30), borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,.06)', tension:.4, pointRadius:3, fill:true },
-        { label:'Applied', data:rand(14,10), borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,.06)', tension:.4, pointRadius:3, fill:true },
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode:'index', intersect:false },
-      plugins: { legend: { labels: { font:{size:12,family:'Inter, system-ui, sans-serif'}, boxWidth:12, padding:16 } } },
-      scales: {
-        x: { grid:{color:'rgba(0,0,0,.04)'}, ticks:{font:{size:11,family:'Inter, system-ui, sans-serif'},maxRotation:0,maxTicksLimit:7} },
-        y: { grid:{color:'rgba(0,0,0,.04)'}, ticks:{font:{size:11,family:'Inter, system-ui, sans-serif'}}, beginAtZero:true }
-      }
-    }
-  });
-}
-
-/* ── Next run countdown ── */
-function updateNextRun() {
-  const now = new Date();
-  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 19, 0, 0);
-  if (now > target) target.setDate(target.getDate() + 1);
-  const diff = target - now;
-  const h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000);
-  document.getElementById('nextRunCountdown').textContent = `${h}h ${m}m remaining`;
-  const dayMins = (now.getHours() * 60 + now.getMinutes()) % 720;
-  document.getElementById('nextRunBar').style.width = Math.min(100, dayMins / 720 * 100) + '%';
-}
-
-/* ── Save alert ── */
-async function saveAlert() {
-  const email = document.getElementById('alertEmail').value.trim();
-  if (!email) { document.getElementById('alertEmail').focus(); return; }
-  const fd = new FormData();
-  fd.append('email', email);
-  fd.append('keyword', document.getElementById('alertKeyword').value.trim() || 'Product Manager');
-  await fetch('/api/dashboard/reminder', { method:'POST', body:fd });
-  document.getElementById('alertSuccess').style.display = 'flex';
-}
-
-/* ── Init ── */
-function init() { loadJobs(); renderChart(); updateNextRun(); }
-
-document.addEventListener('DOMContentLoaded', () => {
-  {% if cv_uploaded %} init(); {% endif %}
-});
-</script>
+</div>
 {% endblock %}

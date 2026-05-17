@@ -1064,28 +1064,95 @@ def favicon():
 
 @app.route("/dashboard")
 def dashboard():
+    """
+    Trimmed dashboard: three stats (scraped today, applied today,
+    high-match ≥80% today) and the top 10 best-matched jobs from the
+    last 24 hours with apply links. Everything else removed.
+    """
     uid = current_user_id()
-    if uid:
-        stats = get_comprehensive_stats_user(uid)
-        pipeline = get_application_pipeline_stats_user_with_legacy_fallback(uid)
-        insights = get_dashboard_insights_user(uid)
-    else:
-        from database import get_dashboard_insights
-        stats = get_comprehensive_stats()
-        pipeline = get_application_pipeline_stats()
-        insights = get_dashboard_insights()
-    portal_quality = get_portal_quality_stats()
-    categories = get_best_matching_categories()
-    activity = get_application_activity()
-    recommendations = get_recommended_actions()
-    cv_data = load_cv_data()
+    cv_data = load_cv_data(uid) if uid else None
     cv_uploaded = cv_data is not None
     user_email = dict(session).get('user', {}).get('email', '')
+
+    # Keep lazy scoring fresh so today's numbers reflect today's scrape
+    if uid and cv_uploaded:
+        try:
+            _score_unscored_for_user(uid, limit=300)
+        except Exception as e:
+            logger.warning("Dashboard lazy scoring failed for user %s: %s", uid, e)
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    h24_ago = (datetime.now() - timedelta(hours=24)).isoformat()
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # 1) Jobs scraped today (shared)
+    cur.execute(
+        "SELECT COUNT(*) AS n FROM job_listings WHERE date_found LIKE ?",
+        (f"{today_str}%",),
+    )
+    jobs_today = cur.fetchone()["n"]
+
+    # 2) Jobs the user marked Applied today
+    applied_today = 0
+    if uid:
+        cur.execute(
+            """
+            SELECT COUNT(*) AS n FROM user_job_state
+            WHERE user_id = ? AND applied_status = 1
+              AND applied_date LIKE ?
+            """,
+            (uid, f"{today_str}%"),
+        )
+        applied_today = cur.fetchone()["n"]
+
+    # 3) High-match (≥80) jobs found today, scored for this user
+    high_match_today = 0
+    if uid:
+        cur.execute(
+            """
+            SELECT COUNT(*) AS n
+            FROM user_job_state s
+            JOIN job_listings j ON j.job_id = s.job_id
+            WHERE s.user_id = ?
+              AND j.date_found LIKE ?
+              AND s.cv_score >= 80
+            """,
+            (uid, f"{today_str}%"),
+        )
+        high_match_today = cur.fetchone()["n"]
+
+    # 4) Top 10 matched jobs from the last 24 hours
+    top_jobs = []
+    if uid:
+        cur.execute(
+            """
+            SELECT j.job_id, j.role, j.company, j.location,
+                   j.remote_status, j.salary, j.portal, j.apply_url,
+                   j.date_found,
+                   s.cv_score
+            FROM job_listings j
+            JOIN user_job_state s
+              ON s.job_id = j.job_id AND s.user_id = ?
+            WHERE j.date_found >= ?
+              AND COALESCE(s.hidden, 0) = 0
+            ORDER BY s.cv_score DESC, j.date_found DESC
+            LIMIT 10
+            """,
+            (uid, h24_ago),
+        )
+        top_jobs = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
     return render_template(
-        "dashboard.html", stats=stats, portal_quality=portal_quality,
-        pipeline=pipeline, categories=categories, activity=activity,
-        recommendations=recommendations, insights=insights,
-        cv_data=cv_data, cv_uploaded=cv_uploaded, user_email=user_email,
+        "dashboard.html",
+        jobs_today=jobs_today,
+        applied_today=applied_today,
+        high_match_today=high_match_today,
+        top_jobs=top_jobs,
+        cv_uploaded=cv_uploaded,
+        user_email=user_email,
     )
 
 
