@@ -4,330 +4,581 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign in — Job Search Agent</title>
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="{{ url_for('static', filename='fonts/InterVariable.woff2') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <meta name="description" content="A quiet daily brief of jobs scored against your CV. Six portals scraped twice a day. Hiring-manager contacts. AI-drafted outreach.">
   <style>
-    /* Login is chrome-less. Its own layout so we can use design tokens
-       without inheriting the app frame. */
-    body {
-      min-height: 100vh;
-      background: var(--background);
-      background-image:
-        radial-gradient(at 14% 105%, rgba(0,102,255,0.13), transparent 55%),
-        radial-gradient(at 92% 5%, rgba(10,10,12,0.06), transparent 55%);
-      display: flex;
-      flex-direction: column-reverse; /* on mobile: form panel above marketing */
+    /* Self-contained styles — system fonts only, no external resources,
+       no font swap possible. Login renders identically from t=0. */
+    :root {
+      --bg: #fafaf7;
+      --surface: #ffffff;
+      --ink: #0a0a0c;
+      --ink-soft: #3f3f48;
+      --muted: #6b6b78;
+      --line: rgba(10,10,12,0.08);
+      --line-strong: rgba(10,10,12,0.16);
+      --accent: #0066ff;
+      --accent-soft: #e8f0ff;
+      --accent-hover: #0052cc;
+      --success: #1f7a3a;
+      --radius: 0.625rem;
+      --radius-sm: 0.4375rem;
+      --shadow-sm: 0 1px 2px rgba(10,10,12,0.04);
+      --shadow-md: 0 8px 24px rgba(10,10,12,0.06);
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto,
+              "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
     }
-    @media (min-width: 960px) {
-      body {
-        display: grid;
-        grid-template-columns: 1.05fr 1fr;
-        align-items: stretch;
-      }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: "cv11", "ss01";
+    }
+    @supports (font-variation-settings: normal) {
+      body { font-feature-settings: normal; }
     }
 
-    .login-stage {
+    /* Layout */
+    .login-shell {
+      display: grid;
+      grid-template-columns: 1fr;
+      min-height: 100vh;
+    }
+    @media (min-width: 980px) {
+      .login-shell { grid-template-columns: 1.2fr 1fr; }
+    }
+
+    /* Showcase (left) */
+    .showcase {
       padding: clamp(2rem, 5vw, 4rem);
+      background:
+        radial-gradient(circle at 100% 0%, rgba(0,102,255,0.06), transparent 50%),
+        radial-gradient(circle at 0% 100%, rgba(0,102,255,0.04), transparent 50%),
+        var(--bg);
       display: flex;
       flex-direction: column;
-      gap: 2rem;
+      gap: 2.5rem;
       position: relative;
       overflow: hidden;
     }
-    @media (min-width: 960px) {
-      .login-stage {
-        min-height: 100vh;
-        justify-content: center; /* vertically centre marketing content on desktop */
-      }
+    @media (min-width: 980px) {
+      .showcase { justify-content: space-between; }
     }
-    .login-stage::before {
+    .showcase::before {
+      /* Faint diagonal pinstripe — a hint of "this is a workspace" */
       content: "";
-      position: absolute; inset: 0;
-      background-image:
-        radial-gradient(circle at center, rgba(10,10,12,0.18) 1px, transparent 1px);
-      background-size: 26px 26px;
-      mask-image: radial-gradient(ellipse at 50% 50%, #000 0%, transparent 70%);
-      opacity: 0.45;
+      position: absolute;
+      inset: -1px;
+      background-image: repeating-linear-gradient(
+        45deg,
+        transparent 0,
+        transparent 18px,
+        rgba(10,10,12,0.02) 18px,
+        rgba(10,10,12,0.02) 19px
+      );
       pointer-events: none;
     }
-    .login-stage > * { position: relative; z-index: 1; }
+    .showcase > * { position: relative; z-index: 1; }
 
-    /* Wordmark pins to top corner of stage; doesn't take part in centering */
-    .login-wordmark-wrap {
-      position: absolute;
-      top: clamp(1.5rem, 3vw, 2rem);
-      left: clamp(1.5rem, 3vw, 2rem);
-      z-index: 2;
+    /* Wordmark */
+    .wordmark {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.625rem;
+      width: max-content;
     }
-    @media (max-width: 959px) {
-      /* On mobile the stage sits BELOW the form, so the wordmark moves
-         to the form panel instead (rendered there). Compound selector
-         beats `.login-wordmark { display: inline-flex }` which comes
-         later in the source. */
-      .login-wordmark-wrap.login-wordmark { display: none; }
-    }
-
-    .login-wordmark {
-      display: inline-flex; align-items: center; gap: 0.625rem;
-      font-family: var(--font-sans);
-    }
-    .login-wordmark .dot {
-      width: 1.625rem;
-      height: 1.625rem;
+    .wordmark-dot {
+      width: 1.75rem;
+      height: 1.75rem;
       border-radius: var(--radius-sm);
-      background: var(--primary);
-      color: var(--primary-foreground);
-      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--ink);
+      color: var(--surface);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       font-size: 0.6875rem;
       font-weight: 700;
       letter-spacing: 0.04em;
       position: relative;
     }
-    .login-wordmark .dot::after {
-      content: ""; position: absolute;
-      width: 0.375rem; height: 0.375rem;
-      background: var(--accent); border-radius: 999px;
-      bottom: -2px; right: -2px;
-      border: 2px solid var(--background);
+    .wordmark-dot::after {
+      content: "";
+      position: absolute;
+      width: 0.4375rem;
+      height: 0.4375rem;
+      background: var(--accent);
+      border-radius: 999px;
+      bottom: -2px;
+      right: -2px;
+      border: 2px solid var(--bg);
     }
-    .login-wordmark .name {
-      font-weight: 600; letter-spacing: -0.012em; font-size: 0.9375rem;
+    .wordmark-name {
+      font-weight: 600;
+      letter-spacing: -0.012em;
+      font-size: 0.9375rem;
     }
-    .login-wordmark .badge {
-      font-size: 0.5625rem; font-weight: 700; letter-spacing: 0.2em;
-      text-transform: uppercase; color: var(--muted-foreground);
-      padding: 0.125rem 0.375rem; border: 1px solid var(--border);
-      border-radius: 999px; margin-left: 0.375rem;
+    .wordmark-pill {
+      font-size: 0.5625rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0.125rem 0.4375rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      margin-left: 0.25rem;
     }
 
-    .login-headline {
-      max-width: 26ch;
+    /* Lede block — the product pitch in one sentence */
+    .lede-block {
+      max-width: 38rem;
     }
-    .login-headline .eyebrow { margin-bottom: 1.25rem; }
-    .login-headline h1 {
-      font-family: var(--font-sans);
+    .lede-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1.25rem;
+    }
+    .lede-eyebrow::before {
+      content: "";
+      width: 1.25rem;
+      height: 1.5px;
+      background: var(--accent);
+    }
+    .lede-headline {
+      font-size: clamp(1.875rem, 4vw, 2.625rem);
       font-weight: 600;
-      font-size: clamp(2.5rem, 5.5vw, 4rem);
-      line-height: 0.98;
-      letter-spacing: -0.04em;
-      margin: 0 0 1.25rem;
-      color: var(--foreground);
+      line-height: 1.08;
+      letter-spacing: -0.025em;
+      color: var(--ink);
+      margin-bottom: 1rem;
+      max-width: 22ch;
     }
-    .login-headline h1 em {
+    .lede-headline em {
       font-style: normal;
       color: var(--accent);
-      padding-bottom: 4px;
-      background-image: linear-gradient(var(--accent), var(--accent));
-      background-repeat: no-repeat;
-      background-position: 0 100%;
-      background-size: 0 3px;
-      animation: sweep 0.9s var(--ease-out-soft) 0.7s forwards;
     }
-    @keyframes sweep { to { background-size: 100% 3px; } }
-    .login-lede {
+    .lede-sub {
       font-size: 1.0625rem;
-      line-height: 1.55;
-      color: var(--muted-foreground);
+      color: var(--ink-soft);
       max-width: 38ch;
-      margin: 0;
+      line-height: 1.5;
     }
 
-    .login-footnotes {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
-      margin-top: 2rem;
-      padding-top: 1.75rem;
-      border-top: 1px solid var(--border);
+    /* Product preview — looks like a real dashboard slice */
+    .brief {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      max-width: 28rem;
     }
-    .footnote .footnote-num {
-      font-family: var(--font-sans);
-      font-weight: 600;
-      font-size: 1.875rem;
-      letter-spacing: -0.035em;
-      color: var(--foreground);
-      line-height: 1; display: block;
-      margin-bottom: 0.5rem;
-      font-variant-numeric: tabular-nums;
-    }
-    .footnote .footnote-num em { color: var(--accent); font-style: normal; }
-    .footnote .footnote-label {
-      font-family: var(--font-sans);
-      font-size: 0.6875rem; font-weight: 600;
-      letter-spacing: 0.14em; text-transform: uppercase;
-      color: var(--muted-foreground);
-    }
-
-    .login-panel {
-      background: var(--card);
-      border-left: 1px solid var(--border);
-      padding: clamp(2.5rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3rem);
-      display: flex; flex-direction: column; justify-content: center;
+    .brief-head {
+      padding: 0.875rem 1.125rem;
+      display: flex;
       align-items: center;
-      position: relative;
-      min-height: 100vh;
+      justify-content: space-between;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--line);
+      background: rgba(10,10,12,0.015);
     }
-    @media (max-width: 959px) {
-      .login-panel {
-        border-left: none;
-        border-bottom: 1px solid var(--border);  /* sits ABOVE stage on mobile */
-        min-height: auto;
-        padding-top: clamp(2.25rem, 7vw, 3.5rem);
-        padding-bottom: clamp(2.25rem, 6vw, 3rem);
-      }
+    .brief-head-title {
+      display: flex;
+      flex-direction: column;
+      gap: 0.0625rem;
     }
-    .login-form { width: 100%; max-width: 22rem; }
-    .login-form-wordmark {
-      display: none;
+    .brief-head-eyebrow {
+      font-size: 0.5938rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
     }
-    @media (max-width: 959px) {
-      /* Mobile-only wordmark sits at top of form so users see the brand
-         without scrolling past the marketing. */
-      .login-form-wordmark {
-        display: inline-flex; align-items: center; gap: 0.625rem;
-        font-family: var(--font-sans);
-        margin-bottom: 2rem;
-      }
-    }
-    .login-form h2 {
-      font-family: var(--font-sans);
+    .brief-head-date {
+      font-size: 0.875rem;
       font-weight: 600;
-      font-size: 1.625rem;
-      letter-spacing: -0.025em;
-      margin: 0 0 0.5rem;
-      color: var(--foreground);
+      color: var(--ink);
+      letter-spacing: -0.005em;
     }
-    .login-form p {
-      color: var(--muted-foreground);
-      font-size: 0.9375rem;
-      margin: 0 0 2rem;
+    .brief-head-badge {
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+      background: var(--accent-soft);
+      padding: 0.25rem 0.5rem;
+      border-radius: 999px;
+    }
+    .brief-job {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.875rem;
+      align-items: center;
+      padding: 0.875rem 1.125rem;
+      border-top: 1px solid var(--line);
+      transition: background 0.15s ease;
+    }
+    .brief-job:first-of-type { border-top: none; }
+    .brief-job:hover { background: rgba(10,10,12,0.02); }
+    .brief-logo {
+      width: 2.125rem;
+      height: 2.125rem;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: var(--surface);
+      letter-spacing: -0.01em;
+      flex-shrink: 0;
+    }
+    .brief-info { min-width: 0; }
+    .brief-role {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: -0.005em;
+      margin-bottom: 0.125rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .brief-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 0.4375rem;
+      flex-wrap: nowrap;
+      overflow: hidden;
+    }
+    .brief-meta-dot { color: var(--line-strong); }
+    .brief-score {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.5625rem;
+      border-radius: 999px;
+      flex-shrink: 0;
+      letter-spacing: -0.01em;
+    }
+    .brief-score-high { background: var(--accent); color: var(--surface); }
+    .brief-score-mid  { background: var(--accent-soft); color: var(--accent); }
+    .brief-foot {
+      padding: 0.75rem 1.125rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(10,10,12,0.015);
+      border-top: 1px solid var(--line);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .brief-foot-pulse {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4375rem;
+    }
+    .brief-foot-pulse::before {
+      content: "";
+      width: 0.4375rem;
+      height: 0.4375rem;
+      border-radius: 999px;
+      background: var(--success);
+      box-shadow: 0 0 0 0 rgba(31,122,58,0.5);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0   rgba(31,122,58,0.5); }
+      70%  { box-shadow: 0 0 0 6px rgba(31,122,58,0);   }
+      100% { box-shadow: 0 0 0 0   rgba(31,122,58,0);   }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .brief-foot-pulse::before { animation: none; }
     }
 
-    .login-cta {
+    /* "How it works" strip — three concrete steps below the brief */
+    .steps {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      max-width: 38rem;
+    }
+    @media (min-width: 700px) {
+      .steps { grid-template-columns: repeat(3, 1fr); }
+    }
+    .step {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4375rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+    }
+    .step-num {
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      color: var(--accent);
+    }
+    .step-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: -0.005em;
+      color: var(--ink);
+    }
+    .step-body {
+      font-size: 0.8125rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* Auth panel (right) */
+    .auth {
+      background: var(--surface);
+      border-left: 1px solid var(--line);
+      padding: clamp(2.5rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      position: relative;
+    }
+    @media (max-width: 979px) {
+      .auth {
+        border-left: none;
+        border-bottom: 1px solid var(--line);
+        min-height: auto;
+        padding: clamp(2.5rem, 7vw, 3.5rem) clamp(1.5rem, 6vw, 2.5rem);
+      }
+      /* On mobile the auth panel sits ABOVE the showcase. */
+      .login-shell { display: flex; flex-direction: column-reverse; }
+    }
+    .auth-inner { width: 100%; max-width: 22rem; }
+    .auth-mobile-wordmark { display: none; margin-bottom: 2rem; }
+    @media (max-width: 979px) {
+      .auth-mobile-wordmark { display: inline-flex; }
+    }
+    .auth-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      color: var(--ink);
+      margin-bottom: 0.4375rem;
+    }
+    .auth-sub {
+      color: var(--muted);
+      font-size: 0.9375rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .cta {
       width: 100%;
-      display: inline-flex; align-items: center; justify-content: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       gap: 0.625rem;
-      padding: 0.875rem 1rem;
+      padding: 0.8125rem 1rem;
       border-radius: var(--radius);
       font-size: 0.9375rem;
       font-weight: 500;
       cursor: pointer;
-      border: 1px solid var(--border-strong);
-      background: var(--card);
-      color: var(--foreground);
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--ink);
       text-decoration: none;
-      transition: border-color var(--duration-snap) var(--ease-out-snappy),
-                  background var(--duration-snap) var(--ease-out-snappy),
-                  transform var(--duration-snap) var(--ease-out-snappy);
-      font-family: var(--font-sans);
+      transition: border-color 0.15s ease, background 0.15s ease, transform 0.08s ease;
+      font-family: inherit;
     }
-    .login-cta:hover {
-      border-color: var(--foreground);
+    .cta:hover {
+      border-color: var(--ink);
       transform: translateY(-1px);
     }
-    .login-cta:active { transform: translateY(0); }
-    .login-cta-primary {
+    .cta:active { transform: translateY(0); }
+    .cta:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(0,102,255,0.28);
+    }
+    .cta-primary {
       background: var(--accent);
-      color: var(--accent-foreground);
+      color: var(--surface);
       border-color: var(--accent);
     }
-    .login-cta-primary:hover {
+    .cta-primary:hover {
       background: var(--accent-hover);
       border-color: var(--accent-hover);
     }
-    .login-cta:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 3px var(--ring);
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 0.875rem;
+      margin: 1rem 0;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .divider::before, .divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+    }
+    .auth-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.55;
+      text-align: center;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--line);
     }
 
-    .login-divider {
-      display: flex; align-items: center; gap: 0.875rem; margin: 1.25rem 0;
-      font-size: 0.6875rem; font-weight: 600;
-      letter-spacing: 0.18em; text-transform: uppercase;
-      color: var(--muted-foreground);
+    /* Flash messages (Flask) */
+    .flash {
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.875rem;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+      border: 1px solid;
     }
-    .login-divider::before,
-    .login-divider::after {
-      content: ""; flex: 1; height: 1px; background: var(--border);
-    }
-    .login-note {
-      font-size: 0.75rem; color: var(--muted-foreground);
-      line-height: 1.55; text-align: center; margin-top: 1.25rem;
-    }
-
-    /* Staggered reveal — same .stagger system as the rest of the app. */
-    .seq { opacity: 0; transform: translateY(10px); animation: seq-up 0.65s var(--ease-out-soft) forwards; }
-    .seq-1 { animation-delay: 0.05s; }
-    .seq-2 { animation-delay: 0.18s; }
-    .seq-3 { animation-delay: 0.32s; }
-    .seq-4 { animation-delay: 0.5s; }
-    .seq-5 { animation-delay: 0.7s; }
-    @keyframes seq-up { to { opacity: 1; transform: translateY(0); } }
-    @media (prefers-reduced-motion: reduce) {
-      .seq { opacity: 1; transform: none; animation: none; }
-      .login-headline h1 em { background-size: 100% 3px !important; animation: none; }
-    }
+    .flash-error { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+    .flash-info  { background: var(--accent-soft); border-color: rgba(0,102,255,0.2); color: var(--accent); }
   </style>
 </head>
 <body>
 
-  <div class="login-stage">
-    <div class="login-wordmark-wrap login-wordmark seq seq-1">
-      <span class="dot">JS</span>
-      <span class="name">Job Search</span>
-      <span class="badge">Agent</span>
+<div class="login-shell">
+
+  {# ─── SHOWCASE: explains what the product does, by SHOWING it ─── #}
+  <section class="showcase">
+
+    <div class="wordmark">
+      <span class="wordmark-dot">JS</span>
+      <span class="wordmark-name">Job Search</span>
+      <span class="wordmark-pill">Agent</span>
     </div>
 
-    <div class="login-headline">
-      <span class="eyebrow seq seq-2">Quietly working in the background</span>
-      <h1 class="seq seq-3">
-        Your job search,<br>
-        <em>without the noise.</em>
+    <div class="lede-block">
+      <span class="lede-eyebrow">Daily brief, on autopilot</span>
+      <h1 class="lede-headline">
+        The job search you run <em>without opening twelve tabs.</em>
       </h1>
-      <p class="login-lede seq seq-4">
-        Six portals scraped twice a day. Every listing scored against your CV.
-        Only the matches that look like you, surfaced in one place.
+      <p class="lede-sub">
+        Every morning we scrape six portals, score each new role against your CV,
+        and surface the matches — plus the hiring managers behind them.
       </p>
     </div>
 
-    <div class="login-footnotes seq seq-5">
-      <div class="footnote">
-        <span class="footnote-num">6</span>
-        <span class="footnote-label">Live portals</span>
+    {# A faux but realistic "morning brief" — looks like a real product slice #}
+    <article class="brief" aria-label="Sample morning brief">
+      <header class="brief-head">
+        <div class="brief-head-title">
+          <span class="brief-head-eyebrow">Today's brief · 6:58 AM</span>
+          <span class="brief-head-date">Tuesday, 17 May · 12 new matches</span>
+        </div>
+        <span class="brief-head-badge">CV match</span>
+      </header>
+
+      <div class="brief-job">
+        <div class="brief-logo" style="background:#635bff;">S</div>
+        <div class="brief-info">
+          <div class="brief-role">Senior Product Manager, Payments</div>
+          <div class="brief-meta">
+            Stripe <span class="brief-meta-dot">·</span> Remote <span class="brief-meta-dot">·</span> ₹85L–1.2Cr
+          </div>
+        </div>
+        <span class="brief-score brief-score-high">92</span>
       </div>
-      <div class="footnote">
-        <span class="footnote-num"><em>15K</em></span>
-        <span class="footnote-label">Roles tracked</span>
+
+      <div class="brief-job">
+        <div class="brief-logo" style="background:#0a2540;">R</div>
+        <div class="brief-info">
+          <div class="brief-role">Director of Product, Growth</div>
+          <div class="brief-meta">
+            Razorpay <span class="brief-meta-dot">·</span> Bangalore <span class="brief-meta-dot">·</span> ₹70L–95L
+          </div>
+        </div>
+        <span class="brief-score brief-score-high">87</span>
       </div>
-      <div class="footnote">
-        <span class="footnote-num">2&times;</span>
-        <span class="footnote-label">Daily scrape</span>
+
+      <div class="brief-job">
+        <div class="brief-logo" style="background:#5e6ad2;">L</div>
+        <div class="brief-info">
+          <div class="brief-role">Founding PM, Platform</div>
+          <div class="brief-meta">
+            Linear <span class="brief-meta-dot">·</span> Remote <span class="brief-meta-dot">·</span> $180k–220k
+          </div>
+        </div>
+        <span class="brief-score brief-score-mid">81</span>
+      </div>
+
+      <footer class="brief-foot">
+        <span class="brief-foot-pulse">Scrape ran 2h ago · 6 portals · 1,247 listings scanned</span>
+        <span>→</span>
+      </footer>
+    </article>
+
+    {# Three concrete steps, not vague benefits #}
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">01</span>
+        <span class="step-title">Scrape</span>
+        <p class="step-body">LinkedIn, Naukri, HiringCafe, Indeed, HackerNews, Remotive — twice a day on GitHub Actions.</p>
+      </div>
+      <div class="step">
+        <span class="step-num">02</span>
+        <span class="step-title">Score</span>
+        <p class="step-body">Each listing run against your CV by a local LLM. Match score + missing skills attached.</p>
+      </div>
+      <div class="step">
+        <span class="step-num">03</span>
+        <span class="step-title">Outreach</span>
+        <p class="step-body">Hiring managers extracted with LinkedIn links. AI drafts a cold email; you approve.</p>
       </div>
     </div>
-  </div>
 
-  <div class="login-panel">
-    <div class="login-form seq seq-3">
-      <div class="login-form-wordmark login-wordmark">
-        <span class="dot">JS</span>
-        <span class="name">Job Search</span>
-        <span class="badge">Agent</span>
+  </section>
+
+  {# ─── AUTH: clean, prominent, single primary CTA ─── #}
+  <section class="auth">
+    <div class="auth-inner">
+      <div class="auth-mobile-wordmark wordmark">
+        <span class="wordmark-dot">JS</span>
+        <span class="wordmark-name">Job Search</span>
+        <span class="wordmark-pill">Agent</span>
       </div>
-      <h2>Welcome back.</h2>
-      <p>Sign in to pick up where you left off.</p>
+
+      <h2 class="auth-title">Welcome back.</h2>
+      <p class="auth-sub">Sign in and we'll have your morning brief ready tomorrow at 7 AM.</p>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-      <div style="margin-bottom: 1.25rem;">
         {% for category, message in messages %}
         <div class="flash flash-{{ 'error' if category == 'error' else 'info' }}">{{ message }}</div>
         {% endfor %}
-      </div>
       {% endif %}
       {% endwith %}
 
-      <a href="{{ url_for('auth_google') }}" class="login-cta login-cta-primary">
-        <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <a href="{{ url_for('auth_google') }}" class="cta cta-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
           <path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -336,17 +587,20 @@
         Continue with Google
       </a>
 
-      <div class="login-divider">or</div>
+      <div class="divider">or</div>
 
       <form action="{{ url_for('auth_demo') }}" method="POST" style="margin:0;">
-        <button type="submit" class="login-cta">Continue as Demo</button>
+        <button type="submit" class="cta">Continue as demo</button>
       </form>
 
-      <p class="login-note">
-        Demo mode bypasses Google OAuth. Use it if Google credentials aren't configured locally.
+      <p class="auth-note">
+        Demo mode bypasses Google OAuth — useful if credentials aren't configured locally.
+        We never email anyone without your explicit approval.
       </p>
     </div>
-  </div>
+  </section>
+
+</div>
 
 </body>
 </html>
