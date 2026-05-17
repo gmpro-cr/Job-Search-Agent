@@ -5,14 +5,33 @@
    Motion: layered defaults + view transitions + scroll reveals
    ============================================================ */
 
-@import url('https://rsms.me/inter/inter.css');
+/* Inter Variable — bundled locally so it loads from Vercel's edge
+   (Singapore) in one fetch instead of the rsms.me chain
+   (preconnect → inter.css → font-files → InterVariable.woff2).
+   Avoids the visible layout shift caused by horizontal-advance
+   differences between fallback fonts and Inter when the swap
+   finally landed ~1s after first paint. */
+@font-face {
+  font-family: 'InterVariable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/InterVariable.woff2') format('woff2-variations'),
+       url('../fonts/InterVariable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'InterVariable';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/InterVariable-Italic.woff2') format('woff2-variations'),
+       url('../fonts/InterVariable-Italic.woff2') format('woff2');
+}
 
-/* Metrics-adjusted fallback so the layout doesn't shift when Inter swaps
-   in. These overrides make the system Arial fallback occupy the same
-   vertical box as Inter — without them, the initial render uses
-   system-ui (taller line-heights) and the whole page shrinks ~120px
-   when Inter finishes loading ~300ms later. Numbers from
-   capsizecss.com / font-fallback-tools for Inter. */
+/* Metrics-adjusted fallback used only for the brief moment before
+   InterVariable resolves. With the font bundled and preloaded the
+   window is usually <100ms — too short to perceive a shift even
+   when horizontal advances don't match exactly. */
 @font-face {
   font-family: 'Inter Fallback';
   src: local('Arial');
