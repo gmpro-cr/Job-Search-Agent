@@ -3414,4 +3414,4 @@ if __name__ == "__main__":
     # Default to debug=True only when not set (i.e. manual terminal run).
     import os as _os
     _debug = _os.environ.get("FLASK_DEBUG", "1") == "1"
-    app.run(debug=_debug, port=5002)
+    app.run(debug=_debug, port=int(os.environ.get("PORT", 5002)))
