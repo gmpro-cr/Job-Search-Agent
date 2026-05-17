@@ -1117,13 +1117,27 @@ def save_cv_data(cv_data, user_id: int = None):
         json.dump(cv_data, f, indent=2)
 
 
-def cv_score(job, cv_data):
+def cv_score(job, cv_data, preferences=None):
     """
-    Score a job 0-100 based on how well the applicant's CV matches the JD.
+    Score a job 0-100 based on how well it matches the user.
+
+    Base signal: skill overlap between the user's CV and the JD.
+    On top of that, when `preferences` is provided, three small
+    intent-based boosts are added:
+        +12 if any of the user's job_titles is a substring of the job's role
+        +6  if the job's location matches any of prefs.locations (or 'remote'
+            appears in both)
+        up to +10 if the user's transferable_skills appear in the JD
+            (~+2 per matched skill, capped at 10)
+
+    All boosts are additive on top of the base CV-skill match. Final
+    score is capped at 100.
 
     Args:
-        job: dict with role, job_description, location fields
-        cv_data: dict from parse_cv_text(), or None if no CV uploaded
+        job: dict with role, job_description, location, remote_status
+        cv_data: dict from parse_cv_text(); None if no CV uploaded
+        preferences: optional dict with job_titles / locations /
+                     transferable_skills
 
     Returns:
         int 0-100
@@ -1141,19 +1155,52 @@ def cv_score(job, cv_data):
     if not jd_skills:
         # If no job description, there is nothing to score against the CV
         if not job.get("job_description", "").strip():
-            return 0
-        # JD exists but no specific skills extracted — fall back to word overlap
-        jd_words = set(re.findall(r'\b\w{4,}\b', jd_text.lower()))
-        cv_words = set(re.findall(r'\b\w{4,}\b', cv_data.get("raw_text", "").lower()))
-        common = jd_words & cv_words
-        if not jd_words:
-            return 0
-        return min(int(len(common) / len(jd_words) * 100), 100)
+            base = 0
+        else:
+            # JD exists but no specific skills extracted — fall back to word overlap
+            jd_words = set(re.findall(r'\b\w{4,}\b', jd_text.lower()))
+            cv_words = set(re.findall(r'\b\w{4,}\b', cv_data.get("raw_text", "").lower()))
+            common = jd_words & cv_words
+            base = 0 if not jd_words else int(len(common) / len(jd_words) * 100)
+    else:
+        jd_skills_lower = [s.lower() for s in jd_skills]
+        matched = [s for s in jd_skills_lower if s in cv_skills_lower]
+        base = int(len(matched) / len(jd_skills_lower) * 100)
 
-    jd_skills_lower = [s.lower() for s in jd_skills]
-    matched = [s for s in jd_skills_lower if s in cv_skills_lower]
-    score = int(len(matched) / len(jd_skills_lower) * 100)
-    return min(score, 100)
+    if not preferences:
+        return min(base, 100)
+
+    boost = _preference_boost(job, jd_text.lower(), preferences)
+    return min(base + boost, 100)
+
+
+def _preference_boost(job, jd_text_lower, preferences):
+    """Compute the additive boost from user preferences. See cv_score()."""
+    boost = 0
+    role_lower = (job.get("role") or "").lower()
+    loc_lower  = (job.get("location") or "").lower()
+    remote_lower = (job.get("remote_status") or "").lower()
+
+    # +12 if any preferred job title appears in the role
+    pref_titles = [t.strip().lower() for t in (preferences.get("job_titles") or []) if t and t.strip()]
+    if pref_titles and any(t in role_lower for t in pref_titles):
+        boost += 12
+
+    # +6 for a location match (token contains, or 'remote' on both sides)
+    pref_locs = [l.strip().lower() for l in (preferences.get("locations") or []) if l and l.strip()]
+    if pref_locs:
+        if any(l in loc_lower for l in pref_locs):
+            boost += 6
+        elif "remote" in pref_locs and "remote" in remote_lower:
+            boost += 6
+
+    # +2 per matched transferable skill in JD, capped at 10
+    pref_skills = [s.strip().lower() for s in (preferences.get("transferable_skills") or []) if s and s.strip()]
+    if pref_skills and jd_text_lower:
+        matches = sum(1 for s in pref_skills if s and s in jd_text_lower)
+        boost += min(matches * 2, 10)
+
+    return boost
 
 
 # Curated tips for common missing skills

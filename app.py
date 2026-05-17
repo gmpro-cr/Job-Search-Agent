@@ -1592,6 +1592,15 @@ def api_jobs_list():
     except (ValueError, TypeError):
         min_score = 0
 
+    # Lazy per-user scoring — any jobs the user hasn't seen scored
+    # (e.g. fresh from this morning's scrape) get scored now against
+    # THIS user's CV + preferences. No-op when user has no CV.
+    if uid:
+        try:
+            _score_unscored_for_user(uid, limit=limit)
+        except Exception as e:
+            logger.warning("Lazy scoring failed for user %s: %s", uid, e)
+
     conn = get_connection()
     cursor = conn.cursor()
     if uid:
@@ -1710,6 +1719,16 @@ def preferences():
                 s.strip() for s in request.form.get("transferable_skills", "").split(",") if s.strip()
             ]
         save_preferences(updated)
+        # Preference changes affect the per-user cv_score boosts — rescore
+        # this user's jobs in the background-ish (synchronous, capped) so
+        # the new weights apply immediately. No-op when no CV uploaded.
+        uid = current_user_id()
+        cv = load_cv_data(uid) if uid else None
+        if uid and cv:
+            try:
+                _rescore_all_jobs(cv, user_id=uid, preferences=updated)
+            except Exception as e:
+                logger.warning("Post-prefs rescore failed for user %s: %s", uid, e)
         flash("Job preferences saved.", "success")
         return redirect(url_for("preferences"))
 
@@ -2192,16 +2211,22 @@ def upload_cv():
     })
 
 
-def _rescore_all_jobs(cv_data, user_id: int = None):
+def _rescore_all_jobs(cv_data, user_id: int = None, preferences: dict = None):
     """
-    Score every job in the DB against cv_data and persist into user_job_state
-    (per-user). When user_id is omitted falls back to the legacy global column.
+    Score every job in the DB against cv_data + preferences and persist
+    into user_job_state (per-user). When user_id is omitted falls back
+    to the legacy global column.
     """
     if user_id is None:
         user_id = current_user_id()
+    if preferences is None and user_id:
+        preferences = load_preferences(user_id) or {}
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT job_id, role, job_description FROM job_listings")
+    cursor.execute(
+        "SELECT job_id, role, company, location, job_description, remote_status "
+        "FROM job_listings"
+    )
     jobs = [dict(r) for r in cursor.fetchall()]
     conn.close()
 
@@ -2209,9 +2234,9 @@ def _rescore_all_jobs(cv_data, user_id: int = None):
         return 0
 
     if user_id:
-        scores = {job["job_id"]: cv_score(job, cv_data) for job in jobs}
+        scores = {job["job_id"]: cv_score(job, cv_data, preferences) for job in jobs}
         bulk_set_user_cv_scores(user_id, scores)
-        logger.info("Re-scored %d jobs against CV for user %s", len(jobs), user_id)
+        logger.info("Re-scored %d jobs against CV+prefs for user %s", len(jobs), user_id)
         return len(jobs)
 
     conn = get_connection()
@@ -2225,6 +2250,34 @@ def _rescore_all_jobs(cv_data, user_id: int = None):
     conn.commit()
     conn.close()
     logger.info("Re-scored %d jobs against CV (legacy global)", len(jobs))
+    return len(jobs)
+
+
+def _score_unscored_for_user(user_id: int, limit: int = 200) -> int:
+    """
+    Lazy per-user scorer. On each /api/jobs hit (or wherever called),
+    find jobs that don't yet have a user_job_state row for this user,
+    score them against the user's CV + preferences, and bulk-write
+    the resulting cv_scores.
+
+    No-op if the user has no CV uploaded — without a CV every score
+    would be 0 and we'd just be writing zero rows.
+
+    Returns: number of jobs scored.
+    """
+    if not user_id:
+        return 0
+    cv_data = load_cv_data(user_id)
+    if not cv_data:
+        return 0  # nothing to score against
+    from database import get_unscored_jobs_for_user
+    jobs = get_unscored_jobs_for_user(user_id, limit=limit)
+    if not jobs:
+        return 0
+    preferences = load_preferences(user_id) or {}
+    scores = {j["job_id"]: cv_score(j, cv_data, preferences) for j in jobs}
+    bulk_set_user_cv_scores(user_id, scores)
+    logger.info("Lazy-scored %d new jobs for user %s", len(jobs), user_id)
     return len(jobs)
 
 

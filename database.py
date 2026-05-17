@@ -1647,6 +1647,34 @@ def set_user_cv_score(user_id: int, job_id: str, cv_score_val: int) -> None:
     upsert_user_job_state(user_id, job_id, cv_score=int(cv_score_val or 0))
 
 
+def get_unscored_jobs_for_user(user_id: int, limit: int = 200) -> list[dict]:
+    """
+    Return the N freshest jobs that have no user_job_state row yet for
+    this user — i.e. jobs the user has never seen scored. Used by the
+    lazy per-user scorer that runs on each /api/jobs hit.
+    """
+    if not user_id:
+        return []
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT j.job_id, j.role, j.company, j.location, j.job_description,
+               j.remote_status, j.date_found
+        FROM job_listings j
+        LEFT JOIN user_job_state s
+          ON s.job_id = j.job_id AND s.user_id = ?
+        WHERE s.job_id IS NULL
+        ORDER BY j.date_found DESC
+        LIMIT ?
+        """,
+        (user_id, int(limit)),
+    )
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
 def bulk_set_user_cv_scores(user_id: int, scores: dict) -> int:
     """
     scores: { job_id: cv_score_int }. Returns number of rows written.
