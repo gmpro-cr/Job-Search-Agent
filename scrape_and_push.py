@@ -36,7 +36,7 @@ except ImportError:
 from main import load_config, load_preferences, DEFAULT_PREFS, apply_env_overrides
 from scrapers import scrape_all_portals
 from analyzer import analyze_jobs
-from database import generate_job_id, init_db, insert_jobs_bulk
+from database import generate_job_id, init_db, insert_jobs_bulk, delete_old_jobs
 from email_notifier import send_job_email
 from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
 
@@ -137,6 +137,17 @@ def main():
     # --- Phase 7: Reminders ---
     init_db()
     insert_jobs_bulk(all_analyzed)
+    # 7-day retention: drop everything older than a week, with dependent
+    # user_job_state + outreach_queue rows. Runs at the end of every
+    # scrape so storage stays bounded.
+    try:
+        purged = delete_old_jobs(days=7)
+        logger.info(
+            "Retention sweep: removed %d jobs, %d user_states, %d outreach drafts",
+            purged["jobs"], purged["user_state"], purged["outreach"],
+        )
+    except Exception as e:
+        logger.warning("Retention sweep failed: %s", e)
     from reminder_runner import run_reminders
     run_reminders(preferences)
 

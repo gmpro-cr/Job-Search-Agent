@@ -1068,23 +1068,40 @@ def get_normalized_locations():
     return sorted(counts.items(), key=lambda x: -x[1])
 
 
-def delete_old_jobs(days: int = 30) -> int:
+def delete_old_jobs(days: int = 7) -> dict:
     """
-    Delete job listings older than `days` days.
-    Returns the number of rows deleted.
+    7-day retention: delete job_listings older than `days` days plus
+    every dependent row (user_job_state, outreach_queue) that references
+    them. No FK cascade exists from job_id, so the cleanup is explicit.
+
+    Returns: dict with rowcount per table — {"jobs", "user_state", "outreach"}.
     """
     cutoff = (datetime.now() - timedelta(days=days)).isoformat()
     conn = get_connection()
     cursor = conn.cursor()
+
     cursor.execute(
-        "DELETE FROM job_listings WHERE date_found < ?",
+        "DELETE FROM user_job_state "
+        "WHERE job_id IN (SELECT job_id FROM job_listings WHERE date_found < ?)",
         (cutoff,),
     )
-    deleted = cursor.rowcount
+    n_state = cursor.rowcount
+    cursor.execute(
+        "DELETE FROM outreach_queue "
+        "WHERE job_id IN (SELECT job_id FROM job_listings WHERE date_found < ?)",
+        (cutoff,),
+    )
+    n_outreach = cursor.rowcount
+    cursor.execute("DELETE FROM job_listings WHERE date_found < ?", (cutoff,))
+    n_jobs = cursor.rowcount
+
     conn.commit()
     conn.close()
-    logger.info("delete_old_jobs: removed %d jobs older than %d days", deleted, days)
-    return deleted
+    logger.info(
+        "delete_old_jobs(%dd): removed %d jobs, %d user_job_state, %d outreach_queue",
+        days, n_jobs, n_state, n_outreach,
+    )
+    return {"jobs": n_jobs, "user_state": n_state, "outreach": n_outreach}
 
 
 def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: str = None,
