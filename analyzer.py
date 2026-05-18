@@ -994,7 +994,10 @@ _SKILL_PATTERNS = {
     r"Payments": "Payments",
     r"\bUPI\b": "UPI",
     r"Lending": "Lending",
-    r"Credit": "Credit",
+    # Note: bare "Credit" / "Cloud" removed — they false-match on
+    # "Credit Electronic Developer" / "Oracle Cloud ERP" and inflate
+    # scores for unrelated roles. The narrower patterns below
+    # ("Credit Analysis", explicit ERP names) carry the real signal.
     r"Banking": "Banking",
     r"Risk [Mm]anagement": "Risk Management",
     r"Compliance": "Compliance",
@@ -1007,7 +1010,6 @@ _SKILL_PATTERNS = {
     r"\bAWS\b": "AWS",
     r"\bGCP\b": "GCP",
     r"Azure": "Azure",
-    r"Cloud": "Cloud",
     r"Kubernetes": "Kubernetes",
     r"Docker": "Docker",
     r"CI/CD": "CI/CD",

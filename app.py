@@ -1123,7 +1123,10 @@ def dashboard():
         )
         high_match_today = cur.fetchone()["n"]
 
-    # 4) Top 10 matched jobs from the last 24 hours
+    # 4) Top 10 matched jobs from the last 24 hours, score > 0 only.
+    #    A list of zero-score "matches" is worse than no list — looks
+    #    like the tool is broken when actually the recent batch just
+    #    didn't include anything in this user's domain.
     top_jobs = []
     if uid:
         cur.execute(
@@ -1137,6 +1140,7 @@ def dashboard():
               ON s.job_id = j.job_id AND s.user_id = ?
             WHERE j.date_found >= ?
               AND COALESCE(s.hidden, 0) = 0
+              AND s.cv_score > 0
             ORDER BY s.cv_score DESC, j.date_found DESC
             LIMIT 10
             """,

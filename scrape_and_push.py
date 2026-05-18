@@ -50,14 +50,76 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 SCRAPE_OUTPUT = os.path.join(DATA_DIR, "latest_scrape.json")
 
 
+def _union_user_targets():
+    """
+    Union every registered user's job_titles + locations from the
+    user_preferences table. This is what the scraper SHOULD search for
+    — otherwise a finance candidate's account never sees finance jobs
+    scraped, even if their personal preferences are correct.
+
+    Returns (titles, locations) — each a deduped list, or ([], []) if
+    DB lookup fails (the caller falls back to DEFAULT_PREFS).
+    """
+    try:
+        from database import get_connection
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT prefs_json FROM user_preferences")
+        rows = cur.fetchall()
+        conn.close()
+    except Exception as e:
+        logger.warning("Could not union user targets from DB: %s", e)
+        return [], []
+
+    titles, locs = [], []
+    seen_t, seen_l = set(), set()
+    for r in rows:
+        try:
+            prefs = json.loads(r["prefs_json"])
+        except Exception:
+            continue
+        for t in (prefs.get("job_titles") or []):
+            k = t.strip().lower()
+            if k and k not in seen_t:
+                seen_t.add(k); titles.append(t.strip())
+        for l in (prefs.get("locations") or []):
+            k = l.strip().lower()
+            if k and k not in seen_l:
+                seen_l.add(k); locs.append(l.strip())
+    return titles, locs
+
+
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
 
     config = load_config()
     preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
-    job_titles = preferences.get("job_titles", DEFAULT_PREFS["job_titles"])
-    locations = preferences.get("locations", DEFAULT_PREFS["locations"])
+
+    # Scraper targets = UNION of every user's job_titles + locations,
+    # falling back to DEFAULT_PREFS when no users have configured prefs
+    # yet. Without this the scrape stays biased to whatever the JSON
+    # legacy file says, ignoring every new signed-up user's intent.
+    user_titles, user_locs = _union_user_targets()
+    default_titles = preferences.get("job_titles") or DEFAULT_PREFS["job_titles"]
+    default_locs   = preferences.get("locations")  or DEFAULT_PREFS["locations"]
+
+    # Union default + user prefs, dedup case-insensitively, preserve order.
+    seen_t, seen_l = set(), set()
+    job_titles, locations = [], []
+    for t in (user_titles + default_titles):
+        k = t.strip().lower()
+        if k and k not in seen_t:
+            seen_t.add(k); job_titles.append(t.strip())
+    for l in (user_locs + default_locs):
+        k = l.strip().lower()
+        if k and k not in seen_l:
+            seen_l.add(k); locations.append(l.strip())
+
     top_n = preferences.get("top_jobs_per_digest", 5)
+    logger.info(
+        "Scraper targets — titles=%d (from %d users + defaults), locations=%d",
+        len(job_titles), len(user_titles), len(locations),
+    )
 
     # --- Phase 1: Scrape ---
     logger.info("Scraping %d titles across %d locations...", len(job_titles), len(locations))

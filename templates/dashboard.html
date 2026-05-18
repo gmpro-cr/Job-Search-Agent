@@ -174,7 +174,15 @@
       </div>
       {% else %}
       <div class="empty-state">
-        <p>No jobs scored in the last 24 hours yet. The next scheduled scrape runs at 07:00 IST.</p>
+        <p>
+          No matches above zero in the last 24&nbsp;hours for your profile yet.
+        </p>
+        <p class="text-xs" style="margin-top:.5rem;max-width:42ch;margin-inline:auto;">
+          Most of today's scrape may be in domains far from yours.
+          Check <a href="{{ url_for('jobs') }}">all jobs</a> manually,
+          or refine your <a href="{{ url_for('preferences') }}">preferences</a> —
+          the next scrape (07:00 / 19:00 IST) will use them to fetch fresh listings.
+        </p>
       </div>
       {% endif %}
     </div>
