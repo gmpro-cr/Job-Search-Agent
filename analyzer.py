@@ -1031,6 +1031,65 @@ _SKILL_PATTERNS = {
     r"Kafka": "Kafka",
     r"Spark": "Spark",
     r"Hadoop": "Hadoop",
+
+    # ─── Finance / Accounting / Audit ──────────────────────────────
+    # ERPs + finance tools
+    r"SAP\s+FICO|\bSAP\b": "SAP",
+    r"Tally\s*ERP\s*9?|\bTally\b": "Tally ERP",
+    r"Oracle\s+Fusion(?:\s+Cloud)?(?:\s+ERP)?|Oracle\s+ERP": "Oracle Fusion ERP",
+    r"PeopleSoft": "PeopleSoft",
+    r"QuickBooks": "QuickBooks",
+    r"Bloomberg(?:\s+Terminal)?": "Bloomberg Terminal",
+    r"Bloomberg\s+Market\s+Concepts|\bBMC\b": "Bloomberg BMC",
+    r"Bloomberg\s+Finance\s+Fundamentals|\bBFF\b": "Bloomberg BFF",
+    r"Advanced\s+Excel|VLOOKUP|XLOOKUP|Pivot\s+Table": "Advanced Excel",
+    # Core finance / accounting concepts
+    r"Financial\s+Reporting": "Financial Reporting",
+    r"Financial\s+Statement[s]?\s+Analysis|Financial\s+Analysis": "Financial Analysis",
+    r"Account\s+Reconciliation|Reconciliation[s]?": "Account Reconciliation",
+    r"Ratio\s+Analysis": "Ratio Analysis",
+    r"Time\s+Value\s+of\s+Money|\bTVM\b": "Time Value of Money (TVM)",
+    r"Cost\s+Accounting": "Cost Accounting",
+    r"Variance\s+Analysis": "Variance Analysis",
+    r"Budget(?:ing|\s+Preparation)?": "Budgeting",
+    r"Fixed\s+Asset\s+Accounting": "Fixed Asset Accounting",
+    r"Ledger\s+Scrutiny|Ledger\b": "Ledger Scrutiny",
+    r"Voucher\s+Verification|Voucher": "Voucher Verification",
+    r"Month[\s-]End\s+Close|Month[\s-]End\s+Accounting": "Month-End Close",
+    r"Audit(?:\s+Documentation|\s+Support)?": "Audit",
+    r"Internal\s+Audit": "Internal Audit",
+    r"Tax(?:ation)?": "Taxation",
+    r"\bGST\b": "GST",
+    r"\bTDS\b": "TDS",
+    r"\bIFRS\b": "IFRS",
+    r"\bGAAP\b": "GAAP",
+    r"\bUSGAAP\b|US\s+GAAP": "US GAAP",
+    r"\bIND[\s-]?AS\b": "Ind AS",
+    r"Treasury": "Treasury",
+    r"Working\s+Capital": "Working Capital Management",
+    r"Cash\s+Flow": "Cash Flow Analysis",
+    r"Credit\s+Analysis": "Credit Analysis",
+    r"Equity\s+Research": "Equity Research",
+    r"Investment\s+Banking|\bIB\b": "Investment Banking",
+    r"M&A|Mergers\s+&\s+Acquisitions": "M&A",
+    r"Valuation": "Valuation",
+    r"\bDCF\b": "DCF Modeling",
+    r"Financial\s+Modeling|Financial\s+Modelling": "Financial Modeling",
+    r"\bFP&A\b|FP\s*&\s*A": "FP&A",
+    r"Joint\s+Venture": "Joint Venture Accounting",
+    # Soft skills / business
+    r"Report\s+Preparation|Report\s+Writing": "Report Preparation",
+    r"Business\s+Communication": "Business Communication",
+    r"Attention\s+to\s+Detail": "Attention to Detail",
+    r"Time\s+Management": "Time Management",
+    r"Documentation": "Documentation",
+    # Domain
+    r"\bNBFC\b": "NBFC",
+    r"Insurance": "Insurance",
+    r"Capital\s+Markets?": "Capital Markets",
+    r"Wealth\s+Management": "Wealth Management",
+    r"Asset\s+Management": "Asset Management",
+    r"Petroleum|Oil\s*&\s*Gas": "Oil & Gas",
 }
 
 # Backward-compatible alias used by parse_cv_text()
@@ -1044,6 +1103,7 @@ _CV_SKILL_PATTERNS = _SKILL_PATTERNS
 # with optional seniority/specialty prefixes so we catch "Senior Product
 # Manager" as "Senior Product Manager" rather than just "Manager".
 _ROLE_BASES = [
+    # Product / Engineering / Design
     "Product Manager", "Program Manager", "Project Manager",
     "Product Owner", "Product Lead", "Product Designer",
     "Software Engineer", "Software Developer", "Backend Engineer",
@@ -1052,11 +1112,40 @@ _ROLE_BASES = [
     "Machine Learning Engineer", "ML Engineer", "AI Engineer",
     "Engineering Manager", "Technical Lead", "Tech Lead",
     "DevOps Engineer", "Platform Engineer", "SRE", "Site Reliability Engineer",
-    "Business Analyst", "Marketing Manager", "Growth Manager",
+    "Designer", "UX Designer", "UI Designer",
+
+    # Business / Strategy / Marketing
+    "Business Analyst", "Business Development Manager",
+    "Marketing Manager", "Growth Manager", "Brand Manager",
     "Operations Manager", "Customer Success Manager",
-    "Designer", "UX Designer", "UI Designer", "Product Designer",
+    "Strategy Consultant", "Management Consultant",
+
+    # Finance / Accounting / Audit  ← previously absent, breaking finance CVs
+    "Accountant", "Senior Accountant", "Junior Accountant",
+    "Staff Accountant", "Accounting Assistant", "Accounting Analyst",
+    "Accounts Executive", "Accounts Officer", "Accounts Manager",
+    "Finance Analyst", "Financial Analyst", "Senior Financial Analyst",
+    "Finance Manager", "Finance Executive", "Finance Associate",
+    "Financial Controller", "Controller", "CFO", "Chief Financial Officer",
+    "Auditor", "Internal Auditor", "External Auditor", "Statutory Auditor",
+    "Audit Associate", "Audit Manager", "Audit Trainee",
+    "Tax Analyst", "Tax Associate", "Tax Manager", "Tax Consultant",
+    "Treasury Analyst", "Treasury Manager",
+    "Investment Banker", "Investment Analyst",
+    "Equity Research Analyst", "Research Analyst", "Credit Analyst",
+    "Risk Analyst", "Risk Manager", "Compliance Analyst", "Compliance Manager",
+    "FP&A Analyst", "Budget Analyst", "Cost Analyst",
+    "SAP FICO Consultant", "Oracle Fusion Consultant", "ERP Consultant",
+    "Banking Analyst", "Banking Associate", "Relationship Manager",
+
+    # Entry-level / trainee tracks that finance / business candidates apply to
+    "Summer Trainee", "Summer Intern", "Management Trainee",
+    "Graduate Trainee", "Finance Trainee", "Accounting Trainee",
+    "Trainee", "Intern", "Associate",
+
+    # General leadership
     "Director", "VP", "Head", "Founder", "Founding Engineer",
-    "Consultant", "Strategy Consultant", "Research Scientist",
+    "Consultant", "Research Scientist",
 ]
 _SENIORITIES = ["Senior", "Sr\\.?", "Staff", "Principal", "Lead", "Chief", "Junior", "Jr\\.?", "Associate"]
 _ROLE_REGEX = re.compile(
