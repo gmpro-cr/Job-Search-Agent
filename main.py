@@ -162,20 +162,21 @@ def _current_session_user_id():
 
 def load_preferences(user_id: int = None):
     """
-    Load preferences. If user_id is given (or a Flask session user is logged
-    in), read from per-user DB. Otherwise fall back to the legacy JSON file —
-    this preserves CLI / scraper / single-user behaviour during the rollout.
+    Load preferences.
+    - With a user in scope (explicit user_id or active Flask session),
+      return THAT user's prefs from the per-user table — and nothing
+      else. Falling through to the legacy JSON would leak the original
+      developer's prefs to every new user.
+    - Outside a user context (CLI / scraper), fall back to the legacy
+      user_preferences.json so single-user workflows still work.
     """
-    if user_id is None:
-        user_id = _current_session_user_id()
-    if user_id:
+    resolved = user_id if user_id is not None else _current_session_user_id()
+    if resolved:
         try:
             from database import get_user_preferences as _gup
-            prefs = _gup(user_id)
-            if prefs is not None:
-                return prefs
+            return _gup(resolved)  # may be None — valid for a fresh user
         except Exception:
-            pass
+            return None
     if os.path.exists(PREFS_PATH):
         with open(PREFS_PATH, "r") as f:
             return json.load(f)

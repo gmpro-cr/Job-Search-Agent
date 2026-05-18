@@ -1037,6 +1037,96 @@ _SKILL_PATTERNS = {
 _CV_SKILL_PATTERNS = _SKILL_PATTERNS
 
 
+# Heuristics for inferring user preferences directly from CV text.
+# Kept conservative — we'd rather miss a guess than mis-fill the form.
+
+# Job-title fragments. The base nouns (Manager, Engineer, …) are matched
+# with optional seniority/specialty prefixes so we catch "Senior Product
+# Manager" as "Senior Product Manager" rather than just "Manager".
+_ROLE_BASES = [
+    "Product Manager", "Program Manager", "Project Manager",
+    "Product Owner", "Product Lead", "Product Designer",
+    "Software Engineer", "Software Developer", "Backend Engineer",
+    "Frontend Engineer", "Full[-\\s]Stack Engineer", "Mobile Engineer",
+    "Data Engineer", "Data Scientist", "Data Analyst",
+    "Machine Learning Engineer", "ML Engineer", "AI Engineer",
+    "Engineering Manager", "Technical Lead", "Tech Lead",
+    "DevOps Engineer", "Platform Engineer", "SRE", "Site Reliability Engineer",
+    "Business Analyst", "Marketing Manager", "Growth Manager",
+    "Operations Manager", "Customer Success Manager",
+    "Designer", "UX Designer", "UI Designer", "Product Designer",
+    "Director", "VP", "Head", "Founder", "Founding Engineer",
+    "Consultant", "Strategy Consultant", "Research Scientist",
+]
+_SENIORITIES = ["Senior", "Sr\\.?", "Staff", "Principal", "Lead", "Chief", "Junior", "Jr\\.?", "Associate"]
+_ROLE_REGEX = re.compile(
+    r"(?<![A-Za-z])((?:" + "|".join(_SENIORITIES) + r")\s+)?(" + "|".join(_ROLE_BASES) + r")(?![A-Za-z])",
+    re.IGNORECASE,
+)
+
+# Cities we'll detect verbatim. Map normalised (lowercase) → display form.
+_CV_CITY_MAP = {
+    # India
+    "pune": "Pune", "mumbai": "Mumbai", "bombay": "Mumbai",
+    "bangalore": "Bangalore", "bengaluru": "Bangalore", "bengalūru": "Bangalore",
+    "delhi": "Delhi", "new delhi": "Delhi", "ncr": "Delhi / NCR",
+    "gurgaon": "Delhi / NCR", "gurugram": "Delhi / NCR", "noida": "Delhi / NCR",
+    "hyderabad": "Hyderabad", "chennai": "Chennai", "kolkata": "Kolkata",
+    "ahmedabad": "Ahmedabad", "jaipur": "Jaipur", "chandigarh": "Chandigarh",
+    "kochi": "Kochi", "indore": "Indore", "coimbatore": "Coimbatore",
+    "trivandrum": "Thiruvananthapuram", "thiruvananthapuram": "Thiruvananthapuram",
+    # Hubs further afield
+    "singapore": "Singapore", "dubai": "Dubai / UAE", "abu dhabi": "Dubai / UAE",
+    "london": "London", "berlin": "Berlin", "amsterdam": "Amsterdam",
+    "san francisco": "San Francisco", "new york": "New York", "nyc": "New York",
+    "sydney": "Sydney", "melbourne": "Melbourne", "toronto": "Toronto",
+    # Catch-alls
+    "remote": "Remote", "anywhere": "Remote", "work from home": "Remote", "wfh": "Remote",
+}
+
+
+def _suggest_job_titles(text, limit=5):
+    """Extract up to N plausible job titles from CV text."""
+    if not text:
+        return []
+    seen = set()
+    out = []
+    for m in _ROLE_REGEX.finditer(text):
+        prefix = (m.group(1) or "").strip()
+        base = m.group(2).strip()
+        # Normalise whitespace + casing
+        title = " ".join(filter(None, [prefix, base])).strip()
+        title = re.sub(r"\s+", " ", title)
+        # Title-case while preserving "VP", "ML", "AI", etc.
+        parts = []
+        for p in title.split():
+            parts.append(p if p.isupper() and len(p) <= 3 else p.capitalize())
+        title = " ".join(parts)
+        if title.lower() in seen:
+            continue
+        seen.add(title.lower())
+        out.append(title)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _suggest_locations(text, limit=5):
+    """Extract canonical city/location preferences from CV text."""
+    if not text:
+        return []
+    text_lower = text.lower()
+    seen = set()
+    out = []
+    for needle, canonical in _CV_CITY_MAP.items():
+        if needle in text_lower and canonical not in seen:
+            seen.add(canonical)
+            out.append(canonical)
+            if len(out) >= limit:
+                break
+    return out
+
+
 def parse_cv_text(text):
     """
     Parse raw CV text and extract structured data.
@@ -1045,10 +1135,18 @@ def parse_cv_text(text):
         text: Raw text content of the CV
 
     Returns:
-        dict with keys: skills (list), raw_text (str), uploaded_at (str)
+        dict with keys: skills, suggested_job_titles, suggested_locations,
+        raw_text, uploaded_at.
     """
+    base = {
+        "skills": [],
+        "suggested_job_titles": [],
+        "suggested_locations": [],
+        "raw_text": text or "",
+        "uploaded_at": _datetime.now().isoformat(),
+    }
     if not text or not text.strip():
-        return {"skills": [], "raw_text": text or "", "uploaded_at": _datetime.now().isoformat()}
+        return base
 
     found_skills = []
     for pattern, display in _CV_SKILL_PATTERNS.items():
@@ -1056,11 +1154,10 @@ def parse_cv_text(text):
             if display not in found_skills:
                 found_skills.append(display)
 
-    return {
-        "skills": found_skills,
-        "raw_text": text,
-        "uploaded_at": _datetime.now().isoformat(),
-    }
+    base["skills"] = found_skills
+    base["suggested_job_titles"] = _suggest_job_titles(text)
+    base["suggested_locations"] = _suggest_locations(text)
+    return base
 
 
 def _current_session_user_id():
@@ -1083,19 +1180,23 @@ def _current_session_user_id():
 
 def load_cv_data(user_id: int = None):
     """
-    Load CV data. If user_id (or a Flask session user) is available, read from
-    per-user DB. Otherwise fall back to the legacy cv_data.json for CLI use.
+    Load CV data.
+    - When a user is in scope (explicit user_id or active Flask session),
+      return THAT user's CV from the per-user table — and NOTHING ELSE.
+      Falling through to the legacy JSON file would silently leak the
+      original developer's CV to every brand-new user, which is exactly
+      what happened in early testing.
+    - Outside a user context (CLI / scraper), fall back to the legacy
+      cv_data.json so single-user workflows keep working.
     """
-    if user_id is None:
-        user_id = _current_session_user_id()
-    if user_id:
+    resolved = user_id if user_id is not None else _current_session_user_id()
+    if resolved:
         try:
             from database import get_user_cv_data as _gucd
-            cv = _gucd(user_id)
-            if cv is not None:
-                return cv
+            return _gucd(resolved)  # may be None — that's a valid answer
         except Exception:
-            pass
+            return None
+    # No user context at all → legacy global JSON
     if not os.path.exists(CV_DATA_PATH):
         return None
     try:

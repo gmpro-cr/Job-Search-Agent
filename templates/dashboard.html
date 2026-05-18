@@ -3,7 +3,73 @@
 {% block page_body_class %}is-airy{% endblock %}
 
 {% block content %}
+{% if not cv_uploaded %}
+<script>
+  // Drag-and-drop highlight + file forwarding for the dashboard CV zone.
+  document.addEventListener('DOMContentLoaded', function () {
+    var zone = document.getElementById('cv-drop');
+    var input = document.getElementById('cv-onboard-input');
+    if (!zone || !input) return;
+    ['dragenter', 'dragover'].forEach(function (e) {
+      zone.addEventListener(e, function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        zone.classList.add('is-drag-over');
+      });
+    });
+    ['dragleave', 'drop'].forEach(function (e) {
+      zone.addEventListener(e, function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        zone.classList.remove('is-drag-over');
+      });
+    });
+    zone.addEventListener('drop', function (ev) {
+      var dt = ev.dataTransfer;
+      if (dt && dt.files && dt.files.length) {
+        input.files = dt.files;
+        input.form.submit();
+      }
+    });
+  });
+</script>
+{% endif %}
 <div class="space-y-6">
+
+  {# ── First-time user: ask for the CV right here on the dashboard ── #}
+  {% if not cv_uploaded %}
+  <header class="page-header">
+    <span class="eyebrow">Welcome</span>
+    <h1>Let's start with your CV.</h1>
+    <p class="page-lede">
+      Upload it once and we'll scan your skills, infer the roles you're targeting,
+      detect locations you've worked in, and pre-fill your preferences automatically.
+      Then every new scrape gets scored against you.
+    </p>
+  </header>
+
+  <form method="POST" action="{{ url_for('cv_page') }}" enctype="multipart/form-data" class="cv-onboard">
+    <input type="hidden" name="next" value="{{ url_for('dashboard') }}">
+    <label id="cv-drop" class="cv-onboard-zone" for="cv-onboard-input">
+      <svg width="44" height="44" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="cv-onboard-icon">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+      </svg>
+      <div class="cv-onboard-prompt">
+        <strong>Drop your CV here, or click to choose a file</strong>
+        <span>PDF, DOCX, or TXT · up to 5MB</span>
+      </div>
+      <input id="cv-onboard-input" type="file" name="cv_file" accept=".pdf,.doc,.docx,.txt" onchange="this.form.submit()">
+    </label>
+    <ul class="cv-onboard-bullets">
+      <li><span>1</span> Skills extracted into your profile</li>
+      <li><span>2</span> Job titles + locations inferred → preferences auto-filled</li>
+      <li><span>3</span> Existing jobs scored against your CV</li>
+    </ul>
+  </form>
+
+  <p class="text-muted text-xs" style="text-align:center;">
+    Already have one elsewhere? <a href="{{ url_for('preferences') }}">Skip to preferences</a>.
+  </p>
+
+  {% else %}
 
   <!-- Hero -->
   <header class="dash-hero">
@@ -19,11 +85,6 @@
         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/></svg>
         Browse all jobs
       </a>
-      {% if not cv_uploaded %}
-      <a href="{{ url_for('cv_page') }}" class="btn btn-outline">
-        Upload CV to enable matching
-      </a>
-      {% endif %}
     </div>
   </header>
 
@@ -118,6 +179,8 @@
       {% endif %}
     </div>
   </section>
+
+  {% endif %}{# /cv_uploaded branch — close the if/else from the top #}
 
 </div>
 {% endblock %}

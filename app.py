@@ -2167,9 +2167,13 @@ def cv_page():
         cv_data = parse_cv_text(text)
         cv_data["filename"] = filename
         save_cv_data(cv_data)
-        _rescore_all_jobs(cv_data)
+        # Auto-populate any empty preference fields (titles / locations /
+        # skills) from the parsed CV so first-time users land on a
+        # working dashboard without filling forms.
+        merged_prefs = _autofill_prefs_from_cv(cv_data)
+        _rescore_all_jobs(cv_data, preferences=merged_prefs)
         flash(f"CV uploaded — {len(cv_data['skills'])} skills detected.", "success")
-        return redirect(url_for("cv_page"))
+        return redirect(request.form.get("next") or url_for("cv_page"))
 
     cv_data = load_cv_data()
 
@@ -2267,13 +2271,17 @@ def upload_cv():
     save_cv_data(cv_data)
     logger.info("CV uploaded: %d skills detected", len(cv_data["skills"]))
 
-    # Rescore all existing jobs so sort-by-score reflects the new CV immediately
-    updated = _rescore_all_jobs(cv_data)
+    # Auto-fill preferences from the CV (only empty fields), then rescore
+    # everything against the merged CV + prefs.
+    merged_prefs = _autofill_prefs_from_cv(cv_data)
+    updated = _rescore_all_jobs(cv_data, preferences=merged_prefs)
 
     return jsonify({
         "ok": True,
         "skills_count": len(cv_data["skills"]),
         "skills": cv_data["skills"],
+        "suggested_job_titles": cv_data.get("suggested_job_titles", []),
+        "suggested_locations":  cv_data.get("suggested_locations", []),
         "rescored": updated,
     })
 
@@ -2318,6 +2326,42 @@ def _rescore_all_jobs(cv_data, user_id: int = None, preferences: dict = None):
     conn.close()
     logger.info("Re-scored %d jobs against CV (legacy global)", len(jobs))
     return len(jobs)
+
+
+def _autofill_prefs_from_cv(cv_data: dict, user_id: int = None) -> dict:
+    """
+    After CV parse, fill any empty preference fields with what we
+    inferred from the CV. Never overwrites a field the user has
+    already populated — purely additive.
+    Returns the merged preferences dict that was saved.
+    """
+    if user_id is None:
+        user_id = current_user_id()
+    if not user_id or not cv_data:
+        return {}
+    existing = load_preferences(user_id) or {}
+    merged = dict(existing)
+
+    suggestions = {
+        "job_titles":          cv_data.get("suggested_job_titles") or [],
+        "locations":           cv_data.get("suggested_locations") or [],
+        "transferable_skills": cv_data.get("skills") or [],
+    }
+    changed = False
+    for key, suggestion in suggestions.items():
+        existing_list = merged.get(key) or []
+        if not existing_list and suggestion:
+            # Keep the order, take up to 6 to avoid bloating the form.
+            merged[key] = suggestion[:6]
+            changed = True
+
+    if changed:
+        save_preferences(merged, user_id=user_id)
+        logger.info("Auto-filled prefs from CV for user %s: %s",
+                    user_id,
+                    {k: v for k, v in merged.items()
+                     if k in ("job_titles", "locations", "transferable_skills")})
+    return merged
 
 
 def _score_unscored_for_user(user_id: int, limit: int = 200) -> int:

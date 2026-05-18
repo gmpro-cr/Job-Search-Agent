@@ -32,18 +32,20 @@ def _current_session_user_id():
 
 def load_reminders(user_id: int = None) -> list:
     """
-    Load reminders. With a user_id (or active Flask session), returns only that
-    user's reminders from DB. Otherwise falls back to the legacy global file
-    so CLI / scraper / scheduler keep working during the rollout.
+    Load reminders.
+    - With a user in scope, return ONLY that user's reminders from the DB.
+      Never leak the legacy global file into a per-user lookup.
+    - Outside a user context (CLI / scheduler), fall back to the legacy
+      reminders.json.
     """
-    if user_id is None:
-        user_id = _current_session_user_id()
-    if user_id:
+    resolved = user_id if user_id is not None else _current_session_user_id()
+    if resolved:
         try:
             from database import get_user_reminders as _gur
-            return _gur(user_id) or []
+            return _gur(resolved) or []
         except Exception as e:
-            logger.warning("DB reminder load failed for user %s: %s", user_id, e)
+            logger.warning("DB reminder load failed for user %s: %s", resolved, e)
+            return []
     if not os.path.exists(REMINDERS_PATH):
         return []
     try:
