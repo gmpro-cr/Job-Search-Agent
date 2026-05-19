@@ -1,0 +1,35 @@
+# Fly.io scraper image — runs scrape_and_push.py on a schedule.
+# Selenium portals (LinkedIn / Naukri / Indeed) need a real Chrome/Chromium
+# binary; the Debian repo gives us chromium + chromedriver in one apt step.
+
+FROM python:3.11-slim
+
+# System deps:
+#   chromium + chromium-driver — the actual browser + driver Selenium drives
+#   fonts/libs — chromium's render dependencies
+#   tzdata — so logs / scheduling read in IST
+#   curl/ca-certificates — for any outbound HTTPS the scraper makes
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        chromium chromium-driver \
+        fonts-liberation libnss3 libxss1 libasound2 \
+        ca-certificates curl tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV TZ=Asia/Kolkata \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CHROME_BIN=/usr/bin/chromium \
+    CHROMEDRIVER_PATH=/usr/bin/chromedriver
+
+WORKDIR /app
+
+# Install Python deps in one layer — slim runtime + scraper-only extras.
+COPY requirements.txt requirements-scraper.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-scraper.txt
+
+# App code — last to maximise layer cache hits on dep changes
+COPY . /app
+
+# Default command: run a single scrape and exit. Fly schedules the machine,
+# the CMD runs, the machine stops. No long-running process.
+CMD ["python", "scrape_and_push.py"]

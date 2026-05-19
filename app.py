@@ -1123,12 +1123,13 @@ def dashboard():
         )
         high_match_today = cur.fetchone()["n"]
 
-    # 4) Top 10 matched jobs from the last 24 hours, score > 0 only.
-    #    A list of zero-score "matches" is worse than no list — looks
-    #    like the tool is broken when actually the recent batch just
-    #    didn't include anything in this user's domain.
+    # 4) Top 10 scored matches from the last 24 hours.
+    #    Only populated when the user has a CV — otherwise the dashboard
+    #    shows the upload form and the Jobs page serves unscored listings.
+    #    cv_score > 0 guards against showing zero-score "matches" that
+    #    would make the tool look broken.
     top_jobs = []
-    if uid:
+    if uid and cv_uploaded:
         cur.execute(
             """
             SELECT j.job_id, j.role, j.company, j.location,
@@ -1164,7 +1165,7 @@ def dashboard():
 def dashboard_top_jobs():
     """Return top 10 jobs by CV score (or relevance score if no CV)."""
     uid = current_user_id()
-    cv_data = load_cv_data()
+    cv_data = load_cv_data(uid) if uid else None
     conn = get_connection()
     c = conn.cursor()
     if uid and cv_data:
@@ -1464,7 +1465,7 @@ def _build_jobs_query(filters, user_id: int = None):
 @app.route("/jobs")
 def jobs():
     uid = current_user_id()
-    cv_data = load_cv_data()
+    cv_data = load_cv_data(uid) if uid else None
     cv_uploaded = cv_data is not None
 
     # Read filter params
@@ -2043,15 +2044,46 @@ def scheduler_status():
 
 @app.route("/hiring-managers")
 def hiring_managers():
-    """List distinct hiring managers / job posters with contact details."""
+    """List hiring managers / job posters, filtered by CV relevance when available."""
     from database import get_hiring_managers
+    uid = current_user_id()
+    cv_data = load_cv_data(uid) if uid else None
+    cv_uploaded = cv_data is not None
+
     managers = get_hiring_managers(limit=500)
+
+    # If the user has a CV, surface managers whose associated role overlaps
+    # with the user's target roles (from CV + preferences). Managers with
+    # no role field always pass — we can't filter what we don't know.
+    if cv_uploaded:
+        prefs = load_preferences() or {}
+        target_titles = list(prefs.get("job_titles") or [])
+        target_titles += list(cv_data.get("job_titles") or [])
+        keywords = {
+            word.lower()
+            for title in target_titles
+            for word in title.split()
+            if len(word) > 3
+        }
+        if keywords:
+            def _relevant(m):
+                role = (m.get("role") or "").lower()
+                return not role or any(kw in role for kw in keywords)
+            filtered = [m for m in managers if _relevant(m)]
+            # Fall back to all if the filter is too narrow (< 5 results)
+            managers = filtered if len(filtered) >= 5 else managers
+
     counts = {
         "total": len(managers),
         "with_linkedin": sum(1 for m in managers if m["linkedin"]),
         "with_email": sum(1 for m in managers if m["email"]),
     }
-    return render_template("hiring_managers.html", managers=managers, counts=counts)
+    return render_template(
+        "hiring_managers.html",
+        managers=managers,
+        counts=counts,
+        cv_uploaded=cv_uploaded,
+    )
 
 
 @app.route("/digests")

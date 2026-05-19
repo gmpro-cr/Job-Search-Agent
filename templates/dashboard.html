@@ -5,7 +5,6 @@
 {% block content %}
 {% if not cv_uploaded %}
 <script>
-  // Drag-and-drop highlight + file forwarding for the dashboard CV zone.
   document.addEventListener('DOMContentLoaded', function () {
     var zone = document.getElementById('cv-drop');
     var input = document.getElementById('cv-onboard-input');
@@ -34,15 +33,16 @@
 {% endif %}
 <div class="space-y-6">
 
-  {# ── First-time user: ask for the CV right here on the dashboard ── #}
   {% if not cv_uploaded %}
+  {# ── First-time user: upload CV first, then see scored results.
+       Jobs page is already available unscored via the sidebar. ── #}
   <header class="page-header">
     <span class="eyebrow">Welcome</span>
     <h1>Let's start with your CV.</h1>
     <p class="page-lede">
       Upload it once and we'll scan your skills, infer the roles you're targeting,
       detect locations you've worked in, and pre-fill your preferences automatically.
-      Then every new scrape gets scored against you.
+      Every new scrape will then be scored against you.
     </p>
   </header>
 
@@ -66,7 +66,8 @@
   </form>
 
   <p class="text-muted text-xs" style="text-align:center;">
-    Already have one elsewhere? <a href="{{ url_for('preferences') }}">Skip to preferences</a>.
+    Want to explore jobs first?
+    <a href="{{ url_for('jobs') }}">Browse all available listings →</a>
   </p>
 
   {% else %}
@@ -88,7 +89,7 @@
     </div>
   </header>
 
-  <!-- The three numbers that matter today -->
+  <!-- Three stats -->
   <div class="grid md:grid-cols-3 gap-4 stagger">
     <div class="card stat-card" style="--i:0">
       <div class="card-header">
@@ -134,13 +135,7 @@
   <section class="card">
     <div class="card-header">
       <h3 class="card-title">Top matches · last 24 hours</h3>
-      <p class="card-description">
-        {% if cv_uploaded %}
-        Ranked by your CV + preferences score.
-        {% else %}
-        Upload a CV to score these against your skills.
-        {% endif %}
-      </p>
+      <p class="card-description">Ranked by your CV + preferences score.</p>
     </div>
     <div class="card-content" style="padding:0;">
       {% if top_jobs %}
@@ -168,15 +163,9 @@
         </a>
         {% endfor %}
       </div>
-      {% elif not cv_uploaded %}
-      <div class="empty-state">
-        <p>Upload your CV on the <a href="{{ url_for('cv_page') }}">Profile &amp; CV</a> page to start seeing scored matches here.</p>
-      </div>
       {% else %}
       <div class="empty-state">
-        <p>
-          No matches above zero in the last 24&nbsp;hours for your profile yet.
-        </p>
+        <p>No matches above zero in the last 24&nbsp;hours for your profile yet.</p>
         <p class="text-xs" style="margin-top:.5rem;max-width:42ch;margin-inline:auto;">
           Most of today's scrape may be in domains far from yours.
           Check <a href="{{ url_for('jobs') }}">all jobs</a> manually,
@@ -188,7 +177,7 @@
     </div>
   </section>
 
-  {% endif %}{# /cv_uploaded branch — close the if/else from the top #}
+  {% endif %}
 
 </div>
 {% endblock %}

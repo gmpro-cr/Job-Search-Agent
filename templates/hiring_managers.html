@@ -10,7 +10,13 @@
         <span class="eyebrow">{{ counts.total }} contacts · {{ counts.with_linkedin }} on LinkedIn</span>
         <h1>People who post the roles.</h1>
         <p class="page-lede">
-          Recruiters and hiring managers extracted from the listings we've scraped. Reach out via LinkedIn or email.
+          {% if cv_uploaded %}
+          Recruiters and hiring managers relevant to your CV — filtered from all scraped listings.
+          Reach out via LinkedIn or email.
+          {% else %}
+          Recruiters and hiring managers extracted from every listing we've scraped.
+          <a href="{{ url_for('cv_page') }}">Upload your CV</a> to see only those relevant to your target roles.
+          {% endif %}
         </p>
       </div>
     </div>

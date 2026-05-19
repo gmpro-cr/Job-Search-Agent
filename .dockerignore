@@ -1,10 +1,54 @@
+# Keep the Fly image small + reproducible.
+# Local-only / generated junk that has no business in the container.
+
+.git
+.github
+.vercel
+.claude
+.cache
+
 __pycache__/
+**/__pycache__
 *.pyc
+*.pyo
+.pytest_cache/
+
+# Local DB + state — Fly talks to Neon, not jobs.db
 jobs.db
-.cache/
-digests/
-job_agent.log
-*.log
+jobs.db.*
 user_preferences.json
-.git/
-.gitignore
+cv_data.json
+reminders.json
+
+# Local digests / PRDs / outputs — produced fresh each scrape and
+# uploaded to Blob; no need to ship stale copies into the image
+digests/
+data/
+
+# Logs
+*.log
+job_agent.log
+
+# Local virtualenv / node
+venv/
+.venv/
+node_modules/
+
+# Secrets — set via `flyctl secrets set`, never baked in
+.env
+.env.*
+
+# Editor / OS junk
+.DS_Store
+*.swp
+*.swo
+
+# Working scratch
+tmp_career_ops/
+
+# Web app assets — the batch scraper doesn't need them
+static/
+templates/
+
+# Misc dev-only files that shouldn't go to prod
+fly.toml.bak

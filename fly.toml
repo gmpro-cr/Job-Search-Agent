@@ -1,0 +1,28 @@
+# Fly.io batch worker for the daily job scraper.
+# Same region as Neon Postgres (ap-southeast-1 / sin) so DB round-trips
+# are single-digit ms.
+
+app = "job-search-agent-scraper"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile.fly"
+
+# No HTTP service — this is a scheduled batch worker. The CMD runs once
+# (scrape_and_push.py exits when done) and the machine auto-stops.
+[deploy]
+  strategy = "immediate"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
+  # Selenium + Chromium need ~400-600MB peak. 1gb gives headroom for
+  # multiple concurrent portal scrapes and BeautifulSoup parsing.
+
+# Environment defaults — secrets are set separately via `flyctl secrets set`.
+[env]
+  TZ = "Asia/Kolkata"
+  PYTHONUNBUFFERED = "1"
+  # The slim Vercel runtime sets SKIP_INIT_DB=1; we WANT the scraper to
+  # call init_db so the schema check runs on first scrape after a deploy.
+  # No env override needed — absence is the default.
