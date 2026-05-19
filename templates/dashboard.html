@@ -34,18 +34,6 @@
 <div class="space-y-6">
 
   {% if not cv_uploaded %}
-  {# ── First-time user: upload CV first, then see scored results.
-       Jobs page is already available unscored via the sidebar. ── #}
-  <header class="page-header">
-    <span class="eyebrow">Welcome</span>
-    <h1>Let's start with your CV.</h1>
-    <p class="page-lede">
-      Upload it once and we'll scan your skills, infer the roles you're targeting,
-      detect locations you've worked in, and pre-fill your preferences automatically.
-      Every new scrape will then be scored against you.
-    </p>
-  </header>
-
   <form method="POST" action="{{ url_for('cv_page') }}" enctype="multipart/form-data" class="cv-onboard">
     <input type="hidden" name="next" value="{{ url_for('dashboard') }}">
     <label id="cv-drop" class="cv-onboard-zone" for="cv-onboard-input">
@@ -53,22 +41,12 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
       </svg>
       <div class="cv-onboard-prompt">
-        <strong>Drop your CV here, or click to choose a file</strong>
+        <strong>Upload your CV to get started</strong>
         <span>PDF, DOCX, or TXT · up to 5MB</span>
       </div>
       <input id="cv-onboard-input" type="file" name="cv_file" accept=".pdf,.doc,.docx,.txt" onchange="this.form.submit()">
     </label>
-    <ul class="cv-onboard-bullets">
-      <li><span>1</span> Skills extracted into your profile</li>
-      <li><span>2</span> Job titles + locations inferred → preferences auto-filled</li>
-      <li><span>3</span> Existing jobs scored against your CV</li>
-    </ul>
   </form>
-
-  <p class="text-muted text-xs" style="text-align:center;">
-    Want to explore jobs first?
-    <a href="{{ url_for('jobs') }}">Browse all available listings →</a>
-  </p>
 
   {% else %}
 
