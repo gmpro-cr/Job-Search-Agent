@@ -1651,14 +1651,14 @@ def api_jobs_list():
     badges without re-running the heavy SQL builder.
 
     Query params:
-        limit    int (default 200, max 500)
+        limit    int (default 1000, max 5000)
         min_score int (default 0)
     """
     uid = current_user_id()
     try:
-        limit = max(1, min(500, int(request.args.get("limit", 200))))
+        limit = max(1, min(5000, int(request.args.get("limit", 1000))))
     except (ValueError, TypeError):
-        limit = 200
+        limit = 1000
     try:
         min_score = max(0, min(100, int(request.args.get("min_score", 0))))
     except (ValueError, TypeError):

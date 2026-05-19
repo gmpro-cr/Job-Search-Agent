@@ -157,7 +157,7 @@
 
   async function loadJobs() {
     try {
-      const r = await fetch('/api/jobs?limit=200');
+      const r = await fetch('/api/jobs?limit=1000');
       const data = await r.json();
       allJobs = data.jobs || data || [];
       document.getElementById('jobs-loading').style.display = 'none';

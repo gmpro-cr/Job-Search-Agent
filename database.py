@@ -432,15 +432,35 @@ def insert_job(job):
         job["portal"], job["company"], job["role"], job.get("location", "")
     )
     if job_exists(job_id):
-        logger.debug("Job %s already exists, skipping insert", job_id)
+        # Job already in DB — refresh date_found so it stays visible in
+        # "latest jobs" and isn't pruned by the 7-day retention sweep.
+        # date_found now means "last time the scraper saw this listing".
+        _conn = get_connection()
+        _cur = _conn.cursor()
+        _cur.execute(
+            "UPDATE job_listings SET date_found = ? WHERE job_id = ?",
+            (datetime.now().isoformat(), job_id),
+        )
+        _conn.commit()
+        _conn.close()
+        logger.debug("Refreshed date_found for re-encountered job %s", job_id)
         return False
 
     # Cross-portal dedup: same company + similar role from a different portal
     similar_id = find_similar_job(job["company"], job["role"], job.get("location", ""))
     if similar_id and similar_id != job_id:
+        # Refresh the canonical listing's date_found — it's still active.
+        _conn = get_connection()
+        _cur = _conn.cursor()
+        _cur.execute(
+            "UPDATE job_listings SET date_found = ? WHERE job_id = ?",
+            (datetime.now().isoformat(), similar_id),
+        )
+        _conn.commit()
+        _conn.close()
         logger.debug(
-            "Cross-portal duplicate detected: '%s' at '%s' (existing=%s)",
-            job["role"], job["company"], similar_id,
+            "Refreshed cross-portal duplicate %s for '%s' at '%s'",
+            similar_id, job["role"], job["company"],
         )
         return False
 
