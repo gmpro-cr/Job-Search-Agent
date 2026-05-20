@@ -64,6 +64,7 @@ from git_sync import sync_from_scrape
 # ---------------------------------------------------------------------------
 
 _IS_VERCEL = bool(os.environ.get("VERCEL"))
+OWNER_EMAIL = os.environ.get('OWNER_EMAIL', '').strip().lower()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET", "job-search-agent-dev-key-v2")
@@ -89,7 +90,7 @@ google = oauth.register(
 
 @app.before_request
 def require_login():
-    allowed_routes = ['login', 'auth_google', 'auth_callback', 'auth_demo', 'auth_fresh', 'static']
+    allowed_routes = ['login', 'auth_google', 'auth_callback', 'auth_dev_login', 'static']
     # Allow scraper start/stop from localhost without a browser session
     # (used by CLI triggers and the separate scheduled-stop endpoint)
     localhost_api_routes = {'start_scraper', 'stop_scraper', 'stop_scheduled_scraper',
@@ -125,6 +126,18 @@ def current_user_id():
     # Cache on the session so we don't hit the DB on every request
     session['user'] = dict(user, id=uid)
     return uid
+
+
+def get_owner_id() -> int | None:
+    """Return the DB user id for the deployment owner.
+    In request context uses the session; in background tasks resolves OWNER_EMAIL directly."""
+    if OWNER_EMAIL:
+        try:
+            return get_or_create_user(OWNER_EMAIL)
+        except Exception as e:
+            logger.warning("get_owner_id failed: %s", e)
+            return None
+    return current_user_id()
 
 
 def require_user_id():
@@ -1013,7 +1026,7 @@ if _should_start_background_tasks():
 def login():
     if dict(session).get('user') is not None:
         return redirect(url_for('dashboard'))
-    return render_template('login.html')
+    return render_template('login.html', owner_locked=bool(OWNER_EMAIL))
 
 @app.route('/auth/google')
 def auth_google():
@@ -1027,31 +1040,30 @@ def auth_google():
 def auth_callback():
     try:
         token = google.authorize_access_token()
-        userinfo = token.get('userinfo')
-        if userinfo:
-            email = (userinfo.get('email') or '').strip()
-            if email:
-                uid = get_or_create_user(email, userinfo.get('name'), userinfo.get('picture'))
-                userinfo = dict(userinfo, id=uid)
-            session['user'] = userinfo
+        userinfo = token.get('userinfo') or {}
+        email = (userinfo.get('email') or '').strip().lower()
+        if not email:
+            flash("Authentication failed: no email returned.", "error")
+            return redirect(url_for('login'))
+        if OWNER_EMAIL and email != OWNER_EMAIL:
+            flash("This deployment is private. Fork the repo to create your own instance.", "error")
+            return redirect(url_for('login'))
+        uid = get_or_create_user(email, userinfo.get('name', ''), userinfo.get('picture', ''))
+        session['user'] = {'email': email, 'name': userinfo.get('name', ''), 'picture': userinfo.get('picture', ''), 'id': uid}
     except Exception as e:
         logger.error(f"OAuth callback error: {e}")
         flash("Authentication failed.", "error")
         return redirect(url_for('login'))
     return redirect(url_for('dashboard'))
 
-@app.route('/auth/demo', methods=['POST'])
-def auth_demo():
-    uid = get_or_create_user('demo@example.com', 'Demo User')
-    session['user'] = {'email': 'demo@example.com', 'name': 'Demo User', 'picture': '', 'id': uid}
-    return redirect(url_for('dashboard'))
-
-@app.route('/auth/fresh')
-def auth_fresh():
-    import time
-    fresh_email = f'test-{int(time.time() * 1000)}@example.com'
-    uid = get_or_create_user(fresh_email, 'Test User')
-    session['user'] = {'email': fresh_email, 'name': 'Test User', 'picture': '', 'id': uid}
+@app.route('/auth/dev-login', methods=['POST'])
+def auth_dev_login():
+    """Local dev only — bypasses OAuth. Blocked when OWNER_EMAIL is set."""
+    if OWNER_EMAIL:
+        flash("Dev login is disabled in production.", "error")
+        return redirect(url_for('login'))
+    uid = get_or_create_user('dev@localhost', 'Dev User')
+    session['user'] = {'email': 'dev@localhost', 'name': 'Dev User', 'picture': '', 'id': uid}
     return redirect(url_for('dashboard'))
 
 @app.route('/logout')
@@ -2337,7 +2349,7 @@ def _rescore_all_jobs(cv_data, user_id: int = None, preferences: dict = None):
     to the legacy global column.
     """
     if user_id is None:
-        user_id = current_user_id()
+        user_id = current_user_id() or get_owner_id()
     if preferences is None and user_id:
         preferences = load_preferences(user_id) or {}
     conn = get_connection()
@@ -2380,7 +2392,7 @@ def _autofill_prefs_from_cv(cv_data: dict, user_id: int = None) -> dict:
     Returns the merged preferences dict that was saved.
     """
     if user_id is None:
-        user_id = current_user_id()
+        user_id = current_user_id() or get_owner_id()
     if not user_id or not cv_data:
         return {}
     existing = load_preferences(user_id) or {}

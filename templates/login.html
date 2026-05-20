@@ -595,19 +595,15 @@
         Continue with Google
       </a>
 
+      {% if not owner_locked %}
       <div class="divider">or</div>
-
-      <form action="{{ url_for('auth_demo') }}" method="POST" style="margin:0;">
-        <button type="submit" class="cta">Continue as demo</button>
+      <form action="{{ url_for('auth_dev_login') }}" method="POST" style="margin:0;">
+        <button type="submit" class="cta">Continue as dev user</button>
       </form>
-
-      <a href="{{ url_for('auth_fresh') }}" class="cta" style="margin-top: 0.75rem;">
-        Continue as fresh user
-      </a>
-
       <p class="auth-note">
-        Demo mode reuses the same user. Fresh user creates a new test user each time for testing onboarding.
+        Dev login bypasses OAuth — only available when <code>OWNER_EMAIL</code> is not set. Not for production use.
       </p>
+      {% endif %}
     </div>
   </section>
 
