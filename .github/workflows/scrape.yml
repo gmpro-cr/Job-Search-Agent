@@ -12,7 +12,7 @@ env:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 55
 
     permissions:
       contents: read
@@ -33,6 +33,7 @@ jobs:
 
       - name: Run scraper
         env:
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
           # Neon Postgres — database.py auto-routes to psycopg when set.
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}

@@ -50,43 +50,36 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 SCRAPE_OUTPUT = os.path.join(DATA_DIR, "latest_scrape.json")
 
 
-def _union_user_targets():
+def _get_owner_targets():
     """
-    Union every registered user's job_titles + locations from the
-    user_preferences table. This is what the scraper SHOULD search for
-    — otherwise a finance candidate's account never sees finance jobs
-    scraped, even if their personal preferences are correct.
-
-    Returns (titles, locations) — each a deduped list, or ([], []) if
-    DB lookup fails (the caller falls back to DEFAULT_PREFS).
+    Read job_titles + locations from the owner's preferences row in the DB.
+    Uses OWNER_EMAIL env var to identify the owner. Falls back to ([], [])
+    so the caller uses the JSON preferences file instead.
     """
+    owner_email = os.environ.get("OWNER_EMAIL", "").strip().lower()
+    if not owner_email:
+        return [], []
     try:
         from database import get_connection
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute("SELECT prefs_json FROM user_preferences")
-        rows = cur.fetchall()
+        cur.execute(
+            "SELECT up.prefs_json FROM user_preferences up "
+            "JOIN users u ON u.id = up.user_id "
+            "WHERE lower(u.email) = ?",
+            (owner_email,),
+        )
+        row = cur.fetchone()
         conn.close()
+        if not row:
+            return [], []
+        prefs = json.loads(row["prefs_json"])
+        titles = [t.strip() for t in (prefs.get("job_titles") or []) if t.strip()]
+        locs   = [l.strip() for l in (prefs.get("locations")   or []) if l.strip()]
+        return titles, locs
     except Exception as e:
-        logger.warning("Could not union user targets from DB: %s", e)
+        logger.warning("Could not load owner targets from DB: %s", e)
         return [], []
-
-    titles, locs = [], []
-    seen_t, seen_l = set(), set()
-    for r in rows:
-        try:
-            prefs = json.loads(r["prefs_json"])
-        except Exception:
-            continue
-        for t in (prefs.get("job_titles") or []):
-            k = t.strip().lower()
-            if k and k not in seen_t:
-                seen_t.add(k); titles.append(t.strip())
-        for l in (prefs.get("locations") or []):
-            k = l.strip().lower()
-            if k and k not in seen_l:
-                seen_l.add(k); locs.append(l.strip())
-    return titles, locs
 
 
 def main():
@@ -95,30 +88,21 @@ def main():
     config = load_config()
     preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
 
-    # Scraper targets = UNION of every user's job_titles + locations,
-    # falling back to DEFAULT_PREFS when no users have configured prefs
-    # yet. Without this the scrape stays biased to whatever the JSON
-    # legacy file says, ignoring every new signed-up user's intent.
-    user_titles, user_locs = _union_user_targets()
+    # Single-owner mode: use only the owner's saved preferences.
+    # Falls back to JSON preferences file if DB lookup fails.
+    owner_titles, owner_locs = _get_owner_targets()
     default_titles = preferences.get("job_titles") or DEFAULT_PREFS["job_titles"]
     default_locs   = preferences.get("locations")  or DEFAULT_PREFS["locations"]
 
-    # Union default + user prefs, dedup case-insensitively, preserve order.
-    seen_t, seen_l = set(), set()
-    job_titles, locations = [], []
-    for t in (user_titles + default_titles):
-        k = t.strip().lower()
-        if k and k not in seen_t:
-            seen_t.add(k); job_titles.append(t.strip())
-    for l in (user_locs + default_locs):
-        k = l.strip().lower()
-        if k and k not in seen_l:
-            seen_l.add(k); locations.append(l.strip())
+    # Owner prefs take priority; fall back to JSON/defaults if owner hasn't set prefs yet.
+    job_titles = owner_titles or default_titles
+    locations  = owner_locs  or default_locs
 
     top_n = preferences.get("top_jobs_per_digest", 5)
     logger.info(
-        "Scraper targets — titles=%d (from %d users + defaults), locations=%d",
-        len(job_titles), len(user_titles), len(locations),
+        "Scraper targets — titles=%d, locations=%d (owner: %s)",
+        len(job_titles), len(locations),
+        os.environ.get("OWNER_EMAIL", "unset"),
     )
 
     # --- Phase 1: Scrape ---
