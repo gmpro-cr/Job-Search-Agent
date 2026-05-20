@@ -12,5 +12,17 @@
       "source": "/(.*)",
       "destination": "/api/index.py"
     }
-  ]
+  ],
+  "env": {
+    "OWNER_EMAIL": "Your Google email — only this account can sign in",
+    "DATABASE_URL": "Neon pooled postgres:// connection string",
+    "DATABASE_URL_DIRECT": "Neon direct postgres:// connection string",
+    "BLOB_READ_WRITE_TOKEN": "Vercel Blob read-write token",
+    "GOOGLE_CLIENT_ID": "Google OAuth client ID",
+    "GOOGLE_CLIENT_SECRET": "Google OAuth client secret",
+    "FLASK_SECRET": "Random 48-char secret (python -c 'import secrets; print(secrets.token_urlsafe(48))')",
+    "GMAIL_ADDRESS": "Gmail address for sending digests",
+    "GMAIL_APP_PASSWORD": "Gmail app password (not your account password)",
+    "GEMINI_API_KEY": "Optional — Gemini API key for AI-powered PRD generation"
+  }
 }
