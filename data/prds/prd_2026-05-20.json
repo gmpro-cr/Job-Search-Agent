@@ -1,0 +1,67 @@
+{
+  "id": "2026-05-20",
+  "date": "2026-05-20",
+  "generated_at": "2026-05-20T08:30:45.675249",
+  "generated_by": "gemini-2.0-flash",
+  "product": {
+    "name": "Homemaker Skill-Share Community",
+    "domain": "Consumer",
+    "type": "Non-Technical",
+    "tagline": "Homemakers teach skills like pickling, embroidery, and cooking via short recorded classes"
+  },
+  "sections": {
+    "problem_statement": "Indian homemakers possess deep, generational knowledge in traditional crafts and culinary arts that remain largely undocumented and inaccessible to the modern urban demographic. Existing platforms like YouTube lack structured learning paths and community trust, often leaving learners overwhelmed by unverified content. This product centralizes high-quality, peer-taught, short-form masterclasses that convert localized expertise into a structured, scalable, and monetizable community-driven education ecosystem.",
+    "target_users": [
+      "Sunita, 45, Retired School Teacher, seeking a secondary income stream but struggles with complex digital content creation tools.",
+      "Priya, 28, IT Professional in Bangalore, wants to learn authentic regional cooking but feels intimidated by long-form, unorganized cooking videos.",
+      "Meena, 52, Homemaker in Pune, looking for a social community of like-minded women to share and validate her embroidery craft."
+    ],
+    "user_stories": [
+      "As a creator like Sunita, I want to upload a 5-minute video recipe so that I can teach my skill without needing complex video editing software.",
+      "As a learner like Priya, I want to filter classes by 'Regional Cuisine' and 'Difficulty Level' so that I can find a project I can complete in under 30 minutes.",
+      "As a user like Meena, I want to post photos of my finished embroidery work to a class gallery so that I can receive feedback and encouragement from the teacher.",
+      "As a creator, I want to see a clear dashboard of my earnings and student enrollments so that I feel motivated to produce more high-quality content.",
+      "As a learner, I want to save favorite classes to a 'My Learning' list so that I can revisit specific steps while I am in the kitchen."
+    ],
+    "mvp_features": [
+      "Guided Creator Studio: A simplified mobile interface for recording, trimming, and uploading 3-7 minute instructional videos.",
+      "Structured Skill Tracks: Pre-categorized modules (Pickling, Embroidery, Baking, Knitting) to reduce cognitive load for learners.",
+      "Community Gallery: A dedicated space under each class for students to upload 'Project Proofs' for peer validation.",
+      "Secure Payment Gateway: Razorpay integration for seamless UPI and Netbanking transactions to comply with RBI payment aggregator guidelines.",
+      "Profile Verification: A basic KYC flow for creators to build trust and ensure safety within the community.",
+      "In-App Notification Engine: Push notifications to remind users of saved classes or new comments on their projects."
+    ],
+    "future_features": [
+      "Live Q&A Sessions: Scheduled Zoom-integrated sessions for premium subscribers to interact directly with top-rated teachers.",
+      "Community Marketplace: A curated shop where teachers can sell kits or raw materials required for their specific classes.",
+      "Gamified Badges: Achievement system for completing 'Skill Paths' to increase long-term user retention.",
+      "Regional Language Support: Multilingual UI and subtitles to capture the Tier-2/3 Indian market."
+    ],
+    "success_metrics": [
+      "Creator Retention Rate: 40% of onboarded creators publishing a second class within 30 days \u2014 measures supply-side product-market fit.",
+      "Course Completion Rate: 60% of users finishing a paid class within 7 days \u2014 indicates content quality and accessibility.",
+      "Community Engagement Ratio: 25% of learners posting project photos in the gallery \u2014 measures the strength of the community network effect.",
+      "CAC vs LTV: Keep CAC under \u20b9150 while achieving an LTV of \u20b9600 within 6 months \u2014 validates the sustainability of the unit economics."
+    ],
+    "assumptions": [
+      "Homemakers prefer mobile-first experiences and are comfortable using WhatsApp for communication.",
+      "There is a willingness to pay a 'micro-ticket' price (\u20b999-\u20b9299) for structured, high-quality, and verified instructional content.",
+      "The target demographic values peer-led, authentic teaching over high-production-value corporate content."
+    ],
+    "risks": [
+      "Content Quality Control \u2192 Implement a manual peer-review and admin approval process for all uploaded content before it goes live.",
+      "Data Privacy Concerns \u2192 Ensure strict compliance with the Digital Personal Data Protection (DPDP) Act by anonymizing user data and providing clear opt-out mechanisms.",
+      "Platform Churn (Creators leaving for YouTube) \u2192 Focus on building a strong community and monetization tools that YouTube's generalist platform cannot easily replicate."
+    ],
+    "go_to_market": "Leverage hyper-local WhatsApp and Facebook community groups to recruit the first 100 creators through personalized outreach. Use a 'Refer-a-Friend' model for the first 1,000 learners, offering discounts for community sign-ups. Focus on a 'Founder-led' content strategy where the first 10 classes are co-created with high-influence local homemakers to establish credibility.",
+    "tech_stack_suggestion": "Use a No-Code stack consisting of Bubble.io for the web application and FlutterFlow for the mobile app to ensure rapid iteration. Integrate Firebase as the backend-as-a-service for real-time database and authentication, with Mux for reliable video streaming and transcoding. Ensure all integrations are API-first to allow for future custom backend migration as the user base scales.",
+    "monetisation": "Adopt a tiered 'Pay-per-class' model (\u20b999-\u20b9199 per masterclass) to minimize friction for new users. Implement a revenue-share model where creators receive 70% of the net proceeds, ensuring strong creator alignment. Introduce a monthly 'Community Pass' at \u20b9499 for unlimited access to all classes as the library grows to 500+ assets.",
+    "timeline_weeks": {
+      "discovery": 2,
+      "design": 2,
+      "mvp_build": 8,
+      "beta": 4,
+      "launch": 2
+    }
+  }
+}

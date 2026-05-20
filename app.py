@@ -89,7 +89,7 @@ google = oauth.register(
 
 @app.before_request
 def require_login():
-    allowed_routes = ['login', 'auth_google', 'auth_callback', 'auth_demo', 'static']
+    allowed_routes = ['login', 'auth_google', 'auth_callback', 'auth_demo', 'auth_fresh', 'static']
     # Allow scraper start/stop from localhost without a browser session
     # (used by CLI triggers and the separate scheduled-stop endpoint)
     localhost_api_routes = {'start_scraper', 'stop_scraper', 'stop_scheduled_scraper',
@@ -1044,6 +1044,14 @@ def auth_callback():
 def auth_demo():
     uid = get_or_create_user('demo@example.com', 'Demo User')
     session['user'] = {'email': 'demo@example.com', 'name': 'Demo User', 'picture': '', 'id': uid}
+    return redirect(url_for('dashboard'))
+
+@app.route('/auth/fresh')
+def auth_fresh():
+    import time
+    fresh_email = f'test-{int(time.time() * 1000)}@example.com'
+    uid = get_or_create_user(fresh_email, 'Test User')
+    session['user'] = {'email': fresh_email, 'name': 'Test User', 'picture': '', 'id': uid}
     return redirect(url_for('dashboard'))
 
 @app.route('/logout')

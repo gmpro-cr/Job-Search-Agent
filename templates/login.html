@@ -601,9 +601,12 @@
         <button type="submit" class="cta">Continue as demo</button>
       </form>
 
+      <a href="{{ url_for('auth_fresh') }}" class="cta" style="margin-top: 0.75rem;">
+        Continue as fresh user
+      </a>
+
       <p class="auth-note">
-        Demo mode bypasses Google OAuth — useful if credentials aren't configured locally.
-        We never email anyone without your explicit approval.
+        Demo mode reuses the same user. Fresh user creates a new test user each time for testing onboarding.
       </p>
     </div>
   </section>

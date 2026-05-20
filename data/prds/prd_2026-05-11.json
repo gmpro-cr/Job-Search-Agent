@@ -1,0 +1,67 @@
+{
+  "id": "2026-05-11",
+  "date": "2026-05-11",
+  "generated_at": "2026-05-11T13:19:12.929679",
+  "generated_by": "gemini-2.0-flash",
+  "product": {
+    "name": "Career Mentorship Community",
+    "domain": "HRTech",
+    "type": "Non-Technical",
+    "tagline": "Professionals offer 30-min mentorship sessions; mentees book and leave public reviews"
+  },
+  "sections": {
+    "problem_statement": "Mid-career professionals in India struggle to find high-quality, actionable career guidance beyond generic LinkedIn networking. Existing platforms like ADPList or Topmate are either globally focused or lack contextual understanding of the Indian corporate ecosystem, leaving a void for hyper-local career pathing. This product solves this by creating a verified, community-driven marketplace that democratizes access to industry veterans via structured, review-backed 30-minute sessions.",
+    "target_users": [
+      "Ananya, Product Manager at a Series-B Fintech, struggling to transition into a leadership role without a dedicated mentor.",
+      "Rahul, Software Engineer at a WITCH company, feeling stuck in a legacy tech stack and needing a roadmap to transition to Cloud/AI.",
+      "Vikram, VP of HR at a mid-sized enterprise, looking to build his personal brand and give back while monetizing his 15+ years of experience."
+    ],
+    "user_stories": [
+      "As a mentee, I want to filter mentors by company and industry so that I can find someone who understands my specific career trajectory.",
+      "As a mentor, I want to set my availability and pricing so that I can manage my time effectively and monetize my expertise.",
+      "As a mentee, I want to leave a public, verified review after my session so that I can help others identify high-quality mentors.",
+      "As a mentor, I want to see a mentee's pre-session questionnaire so that I can prepare relevant advice and maximize the 30-minute window.",
+      "As a platform admin, I want to automate payout workflows so that mentors receive their earnings within 48 hours via UPI/NEFT."
+    ],
+    "mvp_features": [
+      "Identity Verification: LinkedIn OAuth integration to verify user seniority and company details, ensuring trust in the ecosystem.",
+      "Smart Scheduling: Google Calendar integration to prevent double-booking and automate timezone management for remote sessions.",
+      "Structured Booking Flow: A mandatory pre-session intake form to ensure the 30-minute call is focused and goal-oriented.",
+      "Review & Rating Engine: Post-session feedback mechanism that publishes verified reviews to mentor profiles to build social proof.",
+      "Integrated Video Conferencing: In-browser WebRTC video calls to eliminate the need for third-party Zoom/Meet links.",
+      "Secure Payment Gateway: Razorpay integration for seamless INR transactions, including automated GST-compliant invoicing."
+    ],
+    "future_features": [
+      "Group Mentorship: Allowing mentors to host 1-to-many sessions to increase their hourly earnings and reach.",
+      "Corporate Partnerships: B2B dashboard for companies to subsidize mentorship sessions as part of their L&D budget.",
+      "AI-Matching Engine: Using NLP to match mentees with mentors based on profile data and career goals to improve conversion.",
+      "In-app Resource Library: Allowing mentors to sell pre-recorded courses or document templates alongside 1-on-1 sessions."
+    ],
+    "success_metrics": [
+      "Booking Conversion Rate: 15% of profile views resulting in a booking within 3 months \u2014 indicates relevance of mentor inventory.",
+      "Session Completion Rate: 90% of booked sessions held successfully within 6 months \u2014 measures platform reliability and user intent.",
+      "Repeat Mentee Rate: 20% of mentees booking a second session within 60 days \u2014 validates the quality of advice provided.",
+      "Mentor NPS: Average mentor satisfaction score of 4.5+ to ensure the supply side remains engaged and active."
+    ],
+    "assumptions": [
+      "Indian professionals are willing to pay for career guidance if the mentor is from a 'dream' company or holds a senior title.",
+      "The 30-minute time-box is sufficient to provide value, avoiding the fatigue of long-form consulting.",
+      "LinkedIn remains the primary professional identity source for the Indian workforce."
+    ],
+    "risks": [
+      "Mentor 'ghosting' or poor quality advice \u2192 Implement a strict 'no-show' refund policy and mentor banning threshold.",
+      "Data privacy and DPDP Act compliance \u2192 Store user PII in encrypted Indian-based servers with clear consent management.",
+      "Platform leakage (mentors taking users off-platform) \u2192 Provide value-add features like automated invoicing and scheduling that are hard to replicate manually."
+    ],
+    "go_to_market": "Launch via a 'Founding Mentors' program targeting 50 high-profile leaders from top Indian startups and MNCs to build initial supply. Acquisition will focus on LinkedIn organic content and community engagement in professional WhatsApp/Slack groups. The first 100 customers will be acquired via direct outreach and a referral program that grants discounted sessions for inviting peers.",
+    "tech_stack_suggestion": "Use a no-code/low-code stack with Bubble.io or Webflow for the frontend, integrated with Xano for the backend database. Use Razorpay for payment processing and Calendly/Google Calendar APIs for scheduling, keeping the architecture lean to prioritize rapid iteration. Ensure all integrations are compliant with RBI\u2019s digital payment guidelines.",
+    "monetisation": "Implement a 20% commission model on every booked session, keeping the barrier to entry low for mentors. Offer three tiers: Entry (INR 499), Mid (INR 1499), and Leadership (INR 2999) based on mentor seniority. Future revenue will pivot to a subscription-based 'Mentorship-as-a-Benefit' model for SMEs and startups.",
+    "timeline_weeks": {
+      "discovery": 2,
+      "design": 2,
+      "mvp_build": 8,
+      "beta": 4,
+      "launch": 2
+    }
+  }
+}

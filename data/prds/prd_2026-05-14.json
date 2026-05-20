@@ -1,0 +1,15 @@
+{
+  "id": "2026-05-14",
+  "date": "2026-05-14",
+  "generated_at": "2026-05-14T22:56:00",
+  "generated_by": "template",
+  "product": {
+    "name": "Phase3 Test Product",
+    "domain": "infra",
+    "type": "saas",
+    "tagline": "smoke test"
+  },
+  "sections": {
+    "overview": "ok"
+  }
+}
