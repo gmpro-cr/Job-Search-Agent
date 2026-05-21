@@ -169,26 +169,30 @@
       const data = await r.json();
       allJobs = data.jobs || data || [];
       document.getElementById('jobs-loading').style.display = 'none';
-      updateLocationBar(data.location_filtered);
+      updateLocationBar(data);
       filterJobs();
     } catch (e) {
       document.getElementById('jobs-loading').textContent = 'Failed to load jobs.';
     }
   }
 
-  function updateLocationBar(filtered) {
+  function updateLocationBar(data) {
     const bar = document.getElementById('location-filter-bar');
     const label = document.getElementById('location-filter-label');
     const btn = document.getElementById('location-toggle-btn');
     if (!bar) return;
-    if (filtered && !showAllLocations) {
+    const anyFiltered = data.location_filtered || data.mode_filtered;
+    if (anyFiltered && !showAllLocations) {
+      const parts = [];
+      if (data.location_filtered) parts.push('location');
+      if (data.mode_filtered) parts.push('work mode');
       bar.style.display = 'flex';
-      label.textContent = 'Filtered to your preferred locations.';
-      btn.textContent = 'Show all locations';
+      label.textContent = `Filtered by your preferred ${parts.join(' & ')}.`;
+      btn.textContent = 'Show all';
     } else if (showAllLocations) {
       bar.style.display = 'flex';
-      label.textContent = 'Showing jobs from all locations.';
-      btn.textContent = 'Apply location filter';
+      label.textContent = 'Showing all jobs (preference filter off).';
+      btn.textContent = 'Apply filters';
     } else {
       bar.style.display = 'none';
     }

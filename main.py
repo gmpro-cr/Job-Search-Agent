@@ -122,6 +122,7 @@ DEFAULT_PREFS = {
         "Data Analysis", "P&L Ownership", "Process Optimization",
         "Cross-functional Leadership", "Client Relationship Management",
     ],
+    "work_modes": ["on-site", "remote", "hybrid"],
     "top_jobs_per_digest": 5,
     "digest_time": "6:00 AM",
     "email": "",

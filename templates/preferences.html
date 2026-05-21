@@ -58,9 +58,6 @@
               <option>Coimbatore</option>
               <option>Thiruvananthapuram</option>
             </optgroup>
-            <optgroup label="Work mode">
-              <option>Remote</option>
-            </optgroup>
             <optgroup label="International">
               <option>Singapore</option>
               <option>Dubai / UAE</option>
@@ -76,6 +73,27 @@
           {% endfor %}
         </div>
         <input type="hidden" name="locations" id="locations-hidden" value="{{ prefs.get('locations', []) | join(',') }}">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Work mode</div>
+        <div class="card-description">Select every mode you're open to.</div>
+      </div>
+      <div class="card-content">
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+          {% set saved_modes = prefs.get('work_modes', ['on-site', 'remote', 'hybrid']) %}
+          {% for mode, label in [('on-site', 'On-site'), ('hybrid', 'Hybrid'), ('remote', 'Remote')] %}
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .75rem;border:1px solid var(--border);border-radius:.375rem;font-size:.875rem;user-select:none;"
+                 id="mode-label-{{ mode }}">
+            <input type="checkbox" name="work_modes" value="{{ mode }}"
+                   {% if mode in saved_modes %}checked{% endif %}
+                   onchange="syncModeStyle('{{ mode }}')">
+            {{ label }}
+          </label>
+          {% endfor %}
+        </div>
       </div>
     </div>
 
@@ -199,5 +217,21 @@
     const values = Array.from(list.querySelectorAll('.tag-pill')).map(_pillText);
     hidden.value = values.join(',');
   }
+  function syncModeStyle(mode) {
+    const cb = document.querySelector(`input[name="work_modes"][value="${mode}"]`);
+    const label = document.getElementById('mode-label-' + mode);
+    if (!label) return;
+    if (cb && cb.checked) {
+      label.style.background = 'var(--primary)';
+      label.style.color = '#fff';
+      label.style.borderColor = 'var(--primary)';
+    } else {
+      label.style.background = '';
+      label.style.color = '';
+      label.style.borderColor = 'var(--border)';
+    }
+  }
+  // Apply initial highlight state on load
+  document.querySelectorAll('input[name="work_modes"]').forEach(cb => syncModeStyle(cb.value));
 </script>
 {% endblock %}

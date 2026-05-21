@@ -1727,6 +1727,20 @@ def api_jobs_list():
             if loc_conds:
                 loc_where = " AND (" + " OR ".join(loc_conds) + ")"
 
+    # Work mode filter from user preferences
+    mode_where = ""
+    mode_params: list = []
+    _all_modes = {"on-site", "remote", "hybrid"}
+    if uid and not all_locations:
+        try:
+            work_modes = set(user_prefs.get("work_modes") or _all_modes)
+        except Exception:
+            work_modes = _all_modes
+        if work_modes and work_modes != _all_modes:
+            placeholders = ",".join("?" for _ in work_modes)
+            mode_where = f" AND j.remote_status IN ({placeholders})"
+            mode_params = list(work_modes)
+
     conn = get_connection()
     cursor = conn.cursor()
     if uid:
@@ -1746,11 +1760,11 @@ def api_jobs_list():
               ON s.job_id = j.job_id AND s.user_id = ?
             WHERE j.relevance_score >= ?
               AND COALESCE(s.hidden, 0) = 0
-              {loc_where}
+              {loc_where}{mode_where}
             ORDER BY j.date_found DESC
             LIMIT ?
             """,
-            [uid, min_score] + loc_params + [limit],
+            [uid, min_score] + loc_params + mode_params + [limit],
         )
     else:
         cursor.execute(
@@ -1773,7 +1787,7 @@ def api_jobs_list():
         )
     jobs = [dict(r) for r in cursor.fetchall()]
     conn.close()
-    return jsonify({"jobs": jobs, "count": len(jobs), "location_filtered": bool(loc_where)})
+    return jsonify({"jobs": jobs, "count": len(jobs), "location_filtered": bool(loc_where), "mode_filtered": bool(mode_where)})
 
 
 @app.route("/api/jobs/<job_id>/status", methods=["POST"])
@@ -1845,6 +1859,9 @@ def preferences():
             updated["transferable_skills"] = [
                 s.strip() for s in request.form.get("transferable_skills", "").split(",") if s.strip()
             ]
+        work_modes = request.form.getlist("work_modes")
+        if work_modes:
+            updated["work_modes"] = work_modes
         save_preferences(updated)
         # Preference changes affect the per-user cv_score boosts — rescore
         # this user's jobs in the background-ish (synchronous, capped) so
