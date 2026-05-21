@@ -441,8 +441,6 @@ def llm_score(job: dict, cv_data: dict) -> dict | None:
         prompt = prompt.replace("{" + key + "}", str(val))
 
     try:
-        import time
-        time.sleep(4.5)  # Gemini free tier: 15 RPM = 1 request per 4s
         result = call_llm_json(prompt)
         if not result or "score" not in result:
             logger.warning("LLM returned no score for %s @ %s", role, company)
@@ -578,6 +576,8 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
 
     analyzed = []
     total = len(jobs)
+    llm_consecutive_failures = 0
+    LLM_CIRCUIT_BREAKER = 5  # give up on LLM after this many consecutive failures
 
     for i, job in enumerate(jobs):
         text = " ".join([
@@ -588,9 +588,10 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
 
         # Keyword pre-filter: only send to LLM if basic keyword match passes.
         # Keeps LLM calls to ~50-100 per run (free-tier Gemini: 15 RPM).
+        # Circuit breaker: if LLM fails 5 times in a row, skip it for the rest of the run.
         kw = keyword_score(job, preferences)
         scored = False
-        if llm_available and kw >= 35:
+        if llm_available and kw >= 35 and llm_consecutive_failures < LLM_CIRCUIT_BREAKER:
             result = llm_score(job, cv_data)
             if result:
                 job["relevance_score"] = result["score"]
@@ -598,6 +599,11 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
                 job["remote_status"] = result.get("remote_status") or detect_remote_status(text)
                 job["company_type"] = result.get("company_type") or detect_company_type(text)
                 scored = True
+                llm_consecutive_failures = 0  # reset on success
+            else:
+                llm_consecutive_failures += 1
+                if llm_consecutive_failures >= LLM_CIRCUIT_BREAKER:
+                    logger.warning("LLM circuit breaker tripped after %d failures — using keyword scoring for remaining jobs", LLM_CIRCUIT_BREAKER)
 
         if not scored:
             job["relevance_score"] = kw

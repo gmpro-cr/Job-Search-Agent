@@ -61,6 +61,7 @@ def _call_ollama(prompt: str, system: str) -> str:
 
 def _call_gemini(prompt: str, system: str) -> str:
     """Call Gemini Flash via Google AI API (free tier)."""
+    import time
     api_key = os.getenv("GEMINI_API_KEY", "")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set")
@@ -75,7 +76,9 @@ def _call_gemini(prompt: str, system: str) -> str:
     resp.raise_for_status()
     data = resp.json()
     try:
-        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        result = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        time.sleep(4.5)  # respect 15 RPM free tier — only after a successful call
+        return result
     except (KeyError, IndexError) as e:
         raise ValueError(f"Unexpected Gemini response: {data}") from e
 
