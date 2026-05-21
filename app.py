@@ -1680,8 +1680,9 @@ def api_jobs_list():
     badges without re-running the heavy SQL builder.
 
     Query params:
-        limit    int (default 1000, max 5000)
-        min_score int (default 0)
+        limit         int  (default 1000, max 5000)
+        min_score     int  (default 0)
+        all_locations bool (default 0) — set to 1 to bypass preference filter
     """
     uid = current_user_id()
     try:
@@ -1702,11 +1703,35 @@ def api_jobs_list():
         except Exception as e:
             logger.warning("Lazy scoring failed for user %s: %s", uid, e)
 
+    # Build location filter from user preferences (skip if all_locations=1)
+    loc_where = ""
+    loc_params: list = []
+    all_locations = request.args.get("all_locations", "0") not in ("", "0", "false")
+    if uid and not all_locations:
+        try:
+            user_prefs = load_preferences(uid)
+            pref_locs = [l.strip() for l in user_prefs.get("locations", []) if l.strip()]
+        except Exception:
+            pref_locs = []
+        if pref_locs:
+            loc_conds = []
+            for loc in pref_locs:
+                loc_lower = loc.lower()
+                if loc_lower in ("remote", "wfh", "work from home", "anywhere"):
+                    loc_conds.append("LOWER(COALESCE(j.remote_status, '')) LIKE '%remote%'")
+                else:
+                    patterns = _CITY_PATTERNS.get(loc, [loc_lower])
+                    for p in patterns:
+                        loc_conds.append("j.location LIKE ?")
+                        loc_params.append(f"%{p}%")
+            if loc_conds:
+                loc_where = " AND (" + " OR ".join(loc_conds) + ")"
+
     conn = get_connection()
     cursor = conn.cursor()
     if uid:
         cursor.execute(
-            """
+            f"""
             SELECT j.job_id, j.role, j.company, j.location, j.salary,
                    j.salary_currency, j.remote_status, j.portal, j.apply_url,
                    j.job_description, j.relevance_score, j.date_found,
@@ -1721,10 +1746,11 @@ def api_jobs_list():
               ON s.job_id = j.job_id AND s.user_id = ?
             WHERE j.relevance_score >= ?
               AND COALESCE(s.hidden, 0) = 0
+              {loc_where}
             ORDER BY j.date_found DESC
             LIMIT ?
             """,
-            (uid, min_score, limit),
+            [uid, min_score] + loc_params + [limit],
         )
     else:
         cursor.execute(
@@ -1747,7 +1773,7 @@ def api_jobs_list():
         )
     jobs = [dict(r) for r in cursor.fetchall()]
     conn.close()
-    return jsonify({"jobs": jobs, "count": len(jobs)})
+    return jsonify({"jobs": jobs, "count": len(jobs), "location_filtered": bool(loc_where)})
 
 
 @app.route("/api/jobs/<job_id>/status", methods=["POST"])

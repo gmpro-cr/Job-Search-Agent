@@ -39,6 +39,11 @@
       <option value="company">Company</option>
     </select>
   </div>
+  <div id="location-filter-bar" style="display:none;align-items:center;gap:.5rem;font-size:.8125rem;color:var(--muted-foreground);margin-bottom:.5rem;flex-wrap:wrap;">
+    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    <span id="location-filter-label"></span>
+    <button onclick="toggleAllLocations()" id="location-toggle-btn" style="border:none;background:none;color:var(--primary);cursor:pointer;padding:0;font-size:.8125rem;text-decoration:underline;"></button>
+  </div>
 
   <!-- Job list (full width now) -->
   <div class="jobs-list-wrap">
@@ -155,16 +160,45 @@
     return 'badge badge-outline';
   }
 
+  let showAllLocations = false;
+
   async function loadJobs() {
     try {
-      const r = await fetch('/api/jobs?limit=1000');
+      const url = '/api/jobs?limit=1000' + (showAllLocations ? '&all_locations=1' : '');
+      const r = await fetch(url);
       const data = await r.json();
       allJobs = data.jobs || data || [];
       document.getElementById('jobs-loading').style.display = 'none';
+      updateLocationBar(data.location_filtered);
       filterJobs();
     } catch (e) {
       document.getElementById('jobs-loading').textContent = 'Failed to load jobs.';
     }
+  }
+
+  function updateLocationBar(filtered) {
+    const bar = document.getElementById('location-filter-bar');
+    const label = document.getElementById('location-filter-label');
+    const btn = document.getElementById('location-toggle-btn');
+    if (!bar) return;
+    if (filtered && !showAllLocations) {
+      bar.style.display = 'flex';
+      label.textContent = 'Filtered to your preferred locations.';
+      btn.textContent = 'Show all locations';
+    } else if (showAllLocations) {
+      bar.style.display = 'flex';
+      label.textContent = 'Showing jobs from all locations.';
+      btn.textContent = 'Apply location filter';
+    } else {
+      bar.style.display = 'none';
+    }
+  }
+
+  function toggleAllLocations() {
+    showAllLocations = !showAllLocations;
+    document.getElementById('jobs-loading').style.display = 'block';
+    document.getElementById('jobs-list').innerHTML = '';
+    loadJobs();
   }
 
   function filterJobs() {
