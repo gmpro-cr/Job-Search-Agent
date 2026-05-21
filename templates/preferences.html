@@ -40,8 +40,34 @@
       </div>
       <div class="card-content">
         <div style="display:flex;gap:.5rem;margin-bottom:.875rem;">
-          <input id="new-location" type="text" class="input" style="flex:1;" placeholder="e.g. Pune, Remote"
-                 onkeypress="if(event.key==='Enter'){event.preventDefault();addTag('locations',this);}">
+          <select id="new-location" class="input" style="flex:1;">
+            <option value="">— pick a location —</option>
+            <optgroup label="India">
+              <option>Pune</option>
+              <option>Mumbai</option>
+              <option>Bangalore</option>
+              <option>Delhi / NCR</option>
+              <option>Hyderabad</option>
+              <option>Chennai</option>
+              <option>Kolkata</option>
+              <option>Ahmedabad</option>
+              <option>Jaipur</option>
+              <option>Chandigarh</option>
+              <option>Kochi</option>
+              <option>Indore</option>
+              <option>Coimbatore</option>
+              <option>Thiruvananthapuram</option>
+            </optgroup>
+            <optgroup label="Work mode">
+              <option>Remote</option>
+            </optgroup>
+            <optgroup label="International">
+              <option>Singapore</option>
+              <option>Dubai / UAE</option>
+              <option>London</option>
+              <option>US - Remote</option>
+            </optgroup>
+          </select>
           <button type="button" onclick="addTag('locations',document.getElementById('new-location'))" class="btn btn-default">Add</button>
         </div>
         <div id="locations-list" class="tag-list">
