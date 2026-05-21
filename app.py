@@ -1846,7 +1846,8 @@ def preferences():
     into the stored prefs instead of replacing the whole dict.
     """
     if request.method == "POST":
-        existing = load_preferences() or DEFAULT_PREFS.copy()
+        uid = current_user_id()
+        existing = load_preferences(uid) or DEFAULT_PREFS.copy()
         updated = dict(existing)
 
         # Job preferences (the only fields this UI exposes)
@@ -1865,11 +1866,7 @@ def preferences():
         work_modes = request.form.getlist("work_modes")
         if work_modes:
             updated["work_modes"] = work_modes
-        save_preferences(updated)
-        # Preference changes affect the per-user cv_score boosts — rescore
-        # this user's jobs in the background-ish (synchronous, capped) so
-        # the new weights apply immediately. No-op when no CV uploaded.
-        uid = current_user_id()
+        save_preferences(updated, user_id=uid)
         cv = load_cv_data(uid) if uid else None
         if uid and cv:
             try:
@@ -1889,8 +1886,10 @@ def preferences():
 def api_save_preferences():
     """AJAX endpoint used by the preferences modal on the Jobs page."""
     uid = current_user_id()
+    if not uid:
+        return jsonify({"ok": False, "error": "Not authenticated"}), 401
     data = request.get_json(silent=True) or {}
-    existing = load_preferences() or DEFAULT_PREFS.copy()
+    existing = load_preferences(uid) or DEFAULT_PREFS.copy()
     updated = dict(existing)
     if "job_titles" in data:
         updated["job_titles"] = [t.strip() for t in data["job_titles"] if t.strip()]
@@ -1900,7 +1899,11 @@ def api_save_preferences():
         updated["work_modes"] = data["work_modes"] or list({"on-site", "remote", "hybrid"})
     if "transferable_skills" in data:
         updated["transferable_skills"] = [s.strip() for s in data["transferable_skills"] if s.strip()]
-    save_preferences(updated)
+    try:
+        save_preferences(updated, user_id=uid)
+    except Exception as e:
+        logger.error("Failed to save preferences for user %s: %s", uid, e)
+        return jsonify({"ok": False, "error": "Failed to save"}), 500
     cv = load_cv_data(uid) if uid else None
     if uid and cv:
         try:
