@@ -1589,12 +1589,15 @@ def jobs():
     _internal_keys = {"cv_uploaded", "show_hidden", "show_international"}
     clean_filters = {k: v for k, v in filters.items() if v and v != "0" and k not in _internal_keys}
 
+    prefs = load_preferences(uid) if uid else DEFAULT_PREFS.copy()
+
     return render_template(
         "jobs.html",
         jobs=rows, total=total,
         portals=portals,
         filters=filters, clean_filters=clean_filters,
         cv_uploaded=cv_uploaded,
+        prefs=prefs,
     )
 
 
@@ -1880,6 +1883,31 @@ def preferences():
     if not prefs.get("transferable_skills"):
         prefs["transferable_skills"] = DEFAULT_PREFS["transferable_skills"]
     return render_template("preferences.html", prefs=prefs)
+
+
+@app.route("/api/preferences", methods=["POST"])
+def api_save_preferences():
+    """AJAX endpoint used by the preferences modal on the Jobs page."""
+    uid = current_user_id()
+    data = request.get_json(silent=True) or {}
+    existing = load_preferences() or DEFAULT_PREFS.copy()
+    updated = dict(existing)
+    if "job_titles" in data:
+        updated["job_titles"] = [t.strip() for t in data["job_titles"] if t.strip()]
+    if "locations" in data:
+        updated["locations"] = [l.strip() for l in data["locations"] if l.strip()]
+    if "work_modes" in data:
+        updated["work_modes"] = data["work_modes"] or list({"on-site", "remote", "hybrid"})
+    if "transferable_skills" in data:
+        updated["transferable_skills"] = [s.strip() for s in data["transferable_skills"] if s.strip()]
+    save_preferences(updated)
+    cv = load_cv_data(uid) if uid else None
+    if uid and cv:
+        try:
+            _rescore_all_jobs(cv, user_id=uid, preferences=updated)
+        except Exception as e:
+            logger.warning("Post-prefs rescore failed for user %s: %s", uid, e)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/jobs/<job_id>/tailored-points")

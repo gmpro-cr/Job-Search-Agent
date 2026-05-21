@@ -1,126 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Settings — Job Search Agent{% endblock %}
+{% block title %}Account — Job Search Agent{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
 
   <header class="page-header">
-    <span class="eyebrow">Settings</span>
-    <h1>Your preferences &amp; account</h1>
-    <p class="page-lede">The handful of inputs that actually steer the scraper, plus your account details.</p>
+    <span class="eyebrow">Account</span>
+    <h1>Account</h1>
+    <p class="page-lede">Your sign-in details. To edit job preferences, use the Preferences button on the Jobs page.</p>
   </header>
-
-  {# ── Job Preferences ────────────────────────────────────────── #}
-  <form method="POST" action="{{ url_for('preferences') }}" class="space-y-4">
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Job titles</div>
-        <div class="card-description">Roles you want surfaced. Press Enter to add.</div>
-      </div>
-      <div class="card-content">
-        <div style="display:flex;gap:.5rem;margin-bottom:.875rem;">
-          <input id="new-title" type="text" class="input" style="flex:1;" placeholder="e.g. Senior Product Manager"
-                 onkeypress="if(event.key==='Enter'){event.preventDefault();addTag('titles',this);}">
-          <button type="button" onclick="addTag('titles',document.getElementById('new-title'))" class="btn btn-default">Add</button>
-        </div>
-        <div id="titles-list" class="tag-list">
-          {% for title in prefs.get('job_titles', []) %}
-          <span class="tag-pill">{{ title }}<button type="button" onclick="removeTag(this)" aria-label="Remove">×</button></span>
-          {% endfor %}
-        </div>
-        <input type="hidden" name="job_titles" id="titles-hidden" value="{{ prefs.get('job_titles', []) | join(',') }}">
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Preferred locations</div>
-        <div class="card-description">Cities and modes you'll accept.</div>
-      </div>
-      <div class="card-content">
-        <div style="display:flex;gap:.5rem;margin-bottom:.875rem;">
-          <select id="new-location" class="input" style="flex:1;">
-            <option value="">— pick a location —</option>
-            <optgroup label="India">
-              <option>Pune</option>
-              <option>Mumbai</option>
-              <option>Bangalore</option>
-              <option>Delhi / NCR</option>
-              <option>Hyderabad</option>
-              <option>Chennai</option>
-              <option>Kolkata</option>
-              <option>Ahmedabad</option>
-              <option>Jaipur</option>
-              <option>Chandigarh</option>
-              <option>Kochi</option>
-              <option>Indore</option>
-              <option>Coimbatore</option>
-              <option>Thiruvananthapuram</option>
-            </optgroup>
-            <optgroup label="International">
-              <option>Singapore</option>
-              <option>Dubai / UAE</option>
-              <option>London</option>
-              <option>US - Remote</option>
-            </optgroup>
-          </select>
-          <button type="button" onclick="addTag('locations',document.getElementById('new-location'))" class="btn btn-default">Add</button>
-        </div>
-        <div id="locations-list" class="tag-list">
-          {% for loc in prefs.get('locations', []) %}
-          <span class="tag-pill">{{ loc }}<button type="button" onclick="removeTag(this)" aria-label="Remove">×</button></span>
-          {% endfor %}
-        </div>
-        <input type="hidden" name="locations" id="locations-hidden" value="{{ prefs.get('locations', []) | join(',') }}">
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Work mode</div>
-        <div class="card-description">Select every mode you're open to.</div>
-      </div>
-      <div class="card-content">
-        <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
-          {% set saved_modes = prefs.get('work_modes', ['on-site', 'remote', 'hybrid']) %}
-          {% for mode, label in [('on-site', 'On-site'), ('hybrid', 'Hybrid'), ('remote', 'Remote')] %}
-          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .75rem;border:1px solid var(--border);border-radius:.375rem;font-size:.875rem;user-select:none;"
-                 id="mode-label-{{ mode }}">
-            <input type="checkbox" name="work_modes" value="{{ mode }}"
-                   {% if mode in saved_modes %}checked{% endif %}
-                   onchange="syncModeStyle('{{ mode }}')">
-            {{ label }}
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Transferable skills</div>
-        <div class="card-description">Skills used to lift the CV match score.</div>
-      </div>
-      <div class="card-content">
-        <div style="display:flex;gap:.5rem;margin-bottom:.875rem;">
-          <input id="new-skill" type="text" class="input" style="flex:1;" placeholder="e.g. Stakeholder Management"
-                 onkeypress="if(event.key==='Enter'){event.preventDefault();addTag('skills',this);}">
-          <button type="button" onclick="addTag('skills',document.getElementById('new-skill'))" class="btn btn-default">Add</button>
-        </div>
-        <div id="skills-list" class="tag-list">
-          {% for skill in prefs.get('transferable_skills', []) %}
-          <span class="tag-pill">{{ skill }}<button type="button" onclick="removeTag(this)" aria-label="Remove">×</button></span>
-          {% endfor %}
-        </div>
-        <input type="hidden" name="transferable_skills" id="skills-hidden" value="{{ prefs.get('transferable_skills', []) | join(',') }}">
-      </div>
-    </div>
-
-    <div style="display:flex;justify-content:flex-end;">
-      <button type="submit" class="btn btn-accent">Save preferences</button>
-    </div>
-  </form>
 
   {# ── Account ────────────────────────────────────────────────── #}
   {% set _u = session.get('user') %}
@@ -153,85 +41,9 @@
 
 {% block scripts %}
 <style>
-  .tag-list { display:flex; flex-wrap:wrap; gap:.5rem; min-height:1rem; }
-  .tag-pill {
-    display:inline-flex; align-items:center; gap:.5rem;
-    padding:.3125rem .75rem;
-    border-radius:999px;
-    background:var(--muted);
-    color:var(--foreground);
-    font-size:.8125rem;
-    font-weight:500;
-    border:1px solid var(--border);
-  }
-  .tag-pill button {
-    background:none; border:none; cursor:pointer; padding:0;
-    color:var(--muted-foreground); font-size:1rem; line-height:1;
-    transition:color var(--duration-snap) var(--ease-out-snappy);
-  }
-  .tag-pill button:hover { color:var(--destructive); }
-
   .account-row { display:flex; align-items:center; gap:1rem; }
   .account-row-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:.125rem; }
   .account-name { font-size:.9375rem; font-weight:600; color:var(--foreground); }
   .account-email { font-family:var(--font-mono); font-size:.8125rem; color:var(--muted-foreground); }
 </style>
-<script>
-  function _pillText(pill) {
-    return Array.from(pill.childNodes)
-      .filter(n => n.nodeType === Node.TEXT_NODE)
-      .map(n => n.textContent.trim())
-      .join('').trim();
-  }
-  function addTag(group, input) {
-    const val = (input.value || '').trim();
-    if (!val) return;
-    const list = document.getElementById(group + '-list');
-    if (!list) return;
-    const existing = Array.from(list.querySelectorAll('.tag-pill')).map(p => _pillText(p).toLowerCase());
-    if (existing.includes(val.toLowerCase())) { input.value = ''; return; }
-    const span = document.createElement('span');
-    span.className = 'tag-pill';
-    span.textContent = val;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.setAttribute('aria-label', 'Remove');
-    btn.textContent = '×';
-    btn.onclick = function () { removeTag(btn); };
-    span.appendChild(btn);
-    list.appendChild(span);
-    input.value = '';
-    syncHidden(group);
-  }
-  function removeTag(btn) {
-    const pill = btn.parentElement;
-    const list = pill.parentElement;
-    const group = list.id.replace(/-list$/, '');
-    pill.remove();
-    syncHidden(group);
-  }
-  function syncHidden(group) {
-    const list = document.getElementById(group + '-list');
-    const hidden = document.getElementById(group + '-hidden');
-    if (!list || !hidden) return;
-    const values = Array.from(list.querySelectorAll('.tag-pill')).map(_pillText);
-    hidden.value = values.join(',');
-  }
-  function syncModeStyle(mode) {
-    const cb = document.querySelector(`input[name="work_modes"][value="${mode}"]`);
-    const label = document.getElementById('mode-label-' + mode);
-    if (!label) return;
-    if (cb && cb.checked) {
-      label.style.background = 'var(--primary)';
-      label.style.color = '#fff';
-      label.style.borderColor = 'var(--primary)';
-    } else {
-      label.style.background = '';
-      label.style.color = '';
-      label.style.borderColor = 'var(--border)';
-    }
-  }
-  // Apply initial highlight state on load
-  document.querySelectorAll('input[name="work_modes"]').forEach(cb => syncModeStyle(cb.value));
-</script>
 {% endblock %}
