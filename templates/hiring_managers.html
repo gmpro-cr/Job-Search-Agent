@@ -7,7 +7,7 @@
   <header class="page-header">
     <div class="page-header-row">
       <div style="flex:1;min-width:0;">
-        <span class="eyebrow">{{ counts.total }} contacts · {{ counts.with_linkedin }} on LinkedIn</span>
+        <span class="eyebrow">{{ counts.total }} listings · {{ counts.with_linkedin }} with LinkedIn</span>
         <h1>People who post the roles.</h1>
         <p class="page-lede">
           {% if cv_uploaded %}
@@ -38,7 +38,11 @@
             {% for m in managers %}
             <tr style="border-top:1px solid var(--border);">
               <td style="padding:.75rem 1rem;font-weight:500;vertical-align:top;">
-                {{ m.name }}
+                {% if m.name %}
+                  {{ m.name }}
+                {% else %}
+                  <span style="color:var(--muted-foreground);font-weight:400;font-style:italic;">No contact found</span>
+                {% endif %}
               </td>
               <td style="padding:.75rem 1rem;vertical-align:top;">
                 {% if m.role %}<div>{{ m.role }}</div>{% endif %}
@@ -59,6 +63,9 @@
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                     {{ m.email }}
                   </a>
+                  {% endif %}
+                  {% if not m.linkedin and not m.email %}
+                  <span style="color:var(--muted-foreground);font-size:.8125rem;">—</span>
                   {% endif %}
                 </div>
               </td>

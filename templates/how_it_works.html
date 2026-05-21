@@ -510,10 +510,9 @@
       ('scrapers.py',               'One function per portal — LinkedIn, Naukri, Indeed, HiringCafe, Wellfound, IIMJobs, Cutshort, RemoteOK, Reddit, HN'),
       ('analyzer.py',               'Enrichment (salary/exp/remote), LLM scoring via scoring_prompt.md, CV match, NLP query parsing'),
       ('database.py',               'SQLite schema, insert/query helpers, location normalisation, dashboard stats queries'),
-      ('app.py',                    'Flask routes — /jobs, /dashboard, /scraper, /cv, /autoresearch, /outbox, /digests'),
+      ('app.py',                    'Flask routes — /jobs, /dashboard, /scraper, /cv, /outbox, /digests'),
       ('agent/llm.py',              'LLM abstraction — tries Ollama first, falls back to OpenRouter (Claude Haiku)'),
-      ('autoresearch/loop.py',      'Hill-climbing loop: propose prompt tweak → evaluate Spearman → commit if better'),
-      ('autoresearch/scoring_prompt.md', '5-dimension scoring rubric (Role 35 + Domain 25 + Seniority 20 + Location 10 + AI 10)'),
+      ('agent/scoring_prompt.md',   '5-dimension scoring rubric (Role 35 + Domain 25 + Seniority 20 + Location 10 + AI 10)'),
       ('scheduler.py',              'APScheduler wrapper for scraper (7am/7pm) and digest email (11am) jobs'),
     ] %}
     <div class="step-card">

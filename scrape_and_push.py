@@ -197,6 +197,24 @@ def main():
     from reminder_runner import run_reminders
     run_reminders(preferences)
 
+    # --- Phase 8: AI agent — contact enrichment + outreach drafts ---
+    # Picks up freshly inserted jobs, looks up hiring manager contacts
+    # (Apollo API if APOLLO_API_KEY is set, else falls back to portal-scraped
+    # poster info), drafts cold emails, and queues them in outreach_queue.
+    # Wrapped in try/except so a missing LLM key never breaks the scrape.
+    try:
+        from agent.graph import run_agent_pipeline
+        agent_result = run_agent_pipeline(preferences, config)
+        logger.info(
+            "Agent pipeline complete — %d drafts queued",
+            agent_result.get("queued_count", 0),
+        )
+        if agent_result.get("errors"):
+            for err in agent_result["errors"]:
+                logger.warning("Agent error: %s", err)
+    except Exception as e:
+        logger.warning("Agent pipeline skipped: %s", e)
+
     logger.info("Done.")
 
 

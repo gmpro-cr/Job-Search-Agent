@@ -3282,59 +3282,6 @@ def reminders_edit(reminder_id):
     return redirect(url_for("reminders"))
 
 
-# ── Autoresearch routes ──────────────────────────────────────────────────────
-
-@app.route("/autoresearch")
-def autoresearch_page():
-    """Autoresearch dashboard page."""
-    from autoresearch.loop import get_status
-    import json, os
-    results_path = os.path.join(BASE_DIR, "autoresearch", "results.json")
-    results = []
-    if os.path.exists(results_path):
-        with open(results_path) as f:
-            results = json.load(f)
-    baseline_path = os.path.join(BASE_DIR, "autoresearch", "baseline.json")
-    baseline = None
-    if os.path.exists(baseline_path):
-        with open(baseline_path) as f:
-            baseline = json.load(f)
-    prompt_path = os.path.join(BASE_DIR, "autoresearch", "scoring_prompt.md")
-    current_prompt = ""
-    if os.path.exists(prompt_path):
-        with open(prompt_path) as f:
-            current_prompt = f.read()
-    return render_template(
-        "autoresearch.html",
-        status=get_status(),
-        results=list(reversed(results[-50:])),
-        baseline=baseline,
-        current_prompt=current_prompt,
-    )
-
-
-@app.route("/api/autoresearch/start", methods=["POST"])
-def autoresearch_start():
-    """Start the autoresearch loop in a background thread."""
-    import threading
-    from autoresearch.loop import run_loop, get_status
-    status = get_status()
-    if status["running"]:
-        return jsonify({"ok": False, "error": "Already running"}), 400
-    data = request.get_json(silent=True) or {}
-    max_exp = int(data.get("max_experiments", 10))
-    t = threading.Thread(target=run_loop, kwargs={"max_experiments": max_exp}, daemon=True)
-    t.start()
-    return jsonify({"ok": True, "max_experiments": max_exp})
-
-
-@app.route("/api/autoresearch/stop", methods=["POST"])
-def autoresearch_stop():
-    """Stop the running loop."""
-    from autoresearch.loop import stop
-    stop()
-    return jsonify({"ok": True})
-
 
 @app.route("/api/scheduler/jobs")
 def scheduler_jobs():
@@ -3349,29 +3296,6 @@ def scheduler_jobs():
             "next_run": str(job.next_run_time) if job.next_run_time else None,
         })
     return jsonify({"ok": True, "jobs": jobs})
-
-
-@app.route("/api/autoresearch/status")
-def autoresearch_status():
-    """Poll current loop status (used by UI)."""
-    from autoresearch.loop import get_status
-    return jsonify(get_status())
-
-
-@app.route("/api/autoresearch/seed", methods=["POST"])
-def autoresearch_seed():
-    """Run seed.py to create testset.json (one-time setup)."""
-    import threading, os
-    testset_path = os.path.join(BASE_DIR, "autoresearch", "testset.json")
-    force = (request.get_json(silent=True) or {}).get("force", False)
-    if os.path.exists(testset_path) and not force:
-        return jsonify({"ok": False, "error": "testset.json already exists. Pass force=true to reseed."})
-    def _do_seed():
-        from autoresearch.seed import seed
-        seed(n=30, force=force)
-    threading.Thread(target=_do_seed, daemon=True).start()
-    return jsonify({"ok": True, "message": "Seeding started in background (takes ~2 min)"})
-
 
 
 

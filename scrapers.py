@@ -334,6 +334,8 @@ def scrape_linkedin(job_titles, locations, config):
                 random_delay(config)
 
     logger.info("LinkedIn: found %d jobs", len(jobs))
+    # Enrich: fetch detail pages for jobs whose description is still empty
+    jobs = _enrich_descriptions(jobs, config, max_fetches=25)
     return jobs
 
 
@@ -690,6 +692,143 @@ def _parse_naukri_json(soup):
     return jobs
 
 
+# ---------------------------------------------------------------------------
+# Detail-page description enrichment
+# ---------------------------------------------------------------------------
+
+def _fetch_naukri_description(url: str, config: dict) -> str:
+    """
+    Fetch a single Naukri job detail page and return the job description text.
+    Naukri is a fully client-side Next.js app, so Selenium is required.
+    Tries JSON-LD first (most reliable), then falls back to CSS selectors.
+    Returns "" on any failure.
+    """
+    if not url or "naukri.com" not in url:
+        return ""
+    # Naukri requires JS execution — use Selenium
+    wait_sel = (
+        "div.styles_JDC__dang-inner-html__h0K4t, "
+        "section.job-desc, div[class*='jd-desc'], div[class*='jobDescription']"
+    )
+    html = fetch_url(url, config, use_selenium=True, wait_selector=wait_sel)
+    if not html:
+        return ""
+    try:
+        soup = BeautifulSoup(html, "lxml")
+        # Strategy 1: JSON-LD JobPosting (present after JS render)
+        for script in soup.select('script[type="application/ld+json"]'):
+            try:
+                data = json.loads(script.string or "")
+                items = data if isinstance(data, list) else [data]
+                for item in items:
+                    if item.get("@type") == "JobPosting":
+                        desc = item.get("description") or ""
+                        if desc.strip():
+                            return BeautifulSoup(desc, "lxml").get_text(" ", strip=True)[:2000]
+            except (json.JSONDecodeError, TypeError):
+                continue
+        # Strategy 2: CSS selectors for the rendered description block
+        for sel in [
+            "div.styles_JDC__dang-inner-html__h0K4t",
+            "section.job-desc",
+            "div.job-desc",
+            "div[class*='jd-desc']",
+            "div[class*='jobDescription']",
+            "div[class*='job-description']",
+            "div#job_description",
+        ]:
+            el = soup.select_one(sel)
+            if el:
+                text = el.get_text(" ", strip=True)
+                if len(text) > 50:
+                    return text[:2000]
+    except Exception:
+        pass
+    return ""
+
+
+def _fetch_linkedin_description(url: str, config: dict) -> str:
+    """
+    Fetch a LinkedIn job description using the public guest API endpoint
+    (no login required, no Selenium).
+    URL forms handled:
+      linkedin.com/jobs/view/title-at-company-JOBID
+      in.linkedin.com/jobs/view/title-at-company-JOBID?...
+      linkedin.com/jobs/view/JOBID
+    Returns "" on any failure.
+    """
+    if not url or "linkedin.com" not in url:
+        return ""
+    import re as _re
+
+    # The numeric job id is the last run of digits in the /view/ path segment
+    m = (_re.search(r'/view/[^?#]*?-?(\d{8,})', url) or
+         _re.search(r'currentJobId=(\d+)', url))
+    if not m:
+        return ""
+
+    job_id = m.group(1)
+    guest_url = f"https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{job_id}"
+    html = fetch_url(guest_url, config, use_selenium=False)
+    if not html:
+        return ""
+    try:
+        soup = BeautifulSoup(html, "lxml")
+        for sel in [
+            "div.show-more-less-html__markup",
+            "section.show-more-less-html",
+            "div.description__text",
+            "div[class*='description']",
+        ]:
+            el = soup.select_one(sel)
+            if el:
+                text = el.get_text(" ", strip=True)
+                if len(text) > 50:
+                    return text[:2000]
+    except Exception:
+        pass
+    return ""
+
+
+def _enrich_descriptions(jobs: list, config: dict, max_fetches: int = 40) -> list:
+    """
+    For jobs that have no description, fetch the individual detail page and
+    fill in `job_description`.  Caps the number of extra fetches so the
+    total scrape time stays within the GitHub Actions budget (~30 min).
+
+    Fetches are done in the order jobs appear (highest relevance-scored /
+    newest first, as set by the caller).  Jobs that already have a
+    description are skipped.
+    """
+    fetched = 0
+    for job in jobs:
+        if fetched >= max_fetches:
+            break
+        if (job.get("job_description") or "").strip():
+            continue
+        url = job.get("apply_url", "")
+        portal = job.get("portal", "").lower()
+        try:
+            if "naukri.com" in url:
+                desc = _fetch_naukri_description(url, config)
+            elif "linkedin.com" in url:
+                desc = _fetch_linkedin_description(url, config)
+            else:
+                continue
+            if desc:
+                job["job_description"] = desc
+                logger.debug("Enriched JD for '%s' @ %s (%d chars)", job.get("role"), job.get("company"), len(desc))
+        except Exception as e:
+            logger.debug("Detail fetch failed for %s: %s", url, e)
+        fetched += 1
+        random_delay(config)
+
+    enriched = sum(1 for j in jobs if (j.get("job_description") or "").strip())
+    logger.info("Description enrichment: %d/%d jobs now have JDs (fetched %d detail pages)",
+                enriched, len(jobs), fetched)
+    return jobs
+
+
 def scrape_naukri(job_titles, locations, config):
     """Scrape Naukri.com job listings (India's largest job portal)."""
     portal_config = config.get("portals", {}).get("naukri", {})
@@ -802,6 +941,8 @@ def scrape_naukri(job_titles, locations, config):
                 random_delay(config)
 
     logger.info("Naukri: found %d jobs", len(jobs))
+    # Enrich: fetch detail pages for jobs whose description is still empty
+    jobs = _enrich_descriptions(jobs, config, max_fetches=40)
     return jobs
 
 

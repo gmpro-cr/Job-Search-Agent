@@ -11,7 +11,7 @@ import os as _os
 logger = logging.getLogger(__name__)
 
 _PROMPT_PATH = _os.path.join(
-    _os.path.dirname(__file__), "..", "autoresearch", "scoring_prompt.md"
+    _os.path.dirname(__file__), "scoring_prompt.md"
 )
 
 def _load_scoring_prompt(role, company, jd, cv_skills, cv_summary):

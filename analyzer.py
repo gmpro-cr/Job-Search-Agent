@@ -390,7 +390,7 @@ def keyword_score(job, preferences):
 # =============================================================================
 
 _SCORING_PROMPT_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "autoresearch", "scoring_prompt.md"
+    os.path.dirname(os.path.abspath(__file__)), "agent", "scoring_prompt.md"
 )
 _scoring_prompt_cache: str | None = None
 
@@ -1350,23 +1350,51 @@ def cv_score(job, cv_data, preferences=None):
     if not cv_skills_lower:
         return 0
 
-    jd_text = " ".join([job.get("role", ""), job.get("job_description", "")])
+    role_text = (job.get("role") or "").strip()
+    raw_jd    = (job.get("job_description") or "").strip()
+    jd_text   = f"{role_text} {raw_jd}".strip()
     jd_skills = extract_skills(jd_text, max_skills=20)
 
-    if not jd_skills:
-        # If no job description, there is nothing to score against the CV
-        if not job.get("job_description", "").strip():
+    if not raw_jd:
+        # ── No job description at all ──────────────────────────────────────
+        # The only signal is the role title. Score it two ways and take
+        # the higher:
+        #   A) extracted skill-pattern matches in the role title (capped at 30)
+        #   B) raw word-overlap between role title and CV text (capped at 25)
+        role_skills = extract_skills(role_text, max_skills=10)
+        if role_skills:
+            matched = [s for s in [x.lower() for x in role_skills] if s in cv_skills_lower]
+            eff = max(len(role_skills), 5)
+            score_a = int(len(matched) / eff * 100)
+        else:
+            score_a = 0
+
+        role_words = set(re.findall(r'\b\w{3,}\b', role_text.lower()))
+        cv_words   = set(re.findall(r'\b\w{3,}\b', cv_data.get("raw_text", "").lower()))
+        if role_words:
+            score_b = min(25, int(len(role_words & cv_words) / len(role_words) * 100))
+        else:
+            score_b = 0
+
+        base = max(score_a, score_b)
+
+    elif not jd_skills:
+        # ── JD present but no recognisable skill keywords ──────────────────
+        # Fall back to word-overlap, require ≥8 distinct words.
+        jd_words = set(re.findall(r'\b\w{4,}\b', jd_text.lower()))
+        if len(jd_words) < 8:
             base = 0
         else:
-            # JD exists but no specific skills extracted — fall back to word overlap
-            jd_words = set(re.findall(r'\b\w{4,}\b', jd_text.lower()))
             cv_words = set(re.findall(r'\b\w{4,}\b', cv_data.get("raw_text", "").lower()))
-            common = jd_words & cv_words
-            base = 0 if not jd_words else int(len(common) / len(jd_words) * 100)
+            base = min(45, int(len(jd_words & cv_words) / len(jd_words) * 100))
+
     else:
+        # ── Full JD with extractable skills ───────────────────────────────
         jd_skills_lower = [s.lower() for s in jd_skills]
         matched = [s for s in jd_skills_lower if s in cv_skills_lower]
-        base = int(len(matched) / len(jd_skills_lower) * 100)
+        # Minimum denominator of 5 so a single-skill JD can't reach 100.
+        effective_denom = max(len(jd_skills_lower), 5)
+        base = int(len(matched) / effective_denom * 100)
 
     if not preferences:
         return min(base, 100)

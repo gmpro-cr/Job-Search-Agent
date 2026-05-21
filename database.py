@@ -1701,7 +1701,7 @@ def get_unscored_jobs_for_user(user_id: int, limit: int = 200) -> list[dict]:
         FROM job_listings j
         LEFT JOIN user_job_state s
           ON s.job_id = j.job_id AND s.user_id = ?
-        WHERE s.job_id IS NULL
+        WHERE s.job_id IS NULL OR s.cv_score IS NULL
         ORDER BY j.date_found DESC
         LIMIT ?
         """,
@@ -1991,7 +1991,8 @@ def get_hiring_managers(limit: int = 300) -> list[dict]:
     Return distinct hiring managers / job posters with contact details and
     the latest role/company we associated them with.
 
-    Sources (merged, deduped by lower(name)):
+    Sources (merged, deduped by lower(name) for named entries, by row id
+    for nameless entries):
       * outreach_queue.hiring_manager / hm_email / hm_linkedin
       * job_listings.poster_name / poster_email / poster_linkedin
 
@@ -2004,21 +2005,22 @@ def get_hiring_managers(limit: int = 300) -> list[dict]:
 
     cursor.execute(
         """
-        SELECT oq.hiring_manager AS name,
+        SELECT oq.job_id         AS row_id,
+               oq.hiring_manager AS name,
                oq.hm_email       AS email,
                oq.hm_linkedin    AS linkedin,
                oq.company        AS company,
                oq.role           AS role,
                oq.created_at     AS seen_at
         FROM outreach_queue oq
-        WHERE oq.hiring_manager IS NOT NULL AND TRIM(oq.hiring_manager) <> ''
         """
     )
     rows = list(cursor.fetchall())
 
     cursor.execute(
         """
-        SELECT j.poster_name     AS name,
+        SELECT j.job_id          AS row_id,
+               j.poster_name     AS name,
                j.poster_email    AS email,
                j.poster_linkedin AS linkedin,
                j.company         AS company,
@@ -2031,15 +2033,18 @@ def get_hiring_managers(limit: int = 300) -> list[dict]:
     rows.extend(cursor.fetchall())
     conn.close()
 
-    by_name: dict = {}
+    by_key: dict = {}
     for r in rows:
         # psycopg dict_row → dict, sqlite Row → mapping; both support r["..."]
         name = (r["name"] or "").strip()
-        if not name:
-            continue
-        key = name.lower()
+        # Named entries dedup by normalised name; nameless entries get a
+        # unique key so each outreach_queue row appears separately.
+        if name:
+            key = name.lower()
+        else:
+            key = f"__noid_{r['row_id']}__"
         seen_at = r["seen_at"] or ""
-        existing = by_name.get(key)
+        existing = by_key.get(key)
         candidate = {
             "name": name,
             "email": (r["email"] or "").strip() or None,
@@ -2049,7 +2054,7 @@ def get_hiring_managers(limit: int = 300) -> list[dict]:
             "last_seen": seen_at,
         }
         if not existing:
-            by_name[key] = candidate
+            by_key[key] = candidate
             continue
         # Merge: prefer most recent seen_at for company/role/last_seen,
         # but keep the earliest-found non-null email/linkedin we already have.
@@ -2060,18 +2065,15 @@ def get_hiring_managers(limit: int = 300) -> list[dict]:
         existing["email"] = existing["email"] or candidate["email"]
         existing["linkedin"] = existing["linkedin"] or candidate["linkedin"]
 
-    # Keep only entries we can actually act on:
-    #   1. must have at least one of linkedin / email
-    #   2. the "name" must look like a person, not a job title — the
-    #      contact-scraper sometimes captures the role text into
-    #      poster_name when no real human was found. We drop anything
-    #      that smells like a role.
-    actionable = [
-        d for d in by_name.values()
-        if (d["linkedin"] or d["email"]) and _looks_like_person_name(d["name"])
-    ]
-    actionable.sort(key=lambda d: d["last_seen"] or "", reverse=True)
-    return actionable[: int(limit)]
+    all_entries = list(by_key.values())
+    # Two-pass stable sort: date desc first, then tier asc — Python's stable
+    # sort preserves date order within each tier.
+    all_entries.sort(key=lambda d: d["last_seen"] or "", reverse=True)
+    all_entries.sort(key=lambda d: (
+        0 if (d["name"] and _looks_like_person_name(d["name"])) else (
+             1 if (d["linkedin"] or d["email"]) else 2)
+    ))
+    return all_entries[: int(limit)]
 
 
 # Words that almost certainly mean the field is a job title, not a person.
