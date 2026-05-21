@@ -441,6 +441,8 @@ def llm_score(job: dict, cv_data: dict) -> dict | None:
         prompt = prompt.replace("{" + key + "}", str(val))
 
     try:
+        import time
+        time.sleep(4.5)  # Gemini free tier: 15 RPM = 1 request per 4s
         result = call_llm_json(prompt)
         if not result or "score" not in result:
             logger.warning("LLM returned no score for %s @ %s", role, company)
@@ -449,7 +451,6 @@ def llm_score(job: dict, cv_data: dict) -> dict | None:
         return {
             "score": score,
             "reason": result.get("reason", ""),
-            # Derive remote_status and company_type from text since the new prompt doesn't ask for them
             "remote_status": None,
             "company_type": None,
         }
@@ -585,9 +586,11 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
             job.get("location", ""),
         ])
 
-        # Try LLM scoring (Ollama → OpenRouter) first, keyword fallback if it fails
+        # Keyword pre-filter: only send to LLM if basic keyword match passes.
+        # Keeps LLM calls to ~50-100 per run (free-tier Gemini: 15 RPM).
+        kw = keyword_score(job, preferences)
         scored = False
-        if llm_available:
+        if llm_available and kw >= 35:
             result = llm_score(job, cv_data)
             if result:
                 job["relevance_score"] = result["score"]
@@ -597,7 +600,7 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
                 scored = True
 
         if not scored:
-            job["relevance_score"] = keyword_score(job, preferences)
+            job["relevance_score"] = kw
             job["remote_status"] = detect_remote_status(text)
             job["company_type"] = detect_company_type(text)
 

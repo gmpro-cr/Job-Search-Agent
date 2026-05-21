@@ -1,6 +1,6 @@
 """
 agent/llm.py — LLM provider abstraction.
-Tries Ollama first; falls back to OpenRouter on error or timeout.
+Priority: Ollama (local) → Gemini Flash (free API) → OpenRouter (paid fallback).
 """
 
 import json
@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_TIMEOUT = 30  # seconds
 
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+GEMINI_TIMEOUT = 60  # seconds
+
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL = "anthropic/claude-haiku-4.5"
 OPENROUTER_TIMEOUT = 60  # seconds
@@ -22,12 +25,16 @@ OPENROUTER_TIMEOUT = 60  # seconds
 def call_llm(prompt: str, system: str = "") -> str:
     """
     Call LLM with prompt. Returns plain text response.
-    Tries Ollama first; falls back to OpenRouter.
+    Priority: Ollama → Gemini Flash → OpenRouter.
     """
     try:
         return _call_ollama(prompt, system)
     except Exception as e:
-        logger.warning("Ollama unavailable (%s), falling back to OpenRouter", e)
+        logger.warning("Ollama unavailable (%s), falling back to Gemini", e)
+    try:
+        return _call_gemini(prompt, system)
+    except Exception as e:
+        logger.warning("Gemini unavailable (%s), falling back to OpenRouter", e)
         return _call_openrouter(prompt, system)
 
 
@@ -50,6 +57,27 @@ def _call_ollama(prompt: str, system: str) -> str:
     )
     resp.raise_for_status()
     return resp.json().get("response", "").strip()
+
+
+def _call_gemini(prompt: str, system: str) -> str:
+    """Call Gemini Flash via Google AI API (free tier)."""
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY not set")
+
+    full_prompt = f"{system}\n\n{prompt}" if system else prompt
+    resp = requests.post(
+        f"{GEMINI_URL}?key={api_key}",
+        headers={"Content-Type": "application/json"},
+        json={"contents": [{"parts": [{"text": full_prompt}]}]},
+        timeout=GEMINI_TIMEOUT,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    try:
+        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except (KeyError, IndexError) as e:
+        raise ValueError(f"Unexpected Gemini response: {data}") from e
 
 
 def _call_openrouter(prompt: str, system: str) -> str:
@@ -78,8 +106,12 @@ def _call_openrouter(prompt: str, system: str) -> str:
 
 
 def call_llm_json_fast(prompt: str, system: str = "") -> dict:
-    """Call OpenRouter directly (skips Ollama). Use for batch/research tasks where speed matters."""
-    text = _call_openrouter(prompt, system)
+    """Call Gemini directly (skips Ollama). Use for batch/research tasks where speed matters."""
+    try:
+        text = _call_gemini(prompt, system)
+    except Exception as e:
+        logger.warning("Gemini unavailable (%s), falling back to OpenRouter", e)
+        text = _call_openrouter(prompt, system)
     start = text.find('{')
     if start >= 0:
         try:
