@@ -90,16 +90,24 @@ google = oauth.register(
 
 @app.before_request
 def require_login():
-    allowed_routes = ['login', 'auth_google', 'auth_callback', 'auth_dev_login', 'static']
-    # Allow scraper start/stop from localhost without a browser session
-    # (used by CLI triggers and the separate scheduled-stop endpoint)
-    localhost_api_routes = {'start_scraper', 'stop_scraper', 'stop_scheduled_scraper',
-                            'scraper_status_api', 'dashboard_top_jobs', 'dashboard_create_reminder'}
-    if request.endpoint in localhost_api_routes and request.remote_addr in ('127.0.0.1', '::1'):
-        return  # allow unauthenticated local API calls
-    if request.endpoint and request.endpoint not in allowed_routes:
-        if dict(session).get('user') is None:
-            return redirect(url_for('login', next=request.url))
+    # Single-owner mode: auto-login as owner on every request — no login page needed.
+    if OWNER_EMAIL and dict(session).get('user') is None:
+        try:
+            uid = get_or_create_user(OWNER_EMAIL)
+            session['user'] = {'email': OWNER_EMAIL, 'name': 'Owner', 'picture': '', 'id': uid}
+        except Exception as e:
+            logger.warning("Auto-login failed: %s", e)
+
+    # Dev mode (no OWNER_EMAIL): still require explicit login
+    if not OWNER_EMAIL:
+        allowed_routes = ['login', 'auth_google', 'auth_callback', 'auth_dev_login', 'static']
+        localhost_api_routes = {'start_scraper', 'stop_scraper', 'stop_scheduled_scraper',
+                                'scraper_status_api', 'dashboard_top_jobs', 'dashboard_create_reminder'}
+        if request.endpoint in localhost_api_routes and request.remote_addr in ('127.0.0.1', '::1'):
+            return
+        if request.endpoint and request.endpoint not in allowed_routes:
+            if dict(session).get('user') is None:
+                return redirect(url_for('login', next=request.url))
 
 
 def current_user_id():
@@ -1024,9 +1032,10 @@ if _should_start_background_tasks():
 
 @app.route('/login')
 def login():
-    if dict(session).get('user') is not None:
+    # In production (OWNER_EMAIL set), auto-login handles everything — skip login page.
+    if OWNER_EMAIL or dict(session).get('user') is not None:
         return redirect(url_for('dashboard'))
-    return render_template('login.html', owner_locked=bool(OWNER_EMAIL))
+    return render_template('login.html', owner_locked=False)
 
 @app.route('/auth/google')
 def auth_google():
@@ -1069,11 +1078,11 @@ def auth_dev_login():
 @app.route('/logout')
 def logout():
     session.pop('user', None)
-    return redirect(url_for('login'))
+    return redirect(url_for('dashboard') if OWNER_EMAIL else url_for('login'))
 
 @app.route("/")
 def index():
-    return redirect(url_for("login"))
+    return redirect(url_for('dashboard') if OWNER_EMAIL else url_for('login'))
 
 
 @app.route("/favicon.ico")
