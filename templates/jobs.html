@@ -26,24 +26,34 @@
   </div>
   {% endif %}
 
-  <!-- Search + sort + preferences trigger -->
+  <!-- NLP search + Preferences button -->
   <div class="jobs-search">
-    <svg class="jobs-search-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-    </svg>
-    <input id="search-input" type="text" placeholder="Search jobs, companies, or keywords…"
-      class="input jobs-search-input" oninput="filterJobs()" autocomplete="off">
-    <select id="sort-select" class="input jobs-sort" onchange="filterJobs()" aria-label="Sort">
-      <option value="score">Relevance score</option>
-      <option value="date">Date posted</option>
-      <option value="company">Company</option>
-    </select>
-    <button onclick="openPrefsModal()" class="btn btn-default" style="white-space:nowrap;display:flex;align-items:center;gap:.375rem;" aria-label="Edit preferences">
+    <div style="position:relative;flex:1;min-width:0;display:flex;align-items:center;">
+      <svg style="position:absolute;left:.75rem;pointer-events:none;color:var(--muted-foreground);flex-shrink:0;" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      <input id="nlp-input" type="text"
+        placeholder="Ask anything — e.g. remote PM at fintech, product lead in Pune above 20L…"
+        class="input" style="width:100%;padding-left:2.25rem;padding-right:2.25rem;"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();runNlpSearch();}"
+        oninput="if(!this.value.trim())clearNlpSearch();"
+        autocomplete="off">
+      <button id="nlp-clear-btn" onclick="clearNlpSearch()"
+        style="display:none;position:absolute;right:.625rem;background:none;border:none;cursor:pointer;color:var(--muted-foreground);font-size:1.125rem;line-height:1;padding:.125rem;" aria-label="Clear search">×</button>
+    </div>
+    <button onclick="openPrefsModal()" class="btn btn-default" style="white-space:nowrap;display:flex;align-items:center;gap:.375rem;flex-shrink:0;" aria-label="Edit preferences">
       <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
       Preferences
     </button>
   </div>
-  <div id="location-filter-bar" style="display:none;align-items:center;gap:.5rem;font-size:.8125rem;color:var(--muted-foreground);margin-bottom:.5rem;flex-wrap:wrap;">
+  <!-- NLP result banner -->
+  <div id="nlp-banner" style="display:none;font-size:.8125rem;color:var(--muted-foreground);margin-bottom:.25rem;align-items:center;gap:.5rem;flex-wrap:wrap;">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+    <span id="nlp-banner-text"></span>
+    <button onclick="clearNlpSearch()" style="border:none;background:none;color:var(--primary);cursor:pointer;padding:0;font-size:.8125rem;text-decoration:underline;">Clear</button>
+  </div>
+  <!-- Preference filter active indicator -->
+  <div id="location-filter-bar" style="display:none;align-items:center;gap:.5rem;font-size:.8125rem;color:var(--muted-foreground);margin-bottom:.25rem;flex-wrap:wrap;">
     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
     <span id="location-filter-label"></span>
     <button onclick="toggleAllLocations()" id="location-toggle-btn" style="border:none;background:none;color:var(--primary);cursor:pointer;padding:0;font-size:.8125rem;text-decoration:underline;"></button>
@@ -64,13 +74,13 @@
 </div>
 
 <!-- ── Preferences Modal ──────────────────────────────────────── -->
-<div id="prefs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;overflow-y:auto;padding:2rem 1rem;" onclick="closePrefsModal(event)">
-  <div style="background:var(--card);border:1px solid var(--border);border-radius:1rem;max-width:36rem;width:100%;margin:0 auto;overflow:hidden;" onclick="event.stopPropagation()">
+<div id="prefs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:2rem 1rem;overflow-y:auto;" onclick="closePrefsModal(event)">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:1rem;max-width:36rem;width:100%;max-height:calc(100vh - 4rem);display:flex;flex-direction:column;" onclick="event.stopPropagation()">
 
-    <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);">
+    <!-- Header (fixed) -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.125rem 1.5rem;border-bottom:1px solid var(--border);flex-shrink:0;">
       <div>
-        <div style="font-size:1.0625rem;font-weight:700;color:var(--foreground);">Search preferences</div>
+        <div style="font-size:1.0625rem;font-weight:700;color:var(--foreground);">Preferences &amp; filters</div>
         <div style="font-size:.8125rem;color:var(--muted-foreground);margin-top:.125rem;">Changes apply immediately to your job list.</div>
       </div>
       <button onclick="closePrefsModal()" style="background:none;border:none;cursor:pointer;color:var(--muted-foreground);padding:.25rem;" aria-label="Close">
@@ -78,8 +88,32 @@
       </button>
     </div>
 
-    <!-- Body -->
-    <div style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1.25rem;">
+    <!-- Body (scrollable) -->
+    <div style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1.25rem;overflow-y:auto;flex:1;">
+
+      <!-- ── Display filters ── -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <div>
+          <div style="font-size:.8125rem;font-weight:600;color:var(--foreground);margin-bottom:.375rem;">Min score</div>
+          <select id="p-min-score" class="input" style="width:100%;font-size:.875rem;">
+            <option value="0">Any score</option>
+            <option value="50">50 and above</option>
+            <option value="60">60 and above</option>
+            <option value="70">70 and above</option>
+            <option value="80">80 and above</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:.8125rem;font-weight:600;color:var(--foreground);margin-bottom:.375rem;">Posted within</div>
+          <select id="p-recency" class="input" style="width:100%;font-size:.875rem;">
+            <option value="">Any time</option>
+            <option value="24h">Last 24 hours</option>
+            <option value="3d">Last 3 days</option>
+            <option value="1w">Last week</option>
+          </select>
+        </div>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:-.25rem 0;">
 
       <!-- Job titles -->
       <div>
@@ -155,8 +189,8 @@
 
     </div><!-- /body -->
 
-    <!-- Footer -->
-    <div style="display:flex;justify-content:flex-end;gap:.75rem;padding:1rem 1.5rem;border-top:1px solid var(--border);background:var(--muted);">
+    <!-- Footer (fixed) -->
+    <div style="display:flex;justify-content:flex-end;gap:.75rem;padding:.875rem 1.5rem;border-top:1px solid var(--border);background:var(--muted);flex-shrink:0;border-radius:0 0 1rem 1rem;">
       <button onclick="closePrefsModal()" class="btn btn-outline">Cancel</button>
       <button id="prefs-save-btn" onclick="savePrefs()" class="btn btn-accent">Save &amp; refresh</button>
     </div>
@@ -265,6 +299,7 @@
 </style>
 <script>
   let allJobs = [];
+  let nlpResults = null;   // non-null when an NLP search is active
   let selectedJobId = null;
 
   const STATUS_LABELS = {0:'new',1:'saved',2:'applied',3:'phone screen',4:'interview',5:'offer',6:'rejected'};
@@ -276,6 +311,19 @@
     return 'badge badge-outline';
   }
 
+  // ── Display filter helpers (localStorage-backed) ──────────────
+  function getDisplayFilters() {
+    return {
+      minScore: parseInt(localStorage.getItem('jobs_min_score') || '0', 10),
+      recency:  localStorage.getItem('jobs_recency') || '',
+    };
+  }
+  function saveDisplayFilters(minScore, recency) {
+    localStorage.setItem('jobs_min_score', minScore);
+    localStorage.setItem('jobs_recency', recency);
+  }
+
+  // ── Jobs loading ──────────────────────────────────────────────
   let showAllLocations = false;
 
   async function loadJobs() {
@@ -286,7 +334,7 @@
       allJobs = data.jobs || data || [];
       document.getElementById('jobs-loading').style.display = 'none';
       updateLocationBar(data);
-      filterJobs();
+      applyDisplayFilters();
     } catch (e) {
       document.getElementById('jobs-loading').textContent = 'Failed to load jobs.';
     }
@@ -321,26 +369,75 @@
     loadJobs();
   }
 
-  function filterJobs() {
-    const q = (document.getElementById('search-input').value || '').toLowerCase().trim();
-    const sort = document.getElementById('sort-select').value;
+  // ── Client-side display filters (score + recency) ─────────────
+  function applyDisplayFilters(jobs) {
+    // If NLP search is active, render its results unfiltered
+    if (nlpResults !== null) { renderJobs(nlpResults); return; }
 
-    let filtered = q
-      ? allJobs.filter(j =>
-          (j.role||'').toLowerCase().includes(q) ||
-          (j.company||'').toLowerCase().includes(q) ||
-          (j.job_description||'').toLowerCase().includes(q) ||
-          (j.location||'').toLowerCase().includes(q))
-      : allJobs.slice();
+    const src = jobs || allJobs;
+    const { minScore, recency } = getDisplayFilters();
 
-    filtered.sort((a, b) => {
-      if (sort === 'score') return (b.cv_score || b.relevance_score || 0) - (a.cv_score || a.relevance_score || 0);
-      if (sort === 'date') return new Date(b.date_found||0) - new Date(a.date_found||0);
-      if (sort === 'company') return (a.company||'').localeCompare(b.company||'');
-      return 0;
+    const cutoffMs = recency === '24h' ? 24*60*60*1000
+                   : recency === '3d'  ? 3*24*60*60*1000
+                   : recency === '1w'  ? 7*24*60*60*1000
+                   : 0;
+    const now = Date.now();
+
+    let filtered = src.filter(j => {
+      const score = j.cv_score || j.relevance_score || 0;
+      if (minScore > 0 && score < minScore) return false;
+      if (cutoffMs > 0) {
+        const ms = new Date(j.date_found || 0).getTime();
+        if (!ms || (now - ms) > cutoffMs) return false;
+      }
+      return true;
     });
 
+    // Default sort: score descending
+    filtered.sort((a, b) => (b.cv_score || b.relevance_score || 0) - (a.cv_score || a.relevance_score || 0));
     renderJobs(filtered);
+  }
+
+  // ── NLP search ────────────────────────────────────────────────
+  async function runNlpSearch() {
+    const query = (document.getElementById('nlp-input').value || '').trim();
+    if (!query) { clearNlpSearch(); return; }
+
+    document.getElementById('jobs-loading').style.display = 'block';
+    document.getElementById('jobs-list').innerHTML = '';
+    document.getElementById('nlp-banner').style.display = 'none';
+
+    try {
+      const r = await fetch('/api/nlp-search', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query}),
+      });
+      const data = await r.json();
+      document.getElementById('jobs-loading').style.display = 'none';
+      if (!data.ok) throw new Error(data.error || 'Search failed');
+
+      nlpResults = data.jobs || [];
+      const banner = document.getElementById('nlp-banner');
+      const bannerText = document.getElementById('nlp-banner-text');
+      const labels = (data.filter_labels || []).join(' · ');
+      bannerText.textContent = labels ? `AI filtered: ${labels}` : `AI search: "${query}"`;
+      banner.style.display = 'flex';
+      document.getElementById('nlp-clear-btn').style.display = 'block';
+      renderJobs(nlpResults);
+    } catch (e) {
+      document.getElementById('jobs-loading').style.display = 'none';
+      document.getElementById('jobs-loading').textContent = 'Search failed. Try again.';
+      setTimeout(() => { document.getElementById('jobs-loading').textContent = ''; }, 2000);
+    }
+  }
+
+  function clearNlpSearch() {
+    nlpResults = null;
+    document.getElementById('nlp-input').value = '';
+    document.getElementById('nlp-clear-btn').style.display = 'none';
+    document.getElementById('nlp-banner').style.display = 'none';
+    applyDisplayFilters();
   }
 
   function renderJobs(jobs) {
@@ -513,14 +610,27 @@
     return d + 'd ago';
   }
 
+  // Restore display filter selects on page load (UI only — actual filtering in applyDisplayFilters)
+  (function() {
+    const { minScore, recency } = getDisplayFilters();
+    const ms = document.getElementById('p-min-score');
+    const rc = document.getElementById('p-recency');
+    if (ms) ms.value = String(minScore);
+    if (rc) rc.value = recency;
+  })();
+
   loadJobs();
 
   // ── Preferences modal ────────────────────────────────────────
   function openPrefsModal() {
-    document.getElementById('prefs-modal').style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    // Restore saved display filter values
+    const { minScore, recency } = getDisplayFilters();
+    document.getElementById('p-min-score').value = String(minScore);
+    document.getElementById('p-recency').value = recency;
     // Apply initial mode highlight state
     document.querySelectorAll('input[name="p_work_modes"]').forEach(cb => pSyncModeStyle(cb.value));
+    document.getElementById('prefs-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
   }
   function closePrefsModal(e) {
     if (e && e.target !== document.getElementById('prefs-modal')) return;
@@ -572,6 +682,11 @@
     btn.disabled = true;
     btn.textContent = 'Saving…';
 
+    // Save display filters to localStorage immediately
+    const minScore = parseInt(document.getElementById('p-min-score').value || '0', 10);
+    const recency  = document.getElementById('p-recency').value || '';
+    saveDisplayFilters(minScore, recency);
+
     const getTags = id => Array.from(document.querySelectorAll('#' + id + ' .tag-pill')).map(pPillText).filter(Boolean);
     const modes = Array.from(document.querySelectorAll('input[name="p_work_modes"]:checked')).map(cb => cb.value);
 
@@ -593,6 +708,10 @@
       document.getElementById('prefs-modal').style.display = 'none';
       document.body.style.overflow = '';
       // Reload jobs with new preferences
+      nlpResults = null;
+      document.getElementById('nlp-input').value = '';
+      document.getElementById('nlp-clear-btn').style.display = 'none';
+      document.getElementById('nlp-banner').style.display = 'none';
       document.getElementById('jobs-loading').style.display = 'block';
       document.getElementById('jobs-list').innerHTML = '';
       loadJobs();
