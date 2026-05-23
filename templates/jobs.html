@@ -361,7 +361,7 @@
     border-radius:26px;
     max-width:52rem;
     width:100%;
-    margin:auto;
+    margin:0 auto;
     animation: jm-in 0.4s cubic-bezier(0.32,0.72,0,1) both;
   }
 
@@ -962,16 +962,18 @@
     _updateStageUI(job.applied_status || 0);
     document.getElementById('modal-notes').value = '';
 
-    // Open modal — replay animation by removing + re-adding it
-    const shell = document.querySelector('.jm-shell');
-    shell.style.animation = 'none';
-    shell.offsetHeight; // force reflow
-    shell.style.animation = '';
-
-    switchTab('details', document.querySelector('.jm-tab'));
+    // Show modal first so the element is in the render tree,
+    // then replay the entry animation (offsetHeight reflow only works on visible elements)
     const modal = document.getElementById('job-modal');
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+
+    switchTab('details', document.querySelector('.jm-tab'));
+
+    const shell = document.querySelector('.jm-shell');
+    shell.style.animation = 'none';
+    shell.offsetHeight; // force reflow — works now that modal is visible
+    shell.style.animation = '';
   }
 
   function closeModal(event) {
