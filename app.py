@@ -1111,7 +1111,7 @@ def dashboard():
             logger.warning("Dashboard lazy scoring failed for user %s: %s", uid, e)
 
     today_str = datetime.now().strftime("%Y-%m-%d")
-    h24_ago = (datetime.now() - timedelta(hours=24)).isoformat()
+    h12_ago = (datetime.now() - timedelta(hours=12)).isoformat()
 
     conn = get_connection()
     cur = conn.cursor()
@@ -1152,11 +1152,9 @@ def dashboard():
         )
         high_match_today = cur.fetchone()["n"]
 
-    # 4) Top 10 scored matches from the last 24 hours.
-    #    Only populated when the user has a CV — otherwise the dashboard
-    #    shows the upload form and the Jobs page serves unscored listings.
-    #    cv_score > 0 guards against showing zero-score "matches" that
-    #    would make the tool look broken.
+    # 4) Top 10 scored matches from the last 12 hours (aligns with twice-daily scrape cadence).
+    #    Falls back to last 48 hours when the 12-hour window yields fewer than 3 results,
+    #    so the dashboard is never misleadingly empty after a delayed scrape.
     top_jobs = []
     if uid and cv_uploaded:
         cur.execute(
@@ -1174,9 +1172,30 @@ def dashboard():
             ORDER BY s.cv_score DESC, j.date_found DESC
             LIMIT 10
             """,
-            (uid, h24_ago),
+            (uid, h12_ago),
         )
         top_jobs = [dict(r) for r in cur.fetchall()]
+        if len(top_jobs) < 3:
+            # Widen to 48 hours if the last 12-hour window is sparse
+            h48_ago = (datetime.now() - timedelta(hours=48)).isoformat()
+            cur.execute(
+                """
+                SELECT j.job_id, j.role, j.company, j.location,
+                       j.remote_status, j.salary, j.portal, j.apply_url,
+                       j.date_found,
+                       s.cv_score
+                FROM job_listings j
+                JOIN user_job_state s
+                  ON s.job_id = j.job_id AND s.user_id = ?
+                WHERE j.date_found >= ?
+                  AND COALESCE(s.hidden, 0) = 0
+                  AND s.cv_score > 0
+                ORDER BY s.cv_score DESC, j.date_found DESC
+                LIMIT 10
+                """,
+                (uid, h48_ago),
+            )
+            top_jobs = [dict(r) for r in cur.fetchall()]
     conn.close()
 
     return render_template(
