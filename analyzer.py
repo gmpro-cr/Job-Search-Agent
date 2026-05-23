@@ -1403,6 +1403,13 @@ def cv_score(job, cv_data, preferences=None):
     return min(base + boost, 100)
 
 
+_DOMAIN_SIGNALS = frozenset({
+    "fintech", "banking", "lending", "payments", "credit", "nbfc", "upi",
+    "neobank", "insurance", "wealth management", "financial services",
+    "loan", "mortgage", "bfsi",
+})
+
+
 def _preference_boost(job, jd_text_lower, preferences):
     """Compute the additive boost from user preferences. See cv_score()."""
     boost = 0
@@ -1410,10 +1417,16 @@ def _preference_boost(job, jd_text_lower, preferences):
     loc_lower  = (job.get("location") or "").lower()
     remote_lower = (job.get("remote_status") or "").lower()
 
-    # +12 if any preferred job title appears in the role
+    # +25 if any preferred job title appears in the role (was +12)
     pref_titles = [t.strip().lower() for t in (preferences.get("job_titles") or []) if t and t.strip()]
-    if pref_titles and any(t in role_lower for t in pref_titles):
-        boost += 12
+    title_matched = bool(pref_titles and any(t in role_lower for t in pref_titles))
+    if title_matched:
+        boost += 25
+
+    # +8 domain bonus: JD is in fintech/banking/lending domain AND role title matched.
+    # Rewards the user's deep finance background without inflating unrelated roles.
+    if title_matched and any(sig in jd_text_lower for sig in _DOMAIN_SIGNALS):
+        boost += 8
 
     # +6 for a location match (token contains, or 'remote' on both sides)
     pref_locs = [l.strip().lower() for l in (preferences.get("locations") or []) if l and l.strip()]
@@ -1423,11 +1436,11 @@ def _preference_boost(job, jd_text_lower, preferences):
         elif "remote" in pref_locs and "remote" in remote_lower:
             boost += 6
 
-    # +2 per matched transferable skill in JD, capped at 10
+    # +2 per matched transferable skill in JD, capped at 12
     pref_skills = [s.strip().lower() for s in (preferences.get("transferable_skills") or []) if s and s.strip()]
     if pref_skills and jd_text_lower:
         matches = sum(1 for s in pref_skills if s and s in jd_text_lower)
-        boost += min(matches * 2, 10)
+        boost += min(matches * 2, 12)
 
     return boost
 
