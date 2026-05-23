@@ -18,6 +18,40 @@
     </div>
   </header>
 
+  <!-- Active status banner -->
+  {% set digest_email = prefs.get('email','') or user_email %}
+  {% set top_n = prefs.get('top_jobs_per_digest', 5) %}
+  {% set min_score = prefs.get('min_score', 50) %}
+  <div style="display:flex;align-items:flex-start;gap:1rem;padding:1rem 1.25rem;border-radius:.75rem;
+              background:{% if digest_email %}rgba(22,163,74,.07){% else %}var(--muted){% endif %};
+              border:1px solid {% if digest_email %}rgba(22,163,74,.2){% else %}var(--border){% endif %};">
+    <div style="width:2rem;height:2rem;border-radius:50%;background:{% if digest_email %}rgba(22,163,74,.15){% else %}rgba(10,10,12,.07){% endif %};
+                display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.05rem;">
+      {% if digest_email %}
+      <svg width="14" height="14" fill="none" stroke="{% if digest_email %}#16a34a{% else %}var(--muted-foreground){% endif %}" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+      {% else %}
+      <svg width="14" height="14" fill="none" stroke="var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {% endif %}
+    </div>
+    <div style="flex:1;min-width:0;">
+      {% if digest_email %}
+      <div style="font-weight:600;font-size:.9375rem;color:{% if digest_email %}#15803d{% else %}var(--foreground){% endif %};">Digest active</div>
+      <div style="font-size:.8125rem;color:var(--muted-foreground);margin-top:.2rem;line-height:1.5;">
+        Sending <strong>top {{ top_n }} jobs</strong> with score <strong>{{ min_score }}+</strong>
+        to <strong>{{ digest_email }}</strong> after each scrape (07:00 &amp; 19:00 IST).
+        {% if files %}
+        Last generated: <strong>{{ files[0].date }}</strong>.
+        {% endif %}
+      </div>
+      {% else %}
+      <div style="font-weight:600;font-size:.9375rem;">Digest not configured</div>
+      <div style="font-size:.8125rem;color:var(--muted-foreground);margin-top:.2rem;">
+        Enter a recipient email below to activate daily delivery.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
   <!-- Digest configuration -->
   <div class="card">
     <div class="card-header">

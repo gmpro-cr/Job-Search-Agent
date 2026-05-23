@@ -2166,43 +2166,68 @@ def scheduler_status():
 
 @app.route("/hiring-managers")
 def hiring_managers():
-    """List hiring managers / job posters, filtered by CV relevance when available."""
-    from database import get_hiring_managers
+    """
+    Companies actively hiring for roles relevant to the user's CV.
+    Shows company + role + apply link + LinkedIn search link.
+    Individual hiring manager names/emails require contact enrichment
+    (LinkedIn credentials) which is configured separately.
+    """
     uid = current_user_id()
     cv_data = load_cv_data(uid) if uid else None
     cv_uploaded = cv_data is not None
 
-    managers = get_hiring_managers(limit=500)
+    conn = get_connection()
+    cur = conn.cursor()
 
-    # If the user has a CV, surface managers whose associated role overlaps
-    # with the user's target roles (from CV + preferences). Managers with
-    # no role field always pass — we can't filter what we don't know.
-    if cv_uploaded:
-        prefs = load_preferences() or {}
-        target_titles = list(prefs.get("job_titles") or [])
-        target_titles += list(cv_data.get("job_titles") or [])
-        keywords = {
-            word.lower()
-            for title in target_titles
-            for word in title.split()
-            if len(word) > 3
-        }
-        if keywords:
-            def _relevant(m):
-                role = (m.get("role") or "").lower()
-                return not role or any(kw in role for kw in keywords)
-            filtered = [m for m in managers if _relevant(m)]
-            # Fall back to all if the filter is too narrow (< 5 results)
-            managers = filtered if len(filtered) >= 5 else managers
+    if uid and cv_uploaded:
+        # Top relevant companies: jobs scored >= 40 for this user, most recent first
+        cur.execute(
+            """
+            SELECT j.job_id, j.company, j.role, j.apply_url, j.portal,
+                   j.date_found, j.location, j.remote_status,
+                   j.poster_name, j.poster_linkedin, j.poster_email,
+                   s.cv_score
+            FROM job_listings j
+            JOIN user_job_state s ON s.job_id = j.job_id AND s.user_id = ?
+            WHERE s.cv_score >= 40
+              AND COALESCE(s.hidden, 0) = 0
+            ORDER BY s.cv_score DESC, j.date_found DESC
+            LIMIT 300
+            """,
+            (uid,),
+        )
+    else:
+        # No CV — show recent jobs sorted by relevance score
+        cur.execute(
+            """
+            SELECT job_id, company, role, apply_url, portal,
+                   date_found, location, remote_status,
+                   poster_name, poster_linkedin, poster_email,
+                   relevance_score AS cv_score
+            FROM job_listings
+            ORDER BY relevance_score DESC, date_found DESC
+            LIMIT 300
+            """
+        )
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    # Deduplicate by (company, role): keep the highest-scored entry
+    seen = {}
+    for r in rows:
+        key = (r["company"] or "").lower() + "||" + (r["role"] or "").lower()
+        if key not in seen or (r["cv_score"] or 0) > (seen[key]["cv_score"] or 0):
+            seen[key] = r
+    companies = list(seen.values())
 
     counts = {
-        "total": len(managers),
-        "with_linkedin": sum(1 for m in managers if m["linkedin"]),
-        "with_email": sum(1 for m in managers if m["email"]),
+        "total": len(companies),
+        "with_linkedin": sum(1 for c in companies if c.get("poster_linkedin")),
+        "with_name":     sum(1 for c in companies if c.get("poster_name")),
     }
     return render_template(
         "hiring_managers.html",
-        managers=managers,
+        companies=companies,
         counts=counts,
         cv_uploaded=cv_uploaded,
     )
