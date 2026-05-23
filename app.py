@@ -2250,7 +2250,37 @@ def digests():
     avg_score = round(avg_row["avg"] or 0, 1)
     conn.close()
     stats = {"total": total, "qualified": qualified, "avg_score": avg_score}
-    return render_template("digests.html", files=files, top_jobs=top_jobs, stats=stats, prefs=prefs)
+    user_email = dict(session).get('user', {}).get('email', '')
+    return render_template("digests.html", files=files, stats=stats, prefs=prefs, user_email=user_email)
+
+
+@app.route("/api/digest/settings", methods=["POST"])
+def api_digest_settings():
+    """Save digest-specific preferences (email, top_n, min_score)."""
+    uid = current_user_id()
+    if not uid:
+        return jsonify({"ok": False, "error": "Not authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    existing = load_preferences(uid) or DEFAULT_PREFS.copy()
+    updated = dict(existing)
+    if "email" in data:
+        updated["email"] = (data["email"] or "").strip()
+    if "top_jobs_per_digest" in data:
+        try:
+            updated["top_jobs_per_digest"] = max(1, min(50, int(data["top_jobs_per_digest"])))
+        except (ValueError, TypeError):
+            pass
+    if "min_score" in data:
+        try:
+            updated["min_score"] = max(0, min(100, int(data["min_score"])))
+        except (ValueError, TypeError):
+            pass
+    try:
+        save_preferences(updated, user_id=uid)
+    except Exception as e:
+        logger.error("Failed to save digest settings for user %s: %s", uid, e)
+        return jsonify({"ok": False, "error": "Failed to save"}), 500
+    return jsonify({"ok": True})
 
 
 @app.route("/digests/<filename>")

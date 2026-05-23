@@ -1,179 +1,175 @@
 {% extends "base.html" %}
-{% block title %}Job Digest - Job Search Agent{% endblock %}
+{% block title %}Daily Digest - Job Search Agent{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
+
   <header class="page-header">
     <div class="page-header-row">
       <div style="flex:1;min-width:0;">
-        <span class="eyebrow">{{ stats.qualified or 0 }} qualified · avg {{ stats.avg_score or 0 }} match</span>
-        <h1>Daily digest, end-to-end.</h1>
-        <p class="page-lede">A rolling archive of every digest the scraper has generated &mdash; from inbox-ready to in-page.</p>
+        <span class="eyebrow">{{ files|length }} digest{{ 's' if files|length != 1 else '' }} archived</span>
+        <h1>Daily Digest</h1>
+        <p class="page-lede">Your top-matched jobs delivered by email. Configure what gets sent and browse the full archive.</p>
       </div>
-      <div style="display:flex;gap:.5rem;">
-        <button onclick="emailDigest()" class="btn btn-outline">
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-          Email Digest
-        </button>
-        <a href="{{ url_for('scraper') }}" class="btn btn-default">
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-          Generate New Digest
-        </a>
-      </div>
+      <button onclick="sendNow()" id="send-now-btn" class="btn btn-accent" style="white-space:nowrap;flex-shrink:0;">
+        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.375rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        Send now
+      </button>
     </div>
   </header>
 
-  <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;align-items:start;">
-
-    <!-- Latest digest -->
-    <div class="card">
-      <div class="card-header">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;">
-          <div>
-            <div class="card-title">Latest Digest</div>
-            {% if files %}
-            <div class="card-description">{{ files[0].date if files else 'No digests yet' }}</div>
-            {% else %}
-            <div class="card-description">No digests generated yet</div>
-            {% endif %}
-          </div>
-          {% if files %}
-          <span class="badge badge-default">Generated</span>
-          {% endif %}
-        </div>
-      </div>
-      <div class="card-content" style="display:flex;flex-direction:column;gap:1rem;">
-        {% if stats %}
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;padding:1rem;border-radius:.5rem;background:var(--muted);">
-          <div style="text-align:center;">
-            <div style="font-size:1.5rem;font-weight:700;">{{ stats.total }}</div>
-            <p class="text-muted" style="font-size:.875rem;margin:0;">Total Jobs</p>
-          </div>
-          <div style="text-align:center;">
-            <div style="font-size:1.5rem;font-weight:700;">{{ stats.qualified }}</div>
-            <p class="text-muted" style="font-size:.875rem;margin:0;">Qualified</p>
-          </div>
-          <div style="text-align:center;">
-            <div style="font-size:1.5rem;font-weight:700;">{{ stats.avg_score }}</div>
-            <p class="text-muted" style="font-size:.875rem;margin:0;">Avg Score</p>
-          </div>
-        </div>
-        <hr style="border:none;border-top:1px solid var(--border);">
-        {% endif %}
-
-        {% if top_jobs %}
-        <div>
-          <h3 style="font-weight:600;margin:0 0 .75rem;">Top {{ top_jobs|length }} Jobs</h3>
-          <div style="display:flex;flex-direction:column;gap:.625rem;">
-            {% for job in top_jobs %}
-            <div style="display:flex;align-items:flex-start;gap:.75rem;padding:.75rem;border-radius:.5rem;border:1px solid var(--border);transition:background .15s;"
-              onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''">
-              <div style="width:2.5rem;height:2.5rem;border-radius:.5rem;background:rgba(3,2,19,.08);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;color:var(--primary);flex-shrink:0;">
-                {{ loop.index }}
-              </div>
-              <div style="flex:1;min-width:0;">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.25rem;">
-                  <h4 style="font-weight:600;margin:0;font-size:.9375rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ job.role }}</h4>
-                  <span class="badge {% if job.score >= 90 %}badge-default{% elif job.score >= 80 %}badge-secondary{% else %}badge-outline{% endif %}" style="flex-shrink:0;">{{ job.score }}</span>
-                </div>
-                <p class="text-muted" style="font-size:.8125rem;margin:0;">{{ job.company }}</p>
-                <div class="text-muted" style="display:flex;align-items:center;gap:.5rem;font-size:.8125rem;margin-top:.125rem;">
-                  <span>{{ job.location }}</span>
-                  {% if job.salary %}<span>•</span><span>{{ job.salary }}</span>{% endif %}
-                </div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-        </div>
-        {% else %}
-        <div style="text-align:center;padding:2rem;">
-          <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);margin:0 auto 1rem;display:block;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          <p class="text-muted">No digest generated yet. Run the scraper then generate a digest.</p>
-        </div>
-        {% endif %}
-
-        {% if files %}
-        <div style="display:flex;gap:.5rem;padding-top:.5rem;">
-          <a href="{{ url_for('serve_digest', filename=files[0].filename) }}" class="btn btn-outline" style="flex:1;">
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.5rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-            View Full Digest
-          </a>
-        </div>
-        {% endif %}
-      </div>
+  <!-- Digest configuration -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Digest settings</div>
+      <div class="card-description">Configure what gets included and where it gets sent.</div>
     </div>
+    <div class="card-content">
+      <form id="digest-settings-form" onsubmit="saveDigestSettings(event)" style="display:flex;flex-direction:column;gap:1rem;">
 
-    <!-- Sidebar -->
-    <div style="display:flex;flex-direction:column;gap:1rem;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.875rem;">
+          <div>
+            <label style="display:block;font-size:.8125rem;font-weight:600;color:var(--foreground);margin-bottom:.375rem;">Recipient email</label>
+            <input id="ds-email" type="email" class="input" style="width:100%;font-size:.875rem;"
+              value="{{ prefs.get('email','') or user_email }}"
+              placeholder="your@email.com">
+          </div>
+          <div>
+            <label style="display:block;font-size:.8125rem;font-weight:600;color:var(--foreground);margin-bottom:.375rem;">Jobs per digest</label>
+            <select id="ds-top-n" class="input" style="width:100%;font-size:.875rem;">
+              {% for n in [3, 5, 10, 15, 20] %}
+              <option value="{{ n }}" {% if (prefs.get('top_jobs_per_digest', 5)|int) == n %}selected{% endif %}>{{ n }} jobs</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:.8125rem;font-weight:600;color:var(--foreground);margin-bottom:.375rem;">Minimum match score</label>
+            <select id="ds-min-score" class="input" style="width:100%;font-size:.875rem;">
+              {% for s in [30, 40, 50, 60, 70, 80] %}
+              <option value="{{ s }}" {% if (prefs.get('min_score', 50)|int) == s %}selected{% endif %}>{{ s }}+</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
 
-      <!-- Digest settings -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Digest Settings</div>
+        <div style="display:flex;align-items:center;gap:.75rem;padding-top:.25rem;">
+          <button type="submit" id="ds-save-btn" class="btn btn-default">Save settings</button>
+          <span id="ds-save-status" style="font-size:.8125rem;color:var(--muted-foreground);display:none;"></span>
         </div>
-        <div class="card-content" style="display:flex;flex-direction:column;gap:.625rem;">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span class="text-muted" style="font-size:.875rem;">Top Jobs Count</span>
-            <span style="font-weight:500;">{{ prefs.top_n if prefs else 5 }}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span class="text-muted" style="font-size:.875rem;">Min Score</span>
-            <span style="font-weight:500;">{{ prefs.min_score if prefs else 65 }}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span class="text-muted" style="font-size:.875rem;">Daily Time</span>
-            <span style="font-weight:500;">8:00 AM</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:.5rem;padding-top:.5rem;">
-            <svg width="16" height="16" fill="none" stroke="var(--primary)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            <span style="font-size:.875rem;color:var(--primary);">Auto-generated daily</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Past digests -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Past Digests</div>
-          <div class="card-description">Browse previous digests</div>
-        </div>
-        <div class="card-content">
-          {% if files %}
-          <div style="display:flex;flex-direction:column;gap:.5rem;">
-            {% for f in files %}
-            <a href="{{ url_for('serve_digest', filename=f.filename) }}"
-              style="display:flex;align-items:center;justify-content:space-between;padding:.625rem;border-radius:.5rem;border:1px solid var(--border);text-decoration:none;color:inherit;transition:background .15s;"
-              onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''">
-              <div style="display:flex;align-items:center;gap:.5rem;">
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                <div>
-                  <p style="font-size:.875rem;font-weight:500;margin:0;">{{ f.date }}</p>
-                  <p class="text-muted" style="font-size:.75rem;margin:0;">{{ f.size_kb }} KB</p>
-                </div>
-              </div>
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-            </a>
-            {% endfor %}
-          </div>
-          {% else %}
-          <p class="text-muted" style="font-size:.875rem;">No past digests.</p>
-          {% endif %}
-        </div>
-      </div>
-
+      </form>
     </div>
   </div>
+
+  <!-- Digest archive -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Digest archive</div>
+      <div class="card-description">All digests generated so far — click any to view the full HTML.</div>
+    </div>
+    <div class="card-content" style="padding:0;">
+      {% if files %}
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+          <thead>
+            <tr style="background:var(--muted);text-align:left;">
+              <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Date</th>
+              <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Size</th>
+              <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in files %}
+            <tr style="border-top:1px solid var(--border);" onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''">
+              <td style="padding:.75rem 1rem;font-weight:500;">
+                <div style="display:flex;align-items:center;gap:.5rem;">
+                  <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                  {{ f.date }}
+                  {% if loop.first %}<span class="badge badge-default" style="font-size:.7rem;margin-left:.25rem;">Latest</span>{% endif %}
+                </div>
+              </td>
+              <td style="padding:.75rem 1rem;color:var(--muted-foreground);font-size:.875rem;">{{ f.size_kb }} KB</td>
+              <td style="padding:.75rem 1rem;">
+                <a href="{{ url_for('serve_digest', filename=f.filename) }}"
+                   target="_blank" rel="noopener"
+                   style="display:inline-flex;align-items:center;gap:.3rem;font-size:.8125rem;color:var(--primary);text-decoration:none;font-weight:500;">
+                  View
+                  <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div style="padding:3rem 1.5rem;text-align:center;color:var(--muted-foreground);">
+        <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin:0 auto 1rem;display:block;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <p>No digests generated yet.</p>
+        <p class="text-sm" style="margin-top:.25rem;">The scraper generates a digest automatically after each run. You can also trigger one manually using "Send now" above.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function emailDigest() {
-  fetch('/api/send_prd', {method:'POST'})
-    .then(r => r.json())
-    .then(d => alert(d.message || (d.ok ? 'Email sent!' : 'Failed: ' + (d.error||'unknown'))))
-    .catch(() => alert('Email feature requires SMTP configuration in Settings.'));
+async function saveDigestSettings(e) {
+  e.preventDefault();
+  const btn = document.getElementById('ds-save-btn');
+  const status = document.getElementById('ds-save-status');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  status.style.display = 'none';
+
+  const payload = {
+    email:               document.getElementById('ds-email').value.trim(),
+    top_jobs_per_digest: parseInt(document.getElementById('ds-top-n').value),
+    min_score:           parseInt(document.getElementById('ds-min-score').value),
+  };
+
+  try {
+    const r = await fetch('/api/digest/settings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Save failed');
+    status.textContent = 'Saved.';
+    status.style.color = 'var(--primary)';
+    status.style.display = '';
+    setTimeout(() => { status.style.display = 'none'; }, 2500);
+  } catch (err) {
+    status.textContent = 'Failed to save: ' + err.message;
+    status.style.color = 'var(--destructive)';
+    status.style.display = '';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save settings';
+  }
+}
+
+async function sendNow() {
+  const btn = document.getElementById('send-now-btn');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  try {
+    const r = await fetch('/api/prd/send-now', {method: 'POST'});
+    const data = await r.json();
+    if (data.ok) {
+      btn.textContent = 'Sent!';
+      setTimeout(() => { btn.textContent = 'Send now'; btn.disabled = false; }, 3000);
+    } else {
+      throw new Error(data.error || 'Failed');
+    }
+  } catch (err) {
+    alert('Could not send: ' + err.message + '\n\nMake sure GMAIL credentials are configured in Settings.');
+    btn.textContent = 'Send now';
+    btn.disabled = false;
+  }
 }
 </script>
 {% endblock %}
