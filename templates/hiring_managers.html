@@ -42,8 +42,10 @@
 
               <!-- Role & Company -->
               <td style="padding:.75rem 1rem;vertical-align:middle;">
-                <div style="font-weight:600;font-size:.875rem;">{{ c.their_role or '—' }}</div>
-                <div style="font-size:.8125rem;color:var(--muted-foreground);margin-top:.1rem;">{{ c.company or '' }}</div>
+                <div style="font-weight:600;font-size:.875rem;">{{ c.company or '—' }}</div>
+                {% if c.their_role %}
+                <div style="font-size:.8125rem;color:var(--muted-foreground);margin-top:.1rem;">{{ c.their_role }}</div>
+                {% endif %}
               </td>
 
               <!-- LinkedIn -->
