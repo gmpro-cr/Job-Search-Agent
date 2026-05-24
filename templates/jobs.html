@@ -75,7 +75,7 @@
 
 <!-- ── Preferences Modal ──────────────────────────────────────── -->
 <div id="prefs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:1rem;" onclick="closePrefsModal(event)">
-  <div id="prefs-panel" style="background:var(--card);border:1px solid var(--border);border-radius:1rem;max-width:36rem;width:100%;max-height:min(calc(100vh - 2rem),680px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.18);transition:transform .18s cubic-bezier(.32,.72,0,1),opacity .18s ease;" onclick="event.stopPropagation()">
+  <div id="prefs-panel" style="background:var(--card);border:1px solid var(--border);border-radius:1rem;max-width:36rem;width:100%;max-height:min(calc(100vh - 2rem),680px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.18);" onclick="event.stopPropagation()">
 
     <!-- Header (fixed) -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:1.125rem 1.5rem;border-bottom:1px solid var(--border);flex-shrink:0;">
@@ -455,27 +455,12 @@
     document.getElementById('p-min-score').value = String(minScore);
     document.getElementById('p-recency').value = recency;
     document.querySelectorAll('input[name="p_work_modes"]').forEach(cb => pSyncModeStyle(cb.value));
-    const modal = document.getElementById('prefs-modal');
-    const panel = document.getElementById('prefs-panel');
-    // Reset to "hidden" starting state before showing
-    panel.style.transition = 'none';
-    panel.style.transform = 'scale(.97) translateY(8px)';
-    panel.style.opacity = '0';
-    modal.style.display = 'flex';
+    document.getElementById('prefs-modal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    // Force reflow so browser commits the starting state before animating
-    panel.getBoundingClientRect();
-    panel.style.transition = '';
-    panel.style.transform = 'scale(1) translateY(0)';
-    panel.style.opacity = '1';
   }
   function closePrefsModal(e) {
     if (e && e.target !== document.getElementById('prefs-modal')) return;
-    const modal = document.getElementById('prefs-modal');
-    const panel = document.getElementById('prefs-panel');
-    panel.style.transform = 'scale(.97) translateY(8px)';
-    panel.style.opacity = '0';
-    setTimeout(() => { modal.style.display = 'none'; }, 180);
+    document.getElementById('prefs-modal').style.display = 'none';
     document.body.style.overflow = '';
   }
   document.addEventListener('keydown', e => {
@@ -551,7 +536,7 @@
       });
       const data = await r.json();
       if (!data.ok) throw new Error('Save failed');
-      closePrefsModal();
+      document.getElementById('prefs-modal').style.display = 'none';
       document.body.style.overflow = '';
       // Reload jobs with new preferences
       nlpResults = null;
