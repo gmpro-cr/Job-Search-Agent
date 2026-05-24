@@ -1760,7 +1760,7 @@ def api_jobs_list():
                 else:
                     patterns = _CITY_PATTERNS.get(loc, [loc_lower])
                     for p in patterns:
-                        loc_conds.append("j.location LIKE ?")
+                        loc_conds.append("LOWER(j.location) LIKE ?")
                         loc_params.append(f"%{p}%")
             if loc_conds:
                 loc_where = " AND (" + " OR ".join(loc_conds) + ")"
