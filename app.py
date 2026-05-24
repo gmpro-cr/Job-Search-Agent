@@ -2295,7 +2295,24 @@ def digests():
     conn.close()
     stats = {"total": total, "qualified": qualified, "avg_score": avg_score}
     user_email = dict(session).get('user', {}).get('email', '')
-    return render_template("digests.html", files=files, stats=stats, prefs=prefs, user_email=user_email)
+    # Load active job-alert reminders to surface on digest page
+    from reminder_runner import load_reminders as _load_rem
+    all_reminders = _load_rem() or []
+    job_alerts = [
+        {
+            "id": r.get("id"),
+            "name": r.get("name") or r.get("keyword", ""),
+            "email": r.get("email", ""),
+            "keyword": r.get("keyword", ""),
+            "last_sent": r.get("last_sent") or r.get("last_hr_sent") or "Never",
+            "enabled": r.get("enabled", True),
+            "hr_email_enabled": r.get("hr_email_enabled", False),
+        }
+        for r in all_reminders
+        if r.get("enabled") and r.get("email")
+    ]
+    return render_template("digests.html", files=files, stats=stats, prefs=prefs,
+                           user_email=user_email, job_alerts=job_alerts)
 
 
 @app.route("/api/digest/settings", methods=["POST"])

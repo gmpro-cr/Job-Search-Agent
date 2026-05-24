@@ -107,6 +107,43 @@
     </div>
   </div>
 
+  <!-- Job alert emails (reminders) -->
+  {% if job_alerts %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Job alert emails</div>
+      <div class="card-description">Active reminders sending job matches by email daily.</div>
+    </div>
+    <div class="card-content" style="padding:0;">
+      <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+        <thead>
+          <tr style="background:var(--muted);text-align:left;">
+            <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Recipient</th>
+            <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Keywords</th>
+            <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Last sent</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for alert in job_alerts %}
+          <tr style="border-top:1px solid var(--border);" onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''">
+            <td style="padding:.75rem 1rem;vertical-align:middle;">
+              <div style="font-weight:500;font-size:.875rem;">{{ alert.email }}</div>
+              <div style="font-size:.75rem;color:var(--muted-foreground);margin-top:.1rem;">{{ alert.name }}</div>
+            </td>
+            <td style="padding:.75rem 1rem;vertical-align:middle;font-size:.8125rem;color:var(--muted-foreground);max-width:22rem;">
+              {{ alert.keyword }}
+            </td>
+            <td style="padding:.75rem 1rem;vertical-align:middle;font-size:.8125rem;color:var(--muted-foreground);white-space:nowrap;">
+              {{ alert.last_sent[:10] if alert.last_sent and alert.last_sent != 'Never' else 'Never' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Digest archive -->
   <div class="card">
     <div class="card-header">
