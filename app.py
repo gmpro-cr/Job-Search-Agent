@@ -2327,6 +2327,40 @@ def api_digest_settings():
     return jsonify({"ok": True})
 
 
+@app.route("/api/digest/deactivate", methods=["POST"])
+def api_digest_deactivate():
+    """Clear the digest email so no more digests are sent."""
+    uid = current_user_id()
+    if not uid:
+        return jsonify({"ok": False, "error": "Not authenticated"}), 401
+    existing = load_preferences(uid) or DEFAULT_PREFS.copy()
+    updated = dict(existing)
+    updated["email"] = ""
+    try:
+        save_preferences(updated, user_id=uid)
+    except Exception as e:
+        logger.error("Failed to deactivate digest for user %s: %s", uid, e)
+        return jsonify({"ok": False, "error": "Failed to save"}), 500
+    return jsonify({"ok": True})
+
+
+@app.route("/api/digest/archive/<filename>", methods=["DELETE"])
+def api_digest_archive_delete(filename):
+    """Delete a single digest archive file from Blob / local FS."""
+    uid = current_user_id()
+    if not uid:
+        return jsonify({"ok": False, "error": "Not authenticated"}), 401
+    if "/" in filename or ".." in filename or not filename.endswith(".html"):
+        return jsonify({"ok": False, "error": "Invalid filename"}), 400
+    from blob_storage import delete as blob_delete
+    try:
+        blob_delete(f"digests/{filename}")
+    except Exception as e:
+        logger.error("Failed to delete digest %s: %s", filename, e)
+        return jsonify({"ok": False, "error": "Delete failed"}), 500
+    return jsonify({"ok": True})
+
+
 @app.route("/digests/<filename>")
 def serve_digest(filename):
     from digest_generator import read_digest
