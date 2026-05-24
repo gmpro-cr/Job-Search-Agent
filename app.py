@@ -2085,6 +2085,92 @@ def start_scraper():
     return jsonify({"ok": True})
 
 
+@app.route("/api/scraper/quick-start", methods=["POST"])
+def quick_scraper():
+    """
+    Vercel-safe quick scrape — runs only HiringCafe, Remotive, and Hacker News.
+    No Selenium required. Completes in ~20s. Available on both local and Vercel.
+    """
+    uid = require_user_id()
+    from scrapers import VERCEL_SAFE_PORTALS
+
+    config = load_config()
+    preferences = apply_env_overrides(load_preferences(uid) or DEFAULT_PREFS.copy())
+    job_titles = preferences.get("job_titles", ["Product Manager"])
+    locations  = preferences.get("locations", ["India"])
+
+    try:
+        from scrapers import scrape_all_portals as _scrape
+        all_jobs, portal_results = _scrape(
+            job_titles, locations, config,
+            allowed_portals=VERCEL_SAFE_PORTALS,
+        )
+    except Exception as e:
+        logger.error("Quick scrape failed: %s", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+    if not all_jobs:
+        counts = {p: r["count"] for p, r in portal_results.items()}
+        return jsonify({"ok": True, "inserted": 0, "skipped": 0, "portals": counts,
+                        "message": "No new jobs found."})
+
+    cv_data = load_cv_data(uid)
+    for job in all_jobs:
+        job["job_id"] = generate_job_id(
+            job.get("portal", "unknown"),
+            job.get("company", ""),
+            job.get("role", ""),
+            job.get("location", ""),
+        )
+        if cv_data:
+            job["cv_score"] = cv_score(job, cv_data)
+
+    inserted, skipped = insert_jobs_bulk(all_jobs)
+    logger.info("Quick scrape: inserted=%d skipped=%d portals=%s", inserted, skipped,
+                list(portal_results.keys()))
+    counts = {p: r["count"] for p, r in portal_results.items()}
+    return jsonify({"ok": True, "inserted": inserted, "skipped": skipped, "portals": counts})
+
+
+@app.route("/api/scraper/trigger-github", methods=["POST"])
+def trigger_github_scrape():
+    """
+    Dispatch the GitHub Actions scrape workflow via the GitHub REST API.
+    Requires GITHUB_TOKEN (PAT with workflow scope) and GITHUB_REPO env vars.
+    """
+    require_user_id()
+    import requests as _req
+
+    token = os.environ.get("GITHUB_TOKEN", "")
+    repo  = os.environ.get("GITHUB_REPO", "gmpro-cr/Job-Search-Agent")
+    if not token:
+        return jsonify({"ok": False,
+                        "error": "GITHUB_TOKEN not set. Add a Personal Access Token "
+                                 "with 'workflow' scope to your environment variables."}), 400
+
+    url = f"https://api.github.com/repos/{repo}/actions/workflows/scrape.yml/dispatches"
+    try:
+        resp = _req.post(
+            url,
+            json={"ref": "main"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+            timeout=10,
+        )
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"GitHub API request failed: {e}"}), 500
+
+    if resp.status_code == 204:
+        runs_url = f"https://github.com/{repo}/actions/workflows/scrape.yml"
+        return jsonify({"ok": True, "runs_url": runs_url,
+                        "message": "Scrape workflow triggered. Results arrive in ~10 minutes."})
+    else:
+        return jsonify({"ok": False, "error": f"GitHub API returned {resp.status_code}: {resp.text[:200]}"}), 500
+
+
 @app.route("/api/scraper/stop", methods=["POST"])
 def stop_scraper():
     """Stop a manually triggered scraper run. Does NOT affect scheduled runs."""

@@ -1772,6 +1772,10 @@ SCRAPER_MAP = {
     "twitter": scrape_twitter,
 }
 
+# Portals that use plain HTTP/API — no Selenium, no Chrome required.
+# Safe to run inside Vercel serverless functions.
+VERCEL_SAFE_PORTALS = frozenset({"hiringcafe", "remotive", "hackernews"})
+
 
 def _normalize_company_name(name):
     """Normalize company name by stripping common suffixes and noise."""
@@ -1836,13 +1840,12 @@ def deduplicate_jobs(jobs):
     return unique
 
 
-def scrape_all_portals(job_titles, locations, config, progress_callback=None, stop_event=None):
+def scrape_all_portals(job_titles, locations, config, progress_callback=None, stop_event=None, allowed_portals=None):
     """
-    Scrape all enabled portals using threading for parallelism.
-    Returns (all_jobs, portal_results) where portal_results is a dict of
-    portal_name -> {"status": "success"/"failed", "count": int, "time": float}.
-    If stop_event is set mid-run, already-running portal threads finish but no
-    new portals are started.
+    Scrape enabled portals using threading for parallelism.
+    allowed_portals: optional set/list to restrict which portals run
+      (e.g. VERCEL_SAFE_PORTALS for browser-triggered quick scrapes).
+    Returns (all_jobs, portal_results).
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -1853,7 +1856,8 @@ def scrape_all_portals(job_titles, locations, config, progress_callback=None, st
     enabled_portals = []
     for portal_name, portal_conf in config.get("portals", {}).items():
         if portal_conf.get("enabled", True) and portal_name in SCRAPER_MAP:
-            enabled_portals.append(portal_name)
+            if allowed_portals is None or portal_name in allowed_portals:
+                enabled_portals.append(portal_name)
 
     total = len(enabled_portals)
     completed = 0

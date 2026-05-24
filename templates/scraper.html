@@ -12,11 +12,14 @@
       </div>
       <div id="header-btns" style="display:flex;gap:.5rem;flex-shrink:0;">
         {% if is_vercel %}
-        <a href="https://github.com/gmpro-cr/Job-Search-Agent/actions/workflows/scrape.yml"
-           target="_blank" rel="noopener noreferrer" class="btn btn-accent magnetic">
+        <button id="quick-btn" onclick="quickScrape()" class="btn btn-accent magnetic">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.25rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Quick Scrape
+        </button>
+        <button id="gh-btn" onclick="triggerGithubScrape()" class="btn btn-outline magnetic">
           <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style="margin-right:.25rem;"><path d="M12 .297C5.373.297 0 5.67 0 12.297c0 5.302 3.438 9.8 8.207 11.387.6.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.082-.729.082-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.107-.776.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.398 3.003-.404 1.02.006 2.047.138 3.006.404 2.291-1.553 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 22.092 24 17.595 24 12.297c0-6.627-5.373-12-12-12"/></svg>
-          Trigger on GitHub Actions
-        </a>
+          Full Scrape (GitHub)
+        </button>
         {% else %}
         <button id="run-btn" onclick="startScraper()" class="btn btn-accent magnetic">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -33,13 +36,31 @@
 
   {% if is_vercel %}
   <!-- Cloud-mode info banner -->
-  <div class="card" style="border-color:#d97706;background:#fffbeb;">
-    <div class="card-content" style="display:flex;align-items:flex-start;gap:.875rem;padding:1rem;">
-      <svg width="20" height="20" fill="none" stroke="#d97706" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:.1rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      <div>
-        <p style="font-weight:600;color:#92400e;margin:0 0 .25rem;">Scraping runs on GitHub Actions, not in the browser</p>
-        <p style="font-size:.875rem;color:#78350f;margin:0;">The cloud app can't run Selenium scrapers directly. The cron triggers automatically at <strong>07:00</strong> and <strong>19:00 IST</strong>. To run immediately, use the button above to open GitHub Actions and click <em>Run workflow</em>. Portal toggles here still control which portals the cron uses.</p>
+  <div class="card" style="border-color:rgba(3,2,19,0.15);background:rgba(3,2,19,0.02);">
+    <div class="card-content" style="padding:1rem;">
+      <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;">
+          <p style="font-weight:600;margin:0 0 .25rem;display:flex;align-items:center;gap:.375rem;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Quick Scrape (instant)
+          </p>
+          <p style="font-size:.8125rem;color:var(--muted-foreground);margin:0;">Scrapes HiringCafe, Remotive, and HackerNews directly in your browser. No Selenium needed — results in ~20 seconds.</p>
+        </div>
+        <div style="flex:1;min-width:200px;">
+          <p style="font-weight:600;margin:0 0 .25rem;display:flex;align-items:center;gap:.375rem;">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .297C5.373.297 0 5.67 0 12.297c0 5.302 3.438 9.8 8.207 11.387.6.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.082-.729.082-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.107-.776.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.398 3.003-.404 1.02.006 2.047.138 3.006.404 2.291-1.553 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 22.092 24 17.595 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+            Full Scrape via GitHub Actions (~10 min)
+          </p>
+          <p style="font-size:.8125rem;color:var(--muted-foreground);margin:0;">Triggers the full workflow on GitHub Actions — LinkedIn, Naukri, Indeed + all portals. Cron also runs automatically at <strong>07:00</strong> and <strong>19:00 IST</strong>.</p>
+        </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Quick scrape result card (shown after quick scrape) -->
+  <div id="quick-result-card" class="card" style="display:none;">
+    <div class="card-content" style="padding:1rem;">
+      <div id="quick-result-content" style="display:flex;align-items:flex-start;gap:.75rem;"></div>
     </div>
   </div>
   {% endif %}
@@ -363,6 +384,78 @@
     const h = Math.floor(diff / 60);
     if (h < 24) return `${h}h ago`;
     return `${Math.floor(h/24)}d ago`;
+  }
+
+  function quickScrape() {
+    const btn = document.getElementById('quick-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="spin" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.25rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>Scraping…';
+    const card = document.getElementById('quick-result-card');
+    const content = document.getElementById('quick-result-content');
+    card.style.display = 'none';
+
+    fetch('/api/scraper/quick-start', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.25rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Quick Scrape';
+        if (data.ok) {
+          const portalRows = Object.entries(data.portals || {})
+            .map(([p, n]) => `<span style="margin-right:.75rem;"><strong>${n}</strong> from ${p}</span>`).join('');
+          content.innerHTML = `
+            <svg width="20" height="20" fill="none" stroke="var(--success)" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:.1rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <div>
+              <p style="font-weight:600;margin:0 0 .25rem;">Done — ${data.inserted} new job${data.inserted !== 1 ? 's' : ''} added, ${data.skipped} duplicate${data.skipped !== 1 ? 's' : ''} skipped</p>
+              <p style="font-size:.8125rem;color:var(--muted-foreground);margin:0 0 .5rem;">${portalRows || 'No portal data'}</p>
+              <a href="/jobs" class="btn btn-primary btn-sm">View Jobs</a>
+            </div>`;
+        } else {
+          content.innerHTML = `
+            <svg width="20" height="20" fill="none" stroke="var(--destructive)" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:.1rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <div><p style="font-weight:600;color:var(--destructive);margin:0;">${data.error || 'Quick scrape failed'}</p></div>`;
+        }
+        card.style.display = 'block';
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.25rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Quick Scrape';
+        content.innerHTML = `<p style="color:var(--destructive);margin:0;">Network error: ${err.message}</p>`;
+        card.style.display = 'block';
+      });
+  }
+
+  function triggerGithubScrape() {
+    const btn = document.getElementById('gh-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="spin" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.25rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>Triggering…';
+    const card = document.getElementById('quick-result-card');
+    const content = document.getElementById('quick-result-content');
+
+    fetch('/api/scraper/trigger-github', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style="margin-right:.25rem;"><path d="M12 .297C5.373.297 0 5.67 0 12.297c0 5.302 3.438 9.8 8.207 11.387.6.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.082-.729.082-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.107-.776.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.398 3.003-.404 1.02.006 2.047.138 3.006.404 2.291-1.553 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 22.092 24 17.595 24 12.297c0-6.627-5.373-12-12-12"/></svg>Full Scrape (GitHub)';
+        if (data.ok) {
+          content.innerHTML = `
+            <svg width="20" height="20" fill="none" stroke="var(--success)" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:.1rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <div>
+              <p style="font-weight:600;margin:0 0 .25rem;">Workflow triggered — ${data.message || 'check GitHub Actions for progress'}</p>
+              <a href="${data.runs_url}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm">View workflow run</a>
+            </div>`;
+        } else {
+          content.innerHTML = `
+            <svg width="20" height="20" fill="none" stroke="var(--destructive)" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:.1rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <div><p style="font-weight:600;color:var(--destructive);margin:0;">${data.error || 'Failed to trigger workflow'}</p></div>`;
+        }
+        card.style.display = 'block';
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style="margin-right:.25rem;"><path d="M12 .297C5.373.297 0 5.67 0 12.297c0 5.302 3.438 9.8 8.207 11.387.6.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.082-.729.082-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.107-.776.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.398 3.003-.404 1.02.006 2.047.138 3.006.404 2.291-1.553 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 22.092 24 17.595 24 12.297c0-6.627-5.373-12-12-12"/></svg>Full Scrape (GitHub)';
+        content.innerHTML = `<p style="color:var(--destructive);margin:0;">Network error: ${err.message}</p>`;
+        card.style.display = 'block';
+      });
   }
 
   // Init: style checked portals
