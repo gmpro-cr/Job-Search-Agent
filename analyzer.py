@@ -296,11 +296,9 @@ def keyword_score(job, preferences):
 
     Scoring breakdown:
       - Title match:           0-30  (exact match in role title is heavily rewarded)
-      - Location match:        0-10
-      - Remote bonus:          0-10
-      - Industry match:        0-20  (fintech/banking/lending keywords)
+      - Location match:        0-10  (only Pune / remote / hybrid)
+      - Industry match:        0-30  (fintech/banking/lending keywords)
       - PM keywords:           0-20  (product management terms in description)
-      - Growth signals:        0-10
       - Transferable skills:   0-15  (banking/finance skills mentioned in JD)
       - Penalty:               -20   (irrelevant domain detected)
     """
@@ -338,26 +336,19 @@ def keyword_score(job, preferences):
                     best_title_score = max(best_title_score, 12)
     score += best_title_score
 
-    # Location match (0-10)
-    user_locations = [loc.lower().strip() for loc in preferences.get("locations", [])]
+    # Location match (0-10) — only for Pune, remote, or hybrid
     job_loc = job.get("location", "").lower()
-    for loc in user_locations:
-        if loc in job_loc or job_loc in loc:
-            score += 10
-            break
+    remote_status = job.get("remote_status", "").lower()
+    _preferred_locs = {"pune", "remote", "hybrid", "wfh", "work from home", "work from anywhere"}
+    if any(kw in job_loc or kw in remote_status or kw in text for kw in _preferred_locs):
+        score += 10
 
-    # Remote work bonus (0-10)
-    for kw, pts in REMOTE_KEYWORDS.items():
-        if kw in text:
-            score += pts
-            break
-
-    # Industry/domain relevance (0-20) — accumulate multiple matches
+    # Industry/domain relevance (0-30) — accumulate multiple matches
     industry_score = 0
     for kw, pts in FINTECH_KEYWORDS.items():
         if kw in text:
             industry_score += pts
-    score += min(industry_score, 20)
+    score += min(industry_score, 30)
 
     # PM keywords in description/title (0-20) — accumulate
     pm_score = 0
@@ -365,13 +356,6 @@ def keyword_score(job, preferences):
         if kw in text:
             pm_score += pts
     score += min(pm_score, 20)
-
-    # Career growth (0-10)
-    growth_score = 0
-    for kw, pts in GROWTH_KEYWORDS.items():
-        if kw in text:
-            growth_score += pts
-    score += min(growth_score, 10)
 
     # Transferable skills from banking/finance (0-15)
     transferable = preferences.get("transferable_skills", [])
