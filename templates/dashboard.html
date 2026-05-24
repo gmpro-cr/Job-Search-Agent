@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — Job Search Agent{% endblock %}
-{% block page_body_class %}is-airy{% endblock %}
 
 {% block content %}
 {% if not cv_uploaded %}
@@ -51,22 +50,17 @@
 
   {% else %}
 
-  <!-- Hero -->
-  <header class="dash-hero">
-    <span class="eyebrow">{{ jobs_today }} scraped today · {{ high_match_today }} high-match</span>
-    <h1 class="display reveal-on-scroll">
-      Today's brief
-    </h1>
-    <p class="page-lede reveal-on-scroll">
-      What our scrapers found this morning, scored against your CV and preferences.
-    </p>
-    <div class="dash-hero-actions">
-      <a href="{{ url_for('jobs') }}" class="btn btn-accent magnetic" data-magnetic-strength="0.22">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/></svg>
-        Browse all jobs
-      </a>
+  <!-- Compact header row -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);">
+    <div>
+      <span class="eyebrow">Today</span>
+      <h1 style="font-size:1.5rem;font-weight:700;margin:.125rem 0 0;">Job Search Overview</h1>
     </div>
-  </header>
+    <a href="{{ url_for('jobs') }}" class="btn btn-accent" style="flex-shrink:0;">
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.375rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/></svg>
+      Browse all jobs
+    </a>
+  </div>
 
   <!-- Three stats -->
   <div class="grid md:grid-cols-3 gap-4 stagger">
@@ -79,7 +73,7 @@
       </div>
       <div class="card-content pt-0">
         <div class="stat-value tabular" data-count-to="{{ jobs_today }}">{{ jobs_today }}</div>
-        <p class="stat-change">across all six portals</p>
+        <p class="stat-change">new listings across all portals</p>
       </div>
     </div>
 

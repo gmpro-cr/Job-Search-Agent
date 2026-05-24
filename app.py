@@ -2629,60 +2629,126 @@ def cv_page():
         return redirect(_next)
 
     cv_data = load_cv_data()
+    uid = current_user_id()
 
-    # Build template variables
     cv_filename = cv_data.get("filename") if cv_data else None
     cv_uploaded_at = cv_data.get("uploaded_at") if cv_data else None
-    cv_skills_count = len(cv_data.get("skills", [])) if cv_data else 0
     skills = cv_data.get("skills", []) if cv_data else []
-    completeness = min(100, len(skills) * 5 + (50 if cv_data else 0)) if cv_data else 0
+    cv_skills_count = len(skills)
+    skill_lower = [s.lower() for s in skills]
 
-    cv_sections = [
-        {"name": "Contact Information", "status": "complete" if cv_data else "missing", "percentage": 100 if cv_data else 0},
-        {"name": "Professional Summary", "status": "complete" if cv_data else "missing", "percentage": 100 if cv_data else 0},
-        {"name": "Work Experience", "status": "complete" if cv_data else "missing", "percentage": 100 if cv_data else 0},
-        {"name": "Education", "status": "partial" if cv_data else "missing", "percentage": 75 if cv_data else 0},
-        {"name": "Skills", "status": "complete" if len(skills) >= 5 else ("partial" if skills else "missing"), "percentage": min(100, len(skills) * 10)},
-        {"name": "Certifications", "status": "missing", "percentage": 0},
-        {"name": "Projects", "status": "partial" if cv_data else "missing", "percentage": 50 if cv_data else 0},
-    ]
-
-    # Count skill frequencies — single pass over all job descriptions avoids N queries
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT job_description FROM job_listings LIMIT 3000")
-    all_jds = " ".join((r["job_description"] or "") for r in cursor.fetchall()).lower()
+    cur = conn.cursor()
+
+    # Total job count for demand %
+    cur.execute("SELECT COUNT(*) as n FROM job_listings")
+    total_job_count = max(cur.fetchone()["n"] or 1, 1)
+
+    # Single JD scan
+    cur.execute("SELECT job_description FROM job_listings LIMIT 3000")
+    all_jds = " ".join((r["job_description"] or "") for r in cur.fetchall()).lower()
+
+    # Skill demand: CV skills sorted by frequency in job market
+    skill_demand = []
+    for sk in skills[:14]:
+        freq = all_jds.count(sk.lower())
+        pct = round(freq / total_job_count * 100)
+        skill_demand.append({"name": sk, "frequency": freq, "pct": min(100, pct)})
+    skill_demand.sort(key=lambda x: -x["frequency"])
+
+    # Skill gaps: broad domain-relevant list, not in CV
+    _common = [
+        "Machine Learning", "Generative AI", "LLMs", "Product Strategy", "Data Analysis",
+        "SQL", "Python", "Stakeholder Management", "Agile", "Scrum", "AWS", "Docker",
+        "System Design", "API Design", "User Research", "A/B Testing", "Product Analytics",
+        "Roadmapping", "Go-to-Market", "Growth", "NLP", "React", "Kubernetes",
+        "TypeScript", "Figma", "OKRs", "PRD Writing", "Leadership", "B2B SaaS",
+    ]
+    skill_gaps = []
+    for sk in _common:
+        if sk.lower() not in skill_lower:
+            freq = all_jds.count(sk.lower())
+            pct = round(freq / total_job_count * 100)
+            if freq > 0:
+                skill_gaps.append({"skill": sk, "demand_count": freq, "pct": min(100, pct)})
+    skill_gaps.sort(key=lambda x: -x["demand_count"])
+    skill_gaps = skill_gaps[:8]
+
+    # Score distribution across all user-scored jobs
+    score_dist_data = [0, 0, 0, 0, 0]  # 0-20, 21-40, 41-60, 61-80, 81-100
+    total_scored = 0
+    avg_match_score = 0
+    if uid:
+        cur.execute(
+            "SELECT cv_score FROM user_job_state WHERE user_id = ? AND cv_score > 0",
+            (uid,),
+        )
+        _scores = [r["cv_score"] for r in cur.fetchall()]
+        total_scored = len(_scores)
+        if _scores:
+            avg_match_score = round(sum(_scores) / len(_scores))
+            for sc in _scores:
+                if sc <= 20:   score_dist_data[0] += 1
+                elif sc <= 40: score_dist_data[1] += 1
+                elif sc <= 60: score_dist_data[2] += 1
+                elif sc <= 80: score_dist_data[3] += 1
+                else:          score_dist_data[4] += 1
+
+    # Portal breakdown (avg score + count)
+    portal_breakdown = []
+    if uid:
+        cur.execute(
+            """
+            SELECT j.portal, COUNT(*) as cnt, AVG(s.cv_score) as avg_score
+            FROM user_job_state s JOIN job_listings j ON j.job_id = s.job_id
+            WHERE s.user_id = ? AND s.cv_score > 0
+              AND j.portal IS NOT NULL AND j.portal != ''
+            GROUP BY j.portal ORDER BY avg_score DESC LIMIT 6
+            """,
+            (uid,),
+        )
+        portal_breakdown = [
+            {"portal": r["portal"], "count": r["cnt"],
+             "avg_score": round(float(r["avg_score"] or 0))}
+            for r in cur.fetchall()
+        ]
+
+    # Top matched job titles (cv_score >= 65)
+    top_titles = []
+    if uid:
+        cur.execute(
+            """
+            SELECT j.role, COUNT(*) as cnt FROM user_job_state s
+            JOIN job_listings j ON j.job_id = s.job_id
+            WHERE s.user_id = ? AND s.cv_score >= 65
+              AND j.role IS NOT NULL AND j.role != ''
+            GROUP BY LOWER(j.role) ORDER BY cnt DESC LIMIT 8
+            """,
+            (uid,),
+        )
+        top_titles = [{"title": r["role"], "count": r["cnt"]} for r in cur.fetchall()]
+
     conn.close()
 
-    skill_freq = {sk: all_jds.count(sk.lower()) for sk in skills}
-    max_freq = max(skill_freq.values(), default=1) or 1
-
-    extracted_skills = [{"name": sk, "in_cv": True, "frequency": skill_freq.get(sk, 0), "pct": round(skill_freq.get(sk, 0) / max_freq * 100)} for sk in skills[:8]]
-
-    # Skill gaps: common skills NOT in cv
-    common_skills = ["System Design", "Leadership", "Kubernetes", "Machine Learning", "Docker", "AWS", "GraphQL", "Go", "Rust"]
-    skill_lower = [s.lower() for s in skills]
-    skill_gaps = []
-    for sk in common_skills:
-        if sk.lower() not in skill_lower:
-            cnt = all_jds.count(sk.lower())
-            if cnt > 0:
-                skill_gaps.append({"skill": sk, "demand_count": cnt})
-    skill_gaps.sort(key=lambda x: -x["demand_count"])
-    skill_gaps = skill_gaps[:4]
-
-    top_keywords = skills[:14]
+    # Skills tag cloud: (name, demand_pct) sorted by demand
+    tag_cloud = sorted(
+        [(sk, round(all_jds.count(sk.lower()) / total_job_count * 100)) for sk in skills[:24]],
+        key=lambda x: -x[1],
+    )
 
     return render_template("cv.html",
         cv_data=cv_data,
         cv_filename=cv_filename,
         cv_uploaded_at=cv_uploaded_at,
         cv_skills_count=cv_skills_count,
-        completeness=completeness,
-        cv_sections=cv_sections,
-        extracted_skills=extracted_skills,
+        skill_demand=skill_demand,
         skill_gaps=skill_gaps,
-        top_keywords=top_keywords,
+        score_dist_data=score_dist_data,
+        total_scored=total_scored,
+        avg_match_score=avg_match_score,
+        portal_breakdown=portal_breakdown,
+        top_titles=top_titles,
+        tag_cloud=tag_cloud,
     )
 
 

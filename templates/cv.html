@@ -1,211 +1,326 @@
 {% extends "base.html" %}
-{% block title %}Profile & CV - Job Search Agent{% endblock %}
+{% block title %}Profile & CV — Job Search Agent{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
+
+  <!-- Page header -->
   <header class="page-header">
-    <span class="eyebrow">Profile</span>
-    <h1>Profile &amp; CV</h1>
-    <p class="page-lede">Upload your CV so jobs get scored against your real experience and skills.</p>
+    <div class="page-header-row">
+      <div style="flex:1;min-width:0;">
+        <span class="eyebrow">Profile</span>
+        <h1>Profile &amp; CV</h1>
+        <p class="page-lede">Market analysis of your skills against live job data.</p>
+      </div>
+      {% if cv_filename %}
+      <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}" style="flex-shrink:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="btn btn-outline btn-sm" style="cursor:pointer;">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.375rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          Replace CV
+          <input type="file" name="cv_file" accept=".pdf,.doc,.docx" style="display:none;" onchange="this.form.submit()">
+        </label>
+      </form>
+      {% endif %}
+    </div>
   </header>
 
-  {% if cv_filename %}
-  <div class="cv-current">
-    <div class="cv-current-icon">
-      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+  {% if not cv_filename %}
+  <!-- Upload prompt -->
+  <div class="card">
+    <div class="card-content" style="padding:3rem;text-align:center;">
+      <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label id="upload-zone" style="display:flex;flex-direction:column;align-items:center;gap:1rem;cursor:pointer;max-width:28rem;margin:0 auto;">
+          <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          <div>
+            <p style="font-weight:600;margin:0 0 .25rem;">Upload your CV to unlock insights</p>
+            <p class="text-muted" style="font-size:.875rem;margin:0;">PDF, DOC, DOCX up to 5 MB — your skills get matched against every job in the database</p>
+          </div>
+          <span class="btn btn-accent">Choose file</span>
+          <input type="file" name="cv_file" accept=".pdf,.doc,.docx" style="display:none;" onchange="this.form.submit()">
+        </label>
+      </form>
     </div>
-    <div class="cv-current-body">
-      <span class="eyebrow">Currently on file</span>
-      <p class="cv-current-name">{{ cv_filename }}</p>
-      <p class="cv-current-meta">
-        {{ cv_skills_count }} skill{{ '' if cv_skills_count == 1 else 's' }} detected
-        {% if cv_uploaded_at %}· uploaded {{ cv_uploaded_at[:10] }}{% endif %}
-      </p>
-    </div>
-    <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}" class="cv-current-replace">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label class="btn btn-outline btn-sm">
-        Replace CV
-        <input type="file" name="cv_file" accept=".pdf,.doc,.docx" style="display:none;" onchange="this.form.submit()">
-      </label>
-    </form>
   </div>
-  {% endif %}
 
-  <div style="display:grid;grid-template-columns:1fr 2fr;gap:1.5rem;align-items:start;">
+  {% else %}
 
-    <!-- CV Upload -->
+  <!-- CV info bar -->
+  <div style="display:flex;align-items:center;gap:.75rem;padding:.875rem 1.25rem;background:rgba(3,2,19,.03);border:1px solid var(--border);border-radius:.75rem;">
+    <svg width="20" height="20" fill="none" stroke="var(--success)" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <div style="flex:1;min-width:0;">
+      <span style="font-weight:500;font-size:.875rem;">{{ cv_filename }}</span>
+      {% if cv_uploaded_at %}<span class="text-muted" style="font-size:.8125rem;margin-left:.75rem;">Uploaded {{ cv_uploaded_at[:10] }}</span>{% endif %}
+    </div>
+  </div>
+
+  <!-- Summary stat strip -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;">
+    <div class="card" style="padding:1rem 1.25rem;">
+      <p class="text-muted" style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin:0 0 .375rem;">Skills detected</p>
+      <div style="font-size:1.875rem;font-weight:700;color:var(--accent);line-height:1;">{{ cv_skills_count }}</div>
+      <p class="text-muted" style="font-size:.75rem;margin:.25rem 0 0;">from your CV</p>
+    </div>
+    <div class="card" style="padding:1rem 1.25rem;">
+      <p class="text-muted" style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin:0 0 .375rem;">Jobs scored</p>
+      <div style="font-size:1.875rem;font-weight:700;line-height:1;">{{ total_scored }}</div>
+      <p class="text-muted" style="font-size:.75rem;margin:.25rem 0 0;">against your CV</p>
+    </div>
+    <div class="card" style="padding:1rem 1.25rem;">
+      <p class="text-muted" style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin:0 0 .375rem;">Avg match score</p>
+      <div style="font-size:1.875rem;font-weight:700;line-height:1;color:{% if avg_match_score >= 60 %}var(--success){% elif avg_match_score >= 40 %}var(--warning){% else %}var(--muted-foreground){% endif %};">{{ avg_match_score }}</div>
+      <p class="text-muted" style="font-size:.75rem;margin:.25rem 0 0;">out of 100</p>
+    </div>
+    <div class="card" style="padding:1rem 1.25rem;">
+      <p class="text-muted" style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin:0 0 .375rem;">Best portal</p>
+      <div style="font-size:1.25rem;font-weight:700;line-height:1;padding-top:.25rem;">{{ portal_breakdown[0].portal | capitalize if portal_breakdown else '—' }}</div>
+      <p class="text-muted" style="font-size:.75rem;margin:.25rem 0 0;">highest avg score</p>
+    </div>
+  </div>
+
+  <!-- Row 1: Score distribution + Skill demand -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+    <!-- Score distribution -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title">CV Upload</div>
-        <div class="card-description">Upload your resume for analysis</div>
+        <div class="card-title">Match Score Distribution</div>
+        <div class="card-description">How your CV scores across all {{ total_scored }} scraped jobs</div>
       </div>
       <div class="card-content">
-        {% if cv_filename %}
-        <div style="display:flex;flex-direction:column;gap:1rem;">
-          <div style="display:flex;align-items:center;gap:.75rem;padding:1rem;border-radius:.5rem;border:1px solid var(--border);">
-            <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--primary);flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            <div style="flex:1;min-width:0;">
-              <p style="font-weight:500;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ cv_filename }}</p>
-              <p class="text-muted" style="font-size:.8125rem;margin:.125rem 0 0;">Uploaded successfully</p>
-            </div>
-            <svg width="20" height="20" fill="none" stroke="var(--success)" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          </div>
-          <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label class="btn btn-outline" style="width:100%;cursor:pointer;display:block;text-align:center;">
-              Replace CV
-              <input type="file" name="cv_file" accept=".pdf,.doc,.docx" style="display:none;" onchange="this.form.submit()">
-            </label>
-          </form>
-        </div>
+        {% if total_scored > 0 %}
+        <canvas id="score-dist-chart" height="180"></canvas>
         {% else %}
-        <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label id="upload-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;border-radius:.5rem;border:2px dashed var(--border);cursor:pointer;text-align:center;transition:border-color .2s;"
-            onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='var(--border)'">
-            <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);margin-bottom:1rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-            <p style="margin:0 0 .5rem;font-size:.875rem;"><strong>Click to upload</strong> or drag and drop</p>
-            <p class="text-muted" style="font-size:.75rem;margin:0;">PDF, DOC, DOCX (MAX. 5MB)</p>
-            <input type="file" name="cv_file" accept=".pdf,.doc,.docx" style="display:none;" onchange="this.form.submit()">
-          </label>
-        </form>
+        <div class="empty-state" style="padding:2rem 0;">
+          <p style="margin:0;">No scored jobs yet — upload your CV and wait for the next scrape.</p>
+        </div>
         {% endif %}
       </div>
     </div>
 
-    <!-- Profile Completeness -->
+    <!-- Skill demand -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title">Profile Completeness</div>
-        <div class="card-description">How complete is your profile?</div>
+        <div class="card-title">Your Skills in the Market</div>
+        <div class="card-description">How often each CV skill appears in job postings</div>
       </div>
       <div class="card-content">
-        <div style="display:flex;align-items:flex-start;gap:2rem;flex-wrap:wrap;">
-          <div style="width:9rem;flex-shrink:0;position:relative;">
-            <canvas id="completeness-chart" width="144" height="144"></canvas>
-            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
-              <div style="font-size:1.5rem;font-weight:700;">{{ completeness }}%</div>
-              <div class="text-muted" style="font-size:.75rem;">Complete</div>
-            </div>
-          </div>
-          <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:.625rem;">
-            {% for section in cv_sections %}
-            <div style="display:flex;align-items:center;gap:.625rem;">
-              {% if section.status == 'complete' %}
-              <svg width="16" height="16" fill="none" stroke="var(--success)" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              {% elif section.status == 'partial' %}
-              <svg width="16" height="16" fill="none" stroke="var(--warning)" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              {% else %}
-              <svg width="16" height="16" fill="none" stroke="var(--destructive)" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              {% endif %}
-              <span style="flex:1;font-size:.875rem;">{{ section.name }}</span>
-              <span class="badge {% if section.status == 'complete' %}badge-default{% elif section.status == 'partial' %}badge-secondary{% else %}badge-outline{% endif %}" style="font-size:.7rem;">{{ section.percentage }}%</span>
-            </div>
-            {% endfor %}
-          </div>
+        {% if skill_demand %}
+        <canvas id="skill-demand-chart" height="180"></canvas>
+        {% else %}
+        <div class="empty-state" style="padding:2rem 0;">
+          <p style="margin:0;">No skill data — upload your CV to see market demand.</p>
         </div>
+        {% endif %}
       </div>
     </div>
   </div>
 
-  <!-- Skills + Gap -->
+  <!-- Row 2: Skill gaps + Portal performance -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Skill Extraction & Matching</div>
-        <div class="card-description">Skills identified from your CV and job market</div>
-      </div>
-      <div class="card-content">
-        <div style="display:flex;flex-direction:column;gap:.75rem;">
-          {% for skill in extracted_skills %}
-          <div style="display:flex;align-items:center;justify-content:space-between;">
-            <div style="display:flex;align-items:center;gap:.5rem;">
-              <span style="font-weight:500;font-size:.875rem;">{{ skill.name }}</span>
-              {% if skill.in_cv %}
-              <span class="badge badge-secondary" style="font-size:.7rem;">In CV</span>
-              {% endif %}
-            </div>
-            <div style="display:flex;align-items:center;gap:.75rem;">
-              <div style="width:6rem;height:.5rem;border-radius:999px;background:var(--muted);">
-                <div style="height:100%;border-radius:999px;background:var(--primary);width:{{ skill.pct }}%;"></div>
-              </div>
-              <span class="text-muted" style="width:3.5rem;text-align:right;font-size:.8125rem;">{{ skill.frequency }} jobs</span>
-            </div>
-          </div>
-          {% else %}
-          <p class="text-muted" style="font-size:.875rem;">Upload your CV to extract skills.</p>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
 
+    <!-- Skill gaps -->
     <div class="card">
       <div class="card-header">
         <div class="card-title">Skill Gap Analysis</div>
-        <div class="card-description">Skills in demand missing from your CV</div>
+        <div class="card-description">High-demand skills missing from your CV</div>
       </div>
       <div class="card-content">
-        <div style="display:flex;flex-direction:column;gap:.75rem;">
-          {% for gap in skill_gaps %}
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem;border-radius:.5rem;border:1px solid var(--border);">
-            <div style="display:flex;align-items:center;gap:.5rem;">
-              <svg width="16" height="16" fill="none" stroke="var(--warning)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-              <span style="font-weight:500;font-size:.875rem;">{{ gap.skill }}</span>
+        {% if skill_gaps %}
+        <canvas id="skill-gap-chart" height="200"></canvas>
+        {% else %}
+        <div class="empty-state" style="padding:2rem 0;"><p style="margin:0;">No skill gaps identified.</p></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Portal performance -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Portal Performance</div>
+        <div class="card-description">Average CV match score per job portal</div>
+      </div>
+      <div class="card-content">
+        {% if portal_breakdown %}
+        <div style="display:flex;flex-direction:column;gap:.75rem;margin-top:.25rem;">
+          {% for p in portal_breakdown %}
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;">
+              <span style="font-size:.875rem;font-weight:500;">{{ p.portal | capitalize }}</span>
+              <span style="font-size:.8125rem;font-weight:600;color:{% if p.avg_score >= 60 %}var(--success){% elif p.avg_score >= 40 %}var(--warning){% else %}var(--muted-foreground){% endif %};">{{ p.avg_score }}  <span class="text-muted" style="font-weight:400;font-size:.75rem;">({{ p.count }} jobs)</span></span>
             </div>
-            <div style="display:flex;align-items:center;gap:.5rem;">
-              <span class="text-muted" style="font-size:.8125rem;">{{ gap.demand_count }} jobs</span>
+            <div style="height:6px;border-radius:999px;background:var(--muted);overflow:hidden;">
+              <div style="height:100%;border-radius:999px;background:{% if p.avg_score >= 60 %}var(--success){% elif p.avg_score >= 40 %}var(--warning){% else %}var(--muted-foreground){% endif %};width:{{ p.avg_score }}%;transition:width .6s ease;"></div>
             </div>
           </div>
-          {% else %}
-          <p class="text-muted" style="font-size:.875rem;">No skill gaps identified yet.</p>
           {% endfor %}
         </div>
-        <p class="text-muted" style="font-size:.875rem;margin-top:1rem;">Add these skills to improve your job match score.</p>
+        {% else %}
+        <div class="empty-state" style="padding:2rem 0;"><p style="margin:0;">Score jobs first to see portal performance.</p></div>
+        {% endif %}
       </div>
     </div>
   </div>
 
-  <!-- Keywords -->
+  <!-- Row 3: Top matched titles (if any) -->
+  {% if top_titles %}
   <div class="card">
     <div class="card-header">
-      <div class="card-title">Top Keywords & Transferable Skills</div>
-      <div class="card-description">Most common keywords across matched jobs</div>
+      <div class="card-title">Top Matching Job Titles</div>
+      <div class="card-description">Roles scoring ≥ 65 that appear most across your matched jobs</div>
     </div>
     <div class="card-content">
-      <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
-        {% for kw in top_keywords %}
-        <span class="badge badge-secondary" style="padding:.375rem .75rem;">{{ kw }}</span>
-        {% else %}
-        <p class="text-muted" style="font-size:.875rem;">No keyword data available yet.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:.625rem;">
+        {% set max_count = top_titles[0].count %}
+        {% for t in top_titles %}
+        <span style="
+          display:inline-flex;align-items:center;gap:.375rem;
+          padding:.375rem .875rem;border-radius:999px;
+          background:rgba(3,2,19,{{ 0.04 + (t.count / max_count) * 0.09 }});
+          border:1px solid rgba(3,2,19,{{ 0.06 + (t.count / max_count) * 0.1 }});
+          font-size:{% if t.count == max_count %}.9375rem{% else %}.8125rem{% endif %};
+          font-weight:{% if t.count == max_count %}600{% else %}400{% endif %};">
+          {{ t.title }}
+          <span class="text-muted" style="font-size:.7rem;">{{ t.count }}</span>
+        </span>
         {% endfor %}
       </div>
     </div>
   </div>
+  {% endif %}
+
+  <!-- Skills tag cloud -->
+  {% if tag_cloud %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Your Skills — Market Demand</div>
+      <div class="card-description">Larger = appears in more job postings. Colour = demand tier.</div>
+    </div>
+    <div class="card-content">
+      <div style="display:flex;flex-wrap:wrap;gap:.5rem;line-height:1.4;">
+        {% for skill, pct in tag_cloud %}
+        <span style="
+          display:inline-block;
+          padding:.3rem .75rem;
+          border-radius:.375rem;
+          font-size:{% if pct >= 15 %}1rem{% elif pct >= 8 %}.9375rem{% elif pct >= 3 %}.875rem{% else %}.8125rem{% endif %};
+          font-weight:{% if pct >= 15 %}600{% elif pct >= 8 %}500{% else %}400{% endif %};
+          background:{% if pct >= 15 %}rgba(3,2,19,.1){% elif pct >= 8 %}rgba(3,2,19,.06){% else %}rgba(3,2,19,.03){% endif %};
+          border:1px solid {% if pct >= 15 %}rgba(3,2,19,.15){% elif pct >= 8 %}rgba(3,2,19,.08){% else %}var(--border){% endif %};
+          color:{% if pct >= 15 %}var(--foreground){% else %}var(--muted-foreground){% endif %};">
+          {{ skill }}{% if pct >= 3 %}<span style="margin-left:.3rem;font-size:.7em;opacity:.55;">{{ pct }}%</span>{% endif %}
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% endif %}<!-- end cv_filename -->
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-  const completeness = {{ completeness }};
-  const canvas = document.getElementById('completeness-chart');
-  if (canvas) {
-    new Chart(canvas, {
-      type: 'doughnut',
-      data: {
-        datasets: [{
-          data: [completeness, 100 - completeness],
-          backgroundColor: ['var(--primary)', 'rgba(3,2,19,.08)'],
-          borderWidth: 0,
-        }]
+  const chartDefaults = {
+    font: { family: 'inherit', size: 12 },
+  };
+  Chart.defaults.font.family = 'inherit';
+  Chart.defaults.font.size = 12;
+
+  // ── Score distribution (vertical bar) ──────────────────────────
+  {% if total_scored > 0 %}
+  new Chart(document.getElementById('score-dist-chart'), {
+    type: 'bar',
+    data: {
+      labels: ['0–20', '21–40', '41–60', '61–80', '81–100'],
+      datasets: [{
+        data: {{ score_dist_data | tojson }},
+        backgroundColor: [
+          'rgba(239,68,68,.65)',
+          'rgba(249,115,22,.65)',
+          'rgba(234,179,8,.65)',
+          'rgba(34,197,94,.65)',
+          'rgba(3,2,19,.75)',
+        ],
+        borderRadius: 4,
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.raw} jobs` } },
       },
-      options: {
-        cutout: '75%',
-        plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        animation: { duration: 800 }
-      }
-    });
-  }
+      scales: {
+        x: { grid: { display: false }, ticks: { color: 'var(--muted-foreground)' } },
+        y: { grid: { color: 'rgba(3,2,19,.05)' }, ticks: { color: 'var(--muted-foreground)', stepSize: 1 }, beginAtZero: true },
+      },
+    }
+  });
+  {% endif %}
+
+  // ── Skill demand (horizontal bar) ───────────────────────────────
+  {% if skill_demand %}
+  const sdData = {{ skill_demand | tojson }};
+  new Chart(document.getElementById('skill-demand-chart'), {
+    type: 'bar',
+    data: {
+      labels: sdData.map(s => s.name),
+      datasets: [{
+        data: sdData.map(s => s.frequency),
+        backgroundColor: 'rgba(3,2,19,.12)',
+        hoverBackgroundColor: 'rgba(3,2,19,.22)',
+        borderRadius: 4,
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.raw} job postings` } },
+      },
+      scales: {
+        x: { grid: { color: 'rgba(3,2,19,.05)' }, ticks: { color: 'var(--muted-foreground)' }, beginAtZero: true },
+        y: { grid: { display: false }, ticks: { color: 'var(--foreground)', font: { size: 11 } } },
+      },
+    }
+  });
+  {% endif %}
+
+  // ── Skill gap (horizontal bar) ───────────────────────────────────
+  {% if skill_gaps %}
+  const sgData = {{ skill_gaps | tojson }};
+  new Chart(document.getElementById('skill-gap-chart'), {
+    type: 'bar',
+    data: {
+      labels: sgData.map(s => s.skill),
+      datasets: [{
+        data: sgData.map(s => s.demand_count),
+        backgroundColor: 'rgba(234,179,8,.3)',
+        hoverBackgroundColor: 'rgba(234,179,8,.5)',
+        borderRadius: 4,
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.raw} job postings` } },
+      },
+      scales: {
+        x: { grid: { color: 'rgba(3,2,19,.05)' }, ticks: { color: 'var(--muted-foreground)' }, beginAtZero: true },
+        y: { grid: { display: false }, ticks: { color: 'var(--foreground)', font: { size: 11 } } },
+      },
+    }
+  });
+  {% endif %}
 </script>
 {% endblock %}
