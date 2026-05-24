@@ -2166,71 +2166,47 @@ def scheduler_status():
 
 @app.route("/hiring-managers")
 def hiring_managers():
-    """
-    Companies actively hiring for roles relevant to the user's CV.
-    Shows company + role + apply link + LinkedIn search link.
-    Individual hiring manager names/emails require contact enrichment
-    (LinkedIn credentials) which is configured separately.
-    """
-    uid = current_user_id()
-    cv_data = load_cv_data(uid) if uid else None
-    cv_uploaded = cv_data is not None
+    """Recruiter/TA contacts found via LinkedIn search, sourced from hr_sent_contacts.json."""
+    try:
+        hm = _load_hm()
+        contacts = hm.load_all_contacts()
+    except Exception as e:
+        logger.warning("Could not load hiring manager contacts: %s", e)
+        contacts = []
 
-    conn = get_connection()
-    cur = conn.cursor()
-
-    if uid and cv_uploaded:
-        # Top relevant companies: jobs scored >= 40 for this user, most recent first
-        cur.execute(
-            """
-            SELECT j.job_id, j.company, j.role, j.apply_url, j.portal,
-                   j.date_found, j.location, j.remote_status,
-                   j.poster_name, j.poster_linkedin, j.poster_email,
-                   s.cv_score
-            FROM job_listings j
-            JOIN user_job_state s ON s.job_id = j.job_id AND s.user_id = ?
-            WHERE s.cv_score >= 40
-              AND COALESCE(s.hidden, 0) = 0
-            ORDER BY s.cv_score DESC, j.date_found DESC
-            LIMIT 300
-            """,
-            (uid,),
-        )
-    else:
-        # No CV — show recent jobs sorted by relevance score
-        cur.execute(
-            """
-            SELECT job_id, company, role, apply_url, portal,
-                   date_found, location, remote_status,
-                   poster_name, poster_linkedin, poster_email,
-                   relevance_score AS cv_score
-            FROM job_listings
-            ORDER BY relevance_score DESC, date_found DESC
-            LIMIT 300
-            """
-        )
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-
-    # Deduplicate by (company, role): keep the highest-scored entry
-    seen = {}
-    for r in rows:
-        key = (r["company"] or "").lower() + "||" + (r["role"] or "").lower()
-        if key not in seen or (r["cv_score"] or 0) > (seen[key]["cv_score"] or 0):
-            seen[key] = r
-    companies = list(seen.values())
-
-    counts = {
-        "total": len(companies),
-        "with_linkedin": sum(1 for c in companies if c.get("poster_linkedin")),
-        "with_name":     sum(1 for c in companies if c.get("poster_name")),
-    }
     return render_template(
         "hiring_managers.html",
-        companies=companies,
-        counts=counts,
-        cv_uploaded=cv_uploaded,
+        contacts=contacts,
+        total=len(contacts),
     )
+
+
+@app.route("/api/hiring-managers/search", methods=["POST"])
+def api_hiring_managers_search():
+    """Run a fresh hiring manager search and store results (does not send email)."""
+    from reminder_runner import load_reminders as _load_rem
+    reminders = _load_rem() or []
+    # Use the first hr_email_enabled reminder's config as search parameters
+    reminder = next((r for r in reminders if r.get("hr_email_enabled") and r.get("email")), None)
+    if not reminder:
+        return jsonify({"ok": False, "error": "No active hiring manager reminder configured"}), 400
+    try:
+        hm = _load_hm()
+        role_keywords = [k.strip() for k in reminder.get("keyword", "").split(",") if k.strip()]
+        location = reminder.get("hr_location") or "India"
+        cv_data_r = reminder.get("cv_data") or {}
+        skills = cv_data_r.get("skills") or []
+        sent = hm.load_hr_sent(reminder["id"])
+        new_contacts = hm.get_new_hiring_managers(
+            sent, role_keywords=role_keywords, skills=skills,
+            location=location, target=10,
+        )
+        if new_contacts:
+            hm.update_hr_sent(reminder["id"], new_contacts)
+        return jsonify({"ok": True, "found": len(new_contacts)})
+    except Exception as e:
+        logger.error("Hiring manager search failed: %s", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.route("/digests")
