@@ -2722,7 +2722,7 @@ def cv_page():
             JOIN job_listings j ON j.job_id = s.job_id
             WHERE s.user_id = ? AND s.cv_score >= 65
               AND j.role IS NOT NULL AND j.role != ''
-            GROUP BY LOWER(j.role) ORDER BY cnt DESC LIMIT 8
+            GROUP BY j.role ORDER BY cnt DESC LIMIT 8
             """,
             (uid,),
         )
