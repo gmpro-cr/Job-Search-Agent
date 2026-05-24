@@ -2164,16 +2164,45 @@ def scheduler_status():
     return jsonify({"enabled": False, "next_run": None, "next_run_human": None})
 
 
+def _load_all_hm_contacts() -> list:
+    """
+    Load all sent hiring-manager contacts from hr_sent_contacts.json,
+    deduplicated by name, newest first. Works on both local and Vercel.
+    """
+    import json as _json
+    # Try the local Documents/Claude path first, then DATA_DIR fallback
+    candidates = [
+        os.path.join(_HR_EMAIL_DIR, "hr_sent_contacts.json"),
+        os.path.join(BASE_DIR, "data", "hr_sent_contacts.json"),
+    ]
+    data = {}
+    for path in candidates:
+        if os.path.exists(path):
+            try:
+                data = _json.loads(open(path, encoding="utf-8").read())
+                break
+            except Exception:
+                pass
+    if not data:
+        return []
+    seen_names = set()
+    all_entries = []
+    for contacts in data.values():
+        all_entries.extend(contacts)
+    all_entries.sort(key=lambda x: x.get("date_sent", ""), reverse=True)
+    result = []
+    for c in all_entries:
+        key = (c.get("name") or "").lower().strip()
+        if key and key not in seen_names:
+            seen_names.add(key)
+            result.append(c)
+    return result
+
+
 @app.route("/hiring-managers")
 def hiring_managers():
     """Recruiter/TA contacts found via LinkedIn search, sourced from hr_sent_contacts.json."""
-    try:
-        hm = _load_hm()
-        contacts = hm.load_all_contacts()
-    except Exception as e:
-        logger.warning("Could not load hiring manager contacts: %s", e)
-        contacts = []
-
+    contacts = _load_all_hm_contacts()
     return render_template(
         "hiring_managers.html",
         contacts=contacts,
@@ -2203,6 +2232,24 @@ def api_hiring_managers_search():
         )
         if new_contacts:
             hm.update_hr_sent(reminder["id"], new_contacts)
+            # Also write to DATA_DIR fallback so Vercel can read it
+            import json as _json
+            fallback = os.path.join(BASE_DIR, "data", "hr_sent_contacts.json")
+            try:
+                existing = _json.loads(open(fallback, encoding="utf-8").read()) if os.path.exists(fallback) else {}
+            except Exception:
+                existing = {}
+            rid = reminder["id"]
+            existing.setdefault(rid, [])
+            for c in new_contacts:
+                existing[rid].append({
+                    "name": c["name"], "company": c["company"],
+                    "their_role": c.get("their_role", ""),
+                    "linkedin_url": c.get("linkedin_url", ""),
+                    "date_sent": date.today().isoformat(),
+                })
+            os.makedirs(os.path.dirname(fallback), exist_ok=True)
+            open(fallback, "w", encoding="utf-8").write(_json.dumps(existing, indent=2))
         return jsonify({"ok": True, "found": len(new_contacts)})
     except Exception as e:
         logger.error("Hiring manager search failed: %s", e)
