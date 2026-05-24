@@ -2295,24 +2295,67 @@ def digests():
     conn.close()
     stats = {"total": total, "qualified": qualified, "avg_score": avg_score}
     user_email = dict(session).get('user', {}).get('email', '')
-    # Load active job-alert reminders to surface on digest page
+
     from reminder_runner import load_reminders as _load_rem
+    import glob as _glob
     all_reminders = _load_rem() or []
+
+    # 1. Job alert emails (reminder sends matched job listings)
     job_alerts = [
         {
             "id": r.get("id"),
+            "alert_type": "job_alert",
             "name": r.get("name") or r.get("keyword", ""),
             "email": r.get("email", ""),
             "keyword": r.get("keyword", ""),
-            "last_sent": r.get("last_sent") or r.get("last_hr_sent") or "Never",
-            "enabled": r.get("enabled", True),
-            "hr_email_enabled": r.get("hr_email_enabled", False),
+            "last_sent": (r.get("last_sent") or "Never")[:10],
+            "schedule": "Daily after each scrape",
+            "min_score": r.get("min_score", 30),
+            "max_jobs": r.get("max_jobs", 20),
         }
         for r in all_reminders
         if r.get("enabled") and r.get("email")
     ]
+
+    # 2. Hiring manager emails (hr_email_enabled reminders)
+    hr_alerts = [
+        {
+            "id": r.get("id"),
+            "alert_type": "hiring_manager",
+            "name": r.get("name") or r.get("keyword", ""),
+            "email": r.get("email", ""),
+            "keyword": r.get("keyword", ""),
+            "last_sent": (r.get("last_hr_sent") or "Never")[:10],
+            "schedule": f"Daily at {r.get('hr_email_hour', 11):02d}:00",
+            "min_score": r.get("min_score", 30),
+            "max_jobs": r.get("max_jobs", 20),
+        }
+        for r in all_reminders
+        if r.get("hr_email_enabled") and r.get("email")
+    ]
+
+    # 3. PRD email (from preferences)
+    prd_sent_files = sorted(_glob.glob(
+        os.path.join(BASE_DIR, "data", "prds", "prd_*.sent")
+    ))
+    prd_last_sent = os.path.basename(prd_sent_files[-1]).replace("prd_", "").replace(".sent", "") if prd_sent_files else "Never"
+    prd_recipient = (prefs or {}).get("email", "") or user_email
+    prd_alerts = [{
+        "id": "__prd__",
+        "alert_type": "prd",
+        "name": "Daily PRD",
+        "email": prd_recipient,
+        "keyword": "AI-generated product brief for your top role",
+        "last_sent": prd_last_sent,
+        "schedule": "Daily at 08:00",
+        "min_score": None,
+        "max_jobs": None,
+    }] if prd_recipient else []
+
+    all_alerts = job_alerts + hr_alerts + prd_alerts
+
     return render_template("digests.html", files=files, stats=stats, prefs=prefs,
-                           user_email=user_email, job_alerts=job_alerts)
+                           user_email=user_email, job_alerts=all_alerts)
 
 
 @app.route("/api/digest/settings", methods=["POST"])
