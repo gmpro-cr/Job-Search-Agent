@@ -1968,7 +1968,7 @@ def tailored_points(job_id):
 
 @app.route("/scraper")
 def scraper():
-    return render_template("scraper.html", config=load_config())
+    return render_template("scraper.html", config=load_config(), is_vercel=_IS_VERCEL)
 
 
 @app.route("/api/jobs/import", methods=["POST"])
