@@ -74,8 +74,8 @@
 </div>
 
 <!-- ── Preferences Modal ──────────────────────────────────────── -->
-<div id="prefs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:2rem 1rem;overflow-y:auto;" onclick="closePrefsModal(event)">
-  <div style="background:var(--card);border:1px solid var(--border);border-radius:1rem;max-width:36rem;width:100%;max-height:calc(100vh - 4rem);display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+<div id="prefs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:1rem;" onclick="closePrefsModal(event)">
+  <div id="prefs-panel" style="background:var(--card);border:1px solid var(--border);border-radius:1rem;max-width:36rem;width:100%;max-height:min(calc(100vh - 2rem),680px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.18);transform:scale(.97) translateY(6px);opacity:0;transition:transform .18s cubic-bezier(.32,.72,0,1),opacity .18s ease;" onclick="event.stopPropagation()">
 
     <!-- Header (fixed) -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:1.125rem 1.5rem;border-bottom:1px solid var(--border);flex-shrink:0;">
@@ -190,9 +190,12 @@
     </div><!-- /body -->
 
     <!-- Footer (fixed) -->
-    <div style="display:flex;justify-content:flex-end;gap:.75rem;padding:.875rem 1.5rem;border-top:1px solid var(--border);background:var(--muted);flex-shrink:0;border-radius:0 0 1rem 1rem;">
-      <button onclick="closePrefsModal()" class="btn btn-outline">Cancel</button>
-      <button id="prefs-save-btn" onclick="savePrefs()" class="btn btn-accent">Save &amp; refresh</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.875rem 1.5rem;border-top:1px solid var(--border);background:var(--card);flex-shrink:0;border-radius:0 0 1rem 1rem;">
+      <span style="font-size:.8125rem;color:var(--muted-foreground);">Esc to close</span>
+      <div style="display:flex;gap:.625rem;">
+        <button onclick="closePrefsModal()" class="btn btn-outline btn-sm">Cancel</button>
+        <button id="prefs-save-btn" onclick="savePrefs()" class="btn btn-accent btn-sm">Save &amp; apply</button>
+      </div>
     </div>
   </div>
 </div>
@@ -448,20 +451,37 @@
 
   // ── Preferences modal ────────────────────────────────────────
   function openPrefsModal() {
-    // Restore saved display filter values
     const { minScore, recency } = getDisplayFilters();
     document.getElementById('p-min-score').value = String(minScore);
     document.getElementById('p-recency').value = recency;
-    // Apply initial mode highlight state
     document.querySelectorAll('input[name="p_work_modes"]').forEach(cb => pSyncModeStyle(cb.value));
-    document.getElementById('prefs-modal').style.display = 'flex';
+    const modal = document.getElementById('prefs-modal');
+    const panel = document.getElementById('prefs-panel');
+    modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    // Entrance animation — rAF ensures the display:flex is painted first
+    requestAnimationFrame(() => {
+      panel.style.transform = 'scale(1) translateY(0)';
+      panel.style.opacity = '1';
+    });
   }
   function closePrefsModal(e) {
     if (e && e.target !== document.getElementById('prefs-modal')) return;
-    document.getElementById('prefs-modal').style.display = 'none';
+    const modal = document.getElementById('prefs-modal');
+    const panel = document.getElementById('prefs-panel');
+    panel.style.transform = 'scale(.97) translateY(6px)';
+    panel.style.opacity = '0';
+    setTimeout(() => {
+      modal.style.display = 'none';
+      panel.style.transform = 'scale(.97) translateY(6px)';
+    }, 160);
     document.body.style.overflow = '';
   }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('prefs-modal').style.display === 'flex') {
+      closePrefsModal();
+    }
+  });
 
   function pPillText(pill) {
     return Array.from(pill.childNodes)
@@ -530,7 +550,7 @@
       });
       const data = await r.json();
       if (!data.ok) throw new Error('Save failed');
-      document.getElementById('prefs-modal').style.display = 'none';
+      closePrefsModal();
       document.body.style.overflow = '';
       // Reload jobs with new preferences
       nlpResults = null;
