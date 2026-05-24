@@ -289,7 +289,7 @@ def extract_skills(text, max_skills=8):
     return found[:max_skills] if max_skills else found
 
 
-def keyword_score(job, preferences):
+def keyword_score(job, preferences, cv_data=None):
     """
     Score a job 0-100 using keyword matching.
     This is the fallback scorer when Ollama is unavailable.
@@ -299,7 +299,7 @@ def keyword_score(job, preferences):
       - Location match:        0-10  (only Pune / remote / hybrid)
       - Industry match:        0-30  (fintech/banking/lending keywords)
       - PM keywords:           0-20  (product management terms in description)
-      - Transferable skills:   0-15  (banking/finance skills mentioned in JD)
+      - Transferable skills:   0-15  (skills extracted from CV, matched against JD)
       - Penalty:               -20   (irrelevant domain detected)
     """
     score = 0
@@ -357,8 +357,10 @@ def keyword_score(job, preferences):
             pm_score += pts
     score += min(pm_score, 20)
 
-    # Transferable skills from banking/finance (0-15)
-    transferable = preferences.get("transferable_skills", [])
+    # Transferable skills from CV (0-15)
+    cv_skills = (cv_data or {}).get("skills") or []
+    pref_skills = preferences.get("transferable_skills") or []
+    transferable = list({s.lower() for s in cv_skills + pref_skills if s})
     if transferable:
         ts_score = 0
         for skill in transferable:
@@ -573,7 +575,7 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
         # Keyword pre-filter: only send to LLM if basic keyword match passes.
         # Keeps LLM calls to ~50-100 per run (free-tier Gemini: 15 RPM).
         # Circuit breaker: if LLM fails 5 times in a row, skip it for the rest of the run.
-        kw = keyword_score(job, preferences)
+        kw = keyword_score(job, preferences, cv_data=cv_data)
         scored = False
         if llm_available and kw >= 35 and llm_consecutive_failures < LLM_CIRCUIT_BREAKER:
             result = llm_score(job, cv_data)
