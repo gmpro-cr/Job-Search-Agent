@@ -187,6 +187,7 @@
 ════════════════════════════════ -->
 <div id="tab-profile" class="tab-pane active">
   <form method="POST" action="{{ url_for('setup_profile') }}?tab=profile">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="tab" value="profile">
 
     <!-- Personal details -->
@@ -319,6 +320,7 @@
 ════════════════════════════════ -->
 <div id="tab-targets" class="tab-pane">
   <form method="POST" action="{{ url_for('setup_profile') }}?tab=targets">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="tab" value="targets">
 
     <div class="form-section">
@@ -371,6 +373,7 @@
 ════════════════════════════════ -->
 <div id="tab-comp" class="tab-pane">
   <form method="POST" action="{{ url_for('setup_profile') }}?tab=comp">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="tab" value="comp">
 
     <div class="form-section">
@@ -427,6 +430,7 @@
 ════════════════════════════════ -->
 <div id="tab-cv" class="tab-pane">
   <form method="POST" action="{{ url_for('setup_profile') }}?tab=cv">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="tab" value="cv">
 
     <div class="form-section">

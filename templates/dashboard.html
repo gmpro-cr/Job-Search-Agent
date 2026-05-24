@@ -35,6 +35,7 @@
 
   {% if not cv_uploaded %}
   <form method="POST" action="{{ url_for('cv_page') }}" enctype="multipart/form-data" class="cv-onboard">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="next" value="{{ url_for('dashboard') }}">
     <label id="cv-drop" class="cv-onboard-zone" for="cv-onboard-input">
       <svg width="44" height="44" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="cv-onboard-icon">

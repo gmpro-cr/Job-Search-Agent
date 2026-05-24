@@ -827,16 +827,16 @@ def find_similar_job(company, role, location):
     norm_company = _normalize_company_name(company)
     conn = get_connection()
     cursor = conn.cursor()
-    # Fetch recent jobs to check against (limit scope for performance)
+    # Filter by normalised company name in SQL to avoid a full-table Python scan
     cursor.execute(
-        "SELECT job_id, company, role, location FROM job_listings ORDER BY date_found DESC LIMIT 2000"
+        "SELECT job_id, company, role FROM job_listings WHERE LOWER(TRIM(company)) = ? ORDER BY date_found DESC LIMIT 50",
+        (norm_company.lower(),),
     )
     rows = cursor.fetchall()
     conn.close()
     for r in rows:
-        if _normalize_company_name(r["company"]) == norm_company:
-            if _fuzzy_role_match(role, r["role"]):
-                return r["job_id"]
+        if _fuzzy_role_match(role, r["role"]):
+            return r["job_id"]
     return None
 
 
@@ -1382,23 +1382,79 @@ def update_outreach_status(token: str, status: str) -> None:
     conn.close()
 
 
-def get_outreach_queue(status: str = None) -> list[dict]:
+def claim_outreach_token(token: str) -> dict | None:
     """
-    Return outreach_queue rows, optionally filtered by status.
+    Atomically claim a pending approval token.
+    Returns the outreach row if the claim succeeded (status was 'pending' and < 48h old).
+    Returns None if already claimed, expired, or token not found.
+    """
+    from datetime import datetime, timedelta
+    conn = get_connection()
+    cursor = conn.cursor()
+    # Check existence and age before the atomic UPDATE
+    cursor.execute(
+        "SELECT created_at FROM outreach_queue WHERE approval_token = ? AND status = 'pending'",
+        (token,),
+    )
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None
+    try:
+        age = datetime.now() - datetime.fromisoformat(row["created_at"])
+        if age > timedelta(hours=48):
+            conn.close()
+            return None
+    except Exception:
+        pass
+    now = datetime.now().isoformat()
+    cursor.execute(
+        "UPDATE outreach_queue SET status = 'sent', sent_at = ? WHERE approval_token = ? AND status = 'pending'",
+        (now, token),
+    )
+    conn.commit()
+    if cursor.rowcount == 0:
+        conn.close()
+        return None
+    cursor.execute("SELECT * FROM outreach_queue WHERE approval_token = ?", (token,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_outreach_queue(status: str = None, limit: int = 100, offset: int = 0) -> list[dict]:
+    """
+    Return outreach_queue rows, optionally filtered by status, with pagination.
     Status options: 'pending', 'sent', 'skipped', or None for all.
     """
     conn = get_connection()
     cursor = conn.cursor()
     if status:
         cursor.execute(
-            "SELECT * FROM outreach_queue WHERE status = ? ORDER BY created_at DESC",
-            (status,)
+            "SELECT * FROM outreach_queue WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (status, limit, offset),
         )
     else:
-        cursor.execute("SELECT * FROM outreach_queue ORDER BY created_at DESC")
+        cursor.execute(
+            "SELECT * FROM outreach_queue ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        )
     rows = cursor.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def get_outreach_queue_count(status: str = None) -> int:
+    """Return count of outreach_queue rows, optionally filtered by status."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    if status:
+        cursor.execute("SELECT COUNT(*) as c FROM outreach_queue WHERE status = ?", (status,))
+    else:
+        cursor.execute("SELECT COUNT(*) as c FROM outreach_queue")
+    count = cursor.fetchone()["c"]
+    conn.close()
+    return count
 
 
 def get_outreach_map() -> dict:
@@ -1715,23 +1771,26 @@ def get_unscored_jobs_for_user(user_id: int, limit: int = 200) -> list[dict]:
 def bulk_set_user_cv_scores(user_id: int, scores: dict) -> int:
     """
     scores: { job_id: cv_score_int }. Returns number of rows written.
+    Single UPSERT executemany replaces the old 2N per-row query loop.
     """
     if not user_id or not scores:
         return 0
     conn = get_connection()
     cursor = conn.cursor()
     now = datetime.now().isoformat()
-    written = 0
-    for job_id, score in scores.items():
-        cursor.execute(
-            "INSERT INTO user_job_state (user_id, job_id, updated_at) VALUES (?, ?, ?) ON CONFLICT (user_id, job_id) DO NOTHING",
-            (user_id, job_id, now),
-        )
-        cursor.execute(
-            "UPDATE user_job_state SET cv_score = ?, updated_at = ? WHERE user_id = ? AND job_id = ?",
-            (int(score or 0), now, user_id, job_id),
-        )
-        written += 1
+    rows = [
+        (user_id, job_id, int(score or 0), now, int(score or 0), now)
+        for job_id, score in scores.items()
+    ]
+    cursor.executemany(
+        """INSERT INTO user_job_state (user_id, job_id, cv_score, updated_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT (user_id, job_id)
+           DO UPDATE SET cv_score = ?, updated_at = ?""",
+        rows,
+    )
+    # SQLite executemany returns rowcount=-1 for upserts; fall back to len(rows)
+    written = cursor.rowcount if cursor.rowcount >= 0 else len(rows)
     conn.commit()
     conn.close()
     return written

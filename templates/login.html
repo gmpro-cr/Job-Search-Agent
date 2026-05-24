@@ -595,13 +595,14 @@
         Continue with Google
       </a>
 
-      {% if not owner_locked %}
+      {% if not is_vercel %}
       <div class="divider">or</div>
       <form action="{{ url_for('auth_dev_login') }}" method="POST" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="cta">Continue as dev user</button>
       </form>
       <p class="auth-note">
-        Dev login bypasses OAuth — only available when <code>OWNER_EMAIL</code> is not set. Not for production use.
+        Dev login bypasses OAuth — only available in local development. Not for production use.
       </p>
       {% endif %}
     </div>

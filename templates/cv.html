@@ -23,6 +23,7 @@
       </p>
     </div>
     <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}" class="cv-current-replace">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label class="btn btn-outline btn-sm">
         Replace CV
         <input type="file" name="cv_file" accept=".pdf,.doc,.docx" style="display:none;" onchange="this.form.submit()">
@@ -51,6 +52,7 @@
             <svg width="20" height="20" fill="none" stroke="var(--success)" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
           <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label class="btn btn-outline" style="width:100%;cursor:pointer;display:block;text-align:center;">
               Replace CV
               <input type="file" name="cv_file" accept=".pdf,.doc,.docx" style="display:none;" onchange="this.form.submit()">
@@ -59,6 +61,7 @@
         </div>
         {% else %}
         <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label id="upload-zone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;border-radius:.5rem;border:2px dashed var(--border);cursor:pointer;text-align:center;transition:border-color .2s;"
             onmouseenter="this.style.borderColor='var(--primary)'" onmouseleave="this.style.borderColor='var(--border)'">
             <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);margin-bottom:1rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>

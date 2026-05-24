@@ -64,19 +64,43 @@ from git_sync import sync_from_scrape
 # ---------------------------------------------------------------------------
 
 _IS_VERCEL = bool(os.environ.get("VERCEL"))
-OWNER_EMAIL = os.environ.get('OWNER_EMAIL', '').strip().lower()
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET", "job-search-agent-dev-key-v2")
+
+_secret = os.environ.get("FLASK_SECRET")
+if not _secret:
+    if _IS_VERCEL:
+        raise RuntimeError(
+            "FLASK_SECRET env var is required in production. "
+            "Generate with: python -c 'import secrets; print(secrets.token_urlsafe(48))'"
+        )
+    _secret = "dev-only-insecure-key-do-not-use-in-production"
+app.secret_key = _secret
+
+app.config["SESSION_COOKIE_SECURE"]   = _IS_VERCEL
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB upload limit
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# CSRF protection
+# ---------------------------------------------------------------------------
+from flask_wtf.csrf import CSRFProtect, generate_csrf
+csrf = CSRFProtect(app)
+
+@app.after_request
+def set_csrf_cookie(response):
+    response.headers['X-CSRF-Token'] = generate_csrf()
+    return response
+
+# ---------------------------------------------------------------------------
 # Auth setup
 # ---------------------------------------------------------------------------
 from authlib.integrations.flask_client import OAuth
-from functools import wraps
 from flask import session
 
 oauth = OAuth(app)
@@ -88,33 +112,27 @@ google = oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
+_PUBLIC_ENDPOINTS = frozenset({
+    'login', 'auth_google', 'auth_callback', 'auth_dev_login', 'static',
+    'approve_outreach', 'skip_outreach', 'favicon',
+})
+
 @app.before_request
 def require_login():
-    # Single-owner mode: auto-login as owner on every request — no login page needed.
-    if OWNER_EMAIL and dict(session).get('user') is None:
-        try:
-            uid = get_or_create_user(OWNER_EMAIL)
-            session['user'] = {'email': OWNER_EMAIL, 'name': 'Owner', 'picture': '', 'id': uid}
-        except Exception as e:
-            logger.warning("Auto-login failed: %s", e)
-
-    # Dev mode (no OWNER_EMAIL): still require explicit login
-    if not OWNER_EMAIL:
-        allowed_routes = ['login', 'auth_google', 'auth_callback', 'auth_dev_login', 'static']
-        localhost_api_routes = {'start_scraper', 'stop_scraper', 'stop_scheduled_scraper',
-                                'scraper_status_api', 'dashboard_top_jobs', 'dashboard_create_reminder'}
-        if request.endpoint in localhost_api_routes and request.remote_addr in ('127.0.0.1', '::1'):
-            return
-        if request.endpoint and request.endpoint not in allowed_routes:
-            if dict(session).get('user') is None:
-                return redirect(url_for('login', next=request.url))
+    if request.endpoint in _PUBLIC_ENDPOINTS:
+        return
+    if session.get('user') is None:
+        if request.is_json or (request.path or '').startswith('/api/'):
+            from flask import abort
+            abort(401)
+        return redirect(url_for('login', next=request.path))
 
 
 def current_user_id():
     """
     Resolve the DB user id for the current session, creating the user row on
-    first access. Returns None for unauthenticated routes (e.g. localhost API
-    calls). Callers that require a user should treat None as "no user".
+    first access. Returns None for unauthenticated routes. Callers that require
+    a user should use require_user_id() which aborts with 401.
     """
     user = dict(session).get('user') or {}
     uid = user.get('id')
@@ -134,18 +152,6 @@ def current_user_id():
     # Cache on the session so we don't hit the DB on every request
     session['user'] = dict(user, id=uid)
     return uid
-
-
-def get_owner_id() -> int | None:
-    """Return the DB user id for the deployment owner.
-    In request context uses the session; in background tasks resolves OWNER_EMAIL directly."""
-    if OWNER_EMAIL:
-        try:
-            return get_or_create_user(OWNER_EMAIL)
-        except Exception as e:
-            logger.warning("get_owner_id failed: %s", e)
-            return None
-    return current_user_id()
 
 
 def require_user_id():
@@ -273,13 +279,9 @@ _HR_EMAIL_DIR = os.path.join(os.path.expanduser("~"), "Documents", "Claude")
 
 
 def _load_hm():
-    """Load hiring_managers module from Documents/Claude via importlib."""
-    import importlib.util as _ilu
-    spec = _ilu.spec_from_file_location("hiring_managers",
-                                         os.path.join(_HR_EMAIL_DIR, "hiring_managers.py"))
-    mod = _ilu.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    """Return the hiring_managers_search module (now bundled in the repo)."""
+    import hiring_managers_search
+    return hiring_managers_search
 
 
 def _load_gmail():
@@ -451,7 +453,8 @@ def _startup_catchup():
             try:
                 _send_prd_email_job()
                 # Mark as sent
-                open(prd_sent_flag, "w").close()
+                from pathlib import Path as _Path
+                _Path(prd_sent_flag).touch()
             except Exception as e:
                 logger.error("Startup PRD catch-up failed: %s", e)
         else:
@@ -585,7 +588,8 @@ def _start_simple_scheduler():
                         _mark_ran("prd", today)
                         def _prd_job(flag=prd_sent_flag):
                             _send_prd_email_job()
-                            open(flag, "w").close()
+                            from pathlib import Path as _Path
+                            _Path(flag).touch()
                         _fire("prd_email", _prd_job)
                     else:
                         _mark_ran("prd", today)  # already sent, mark to skip
@@ -1032,20 +1036,20 @@ if _should_start_background_tasks():
 
 @app.route('/login')
 def login():
-    # In production (OWNER_EMAIL set), auto-login handles everything — skip login page.
-    if OWNER_EMAIL or dict(session).get('user') is not None:
+    if session.get('user'):
         return redirect(url_for('dashboard'))
-    return render_template('login.html', owner_locked=False)
+    return render_template('login.html', is_vercel=_IS_VERCEL)
 
 @app.route('/auth/google')
 def auth_google():
     if not os.environ.get("GOOGLE_CLIENT_ID"):
-        flash("Google OAuth is not configured. Please use Demo Login.", "error")
+        flash("Google OAuth is not configured.", "error")
         return redirect(url_for('login'))
     redirect_uri = url_for('auth_callback', _external=True)
     return google.authorize_redirect(redirect_uri)
 
 @app.route('/auth/callback')
+@csrf.exempt
 def auth_callback():
     try:
         token = google.authorize_access_token()
@@ -1054,35 +1058,47 @@ def auth_callback():
         if not email:
             flash("Authentication failed: no email returned.", "error")
             return redirect(url_for('login'))
-        if OWNER_EMAIL and email != OWNER_EMAIL:
-            flash("This deployment is private. Fork the repo to create your own instance.", "error")
-            return redirect(url_for('login'))
         uid = get_or_create_user(email, userinfo.get('name', ''), userinfo.get('picture', ''))
-        session['user'] = {'email': email, 'name': userinfo.get('name', ''), 'picture': userinfo.get('picture', ''), 'id': uid}
+        session.permanent = True
+        session['user'] = {
+            'email': email,
+            'name':  userinfo.get('name', ''),
+            'picture': userinfo.get('picture', ''),
+            'id':    uid,
+        }
     except Exception as e:
-        logger.error(f"OAuth callback error: {e}")
+        logger.error("OAuth callback error: %s", e)
         flash("Authentication failed.", "error")
         return redirect(url_for('login'))
-    return redirect(url_for('dashboard'))
+    next_url = request.args.get('next') or url_for('dashboard')
+    # Reject external redirects (open-redirect fix)
+    from urllib.parse import urlparse
+    if urlparse(next_url).netloc:
+        next_url = url_for('dashboard')
+    return redirect(next_url)
 
 @app.route('/auth/dev-login', methods=['POST'])
+@csrf.exempt
 def auth_dev_login():
-    """Local dev only — bypasses OAuth. Blocked when OWNER_EMAIL is set."""
-    if OWNER_EMAIL:
-        flash("Dev login is disabled in production.", "error")
-        return redirect(url_for('login'))
+    """Local dev only — not available when running on Vercel."""
+    if _IS_VERCEL:
+        from flask import abort
+        abort(403)
     uid = get_or_create_user('dev@localhost', 'Dev User')
+    session.permanent = True
     session['user'] = {'email': 'dev@localhost', 'name': 'Dev User', 'picture': '', 'id': uid}
     return redirect(url_for('dashboard'))
 
 @app.route('/logout')
 def logout():
-    session.pop('user', None)
-    return redirect(url_for('dashboard') if OWNER_EMAIL else url_for('login'))
+    session.clear()
+    return redirect(url_for('login'))
 
 @app.route("/")
 def index():
-    return redirect(url_for('dashboard') if OWNER_EMAIL else url_for('login'))
+    if session.get('user'):
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
 
 
 @app.route("/favicon.ico")
@@ -1285,7 +1301,7 @@ def dashboard_create_reminder():
     else:
         import uuid
         all_reminders.append({
-            "id": uuid.uuid4().hex[:8],
+            "id": uuid.uuid4().hex,
             "name": f"Dashboard Alert — {email.split('@')[0]}",
             "keyword": keyword,
             "email": email,
@@ -1851,6 +1867,7 @@ def save_job_notes(job_id):
 @app.route("/api/admin/dedup", methods=["POST"])
 def admin_dedup():
     """Remove cross-portal duplicate jobs, keeping highest-scoring copy."""
+    require_user_id()
     deleted = dedup_jobs()
     return jsonify({"ok": True, "deleted": deleted})
 
@@ -1955,16 +1972,19 @@ def scraper():
 
 
 @app.route("/api/jobs/import", methods=["POST"])
+@csrf.exempt
 def import_jobs():
     """Accept scraped jobs from external sources (e.g. GitHub Actions)."""
-    data = request.get_json(silent=True) or {}
-
-    # Validate secret
+    # Auth: check header first, before parsing body
     import_secret = os.environ.get("IMPORT_SECRET", "")
-    if not import_secret:
-        return jsonify({"ok": False, "error": "IMPORT_SECRET not configured on server"}), 500
-    if data.get("secret") != import_secret:
-        return jsonify({"ok": False, "error": "Invalid secret"}), 403
+    provided = request.headers.get("X-Import-Secret", "")
+    if not provided:
+        # Fall back to body only after header check fails (backward compat)
+        provided = (request.get_json(silent=True, force=True) or {}).get("secret", "")
+    if import_secret and provided != import_secret:
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
 
     jobs = data.get("jobs")
     if not jobs or not isinstance(jobs, list):
@@ -2010,6 +2030,7 @@ def import_jobs():
 @app.route("/api/portals/update", methods=["POST"])
 def update_portals():
     """Enable or disable job portals. Persists to config.json."""
+    require_user_id()
     data = request.get_json(force=True) or {}
     enabled_portals = data.get("enabled", [])   # list of portal names to enable
 
@@ -2035,6 +2056,7 @@ def update_portals():
 
 @app.route("/api/scraper/start", methods=["POST"])
 def start_scraper():
+    require_user_id()
     if _IS_VERCEL:
         return jsonify({"ok": False, "error": "Scraper is not available in cloud mode. Run the scraper locally with: python main.py"}), 503
     global scraper_status
@@ -2179,7 +2201,8 @@ def _load_all_hm_contacts() -> list:
     for path in candidates:
         if os.path.exists(path):
             try:
-                data = _json.loads(open(path, encoding="utf-8").read())
+                with open(path, encoding="utf-8") as _f:
+                    data = _json.load(_f)
                 break
             except Exception:
                 pass
@@ -2236,7 +2259,11 @@ def api_hiring_managers_search():
             import json as _json
             fallback = os.path.join(BASE_DIR, "data", "hr_sent_contacts.json")
             try:
-                existing = _json.loads(open(fallback, encoding="utf-8").read()) if os.path.exists(fallback) else {}
+                if os.path.exists(fallback):
+                    with open(fallback, encoding="utf-8") as _f:
+                        existing = _json.load(_f)
+                else:
+                    existing = {}
             except Exception:
                 existing = {}
             rid = reminder["id"]
@@ -2249,7 +2276,8 @@ def api_hiring_managers_search():
                     "date_sent": date.today().isoformat(),
                 })
             os.makedirs(os.path.dirname(fallback), exist_ok=True)
-            open(fallback, "w", encoding="utf-8").write(_json.dumps(existing, indent=2))
+            with open(fallback, "w", encoding="utf-8") as _f:
+                _json.dump(existing, _f, indent=2)
         return jsonify({"ok": True, "found": len(new_contacts)})
     except Exception as e:
         logger.error("Hiring manager search failed: %s", e)
@@ -2501,9 +2529,18 @@ def cv_page():
         # skills) from the parsed CV so first-time users land on a
         # working dashboard without filling forms.
         merged_prefs = _autofill_prefs_from_cv(cv_data)
-        _rescore_all_jobs(cv_data, preferences=merged_prefs)
-        flash(f"CV uploaded — {len(cv_data['skills'])} skills detected.", "success")
-        return redirect(request.form.get("next") or url_for("cv_page"))
+        _uid = current_user_id()
+        threading.Thread(
+            target=_rescore_in_background,
+            args=(cv_data, merged_prefs, _uid),
+            daemon=True,
+        ).start()
+        flash(f"CV uploaded — {len(cv_data['skills'])} skills detected. Scoring jobs in the background…", "success")
+        _next = request.form.get("next", "")
+        from urllib.parse import urlparse as _urlparse
+        if not _next or _urlparse(_next).netloc:
+            _next = url_for("cv_page")
+        return redirect(_next)
 
     cv_data = load_cv_data()
 
@@ -2524,16 +2561,17 @@ def cv_page():
         {"name": "Projects", "status": "partial" if cv_data else "missing", "percentage": 50 if cv_data else 0},
     ]
 
-    # Count skill frequencies from DB
+    # Count skill frequencies — single pass over all job descriptions avoids N queries
     conn = get_connection()
     cursor = conn.cursor()
-    skill_freq = {}
-    for sk in skills:
-        cursor.execute("SELECT COUNT(*) AS cnt FROM job_listings WHERE LOWER(job_description) LIKE ?", (f"%{sk.lower()}%",))
-        skill_freq[sk] = cursor.fetchone()["cnt"]
-    max_freq = max(skill_freq.values()) if skill_freq else 1
+    cursor.execute("SELECT job_description FROM job_listings LIMIT 3000")
+    all_jds = " ".join((r["job_description"] or "") for r in cursor.fetchall()).lower()
+    conn.close()
 
-    extracted_skills = [{"name": sk, "in_cv": True, "frequency": skill_freq.get(sk, 0), "pct": round(skill_freq.get(sk, 0) / max(max_freq, 1) * 100)} for sk in skills[:8]]
+    skill_freq = {sk: all_jds.count(sk.lower()) for sk in skills}
+    max_freq = max(skill_freq.values(), default=1) or 1
+
+    extracted_skills = [{"name": sk, "in_cv": True, "frequency": skill_freq.get(sk, 0), "pct": round(skill_freq.get(sk, 0) / max_freq * 100)} for sk in skills[:8]]
 
     # Skill gaps: common skills NOT in cv
     common_skills = ["System Design", "Leadership", "Kubernetes", "Machine Learning", "Docker", "AWS", "GraphQL", "Go", "Rust"]
@@ -2541,13 +2579,11 @@ def cv_page():
     skill_gaps = []
     for sk in common_skills:
         if sk.lower() not in skill_lower:
-            cursor.execute("SELECT COUNT(*) AS cnt FROM job_listings WHERE LOWER(job_description) LIKE ?", (f"%{sk.lower()}%",))
-            cnt = cursor.fetchone()["cnt"]
+            cnt = all_jds.count(sk.lower())
             if cnt > 0:
                 skill_gaps.append({"skill": sk, "demand_count": cnt})
     skill_gaps.sort(key=lambda x: -x["demand_count"])
     skill_gaps = skill_gaps[:4]
-    conn.close()
 
     top_keywords = skills[:14]
 
@@ -2616,6 +2652,13 @@ def upload_cv():
     })
 
 
+def _rescore_in_background(cv_data, preferences, user_id):
+    try:
+        _rescore_all_jobs(cv_data, preferences=preferences, user_id=user_id)
+    except Exception as e:
+        logger.error("Background rescore failed for user %s: %s", user_id, e)
+
+
 def _rescore_all_jobs(cv_data, user_id: int = None, preferences: dict = None):
     """
     Score every job in the DB against cv_data + preferences and persist
@@ -2623,7 +2666,7 @@ def _rescore_all_jobs(cv_data, user_id: int = None, preferences: dict = None):
     to the legacy global column.
     """
     if user_id is None:
-        user_id = current_user_id() or get_owner_id()
+        user_id = current_user_id()
     if preferences is None and user_id:
         preferences = load_preferences(user_id) or {}
     conn = get_connection()
@@ -2666,7 +2709,7 @@ def _autofill_prefs_from_cv(cv_data: dict, user_id: int = None) -> dict:
     Returns the merged preferences dict that was saved.
     """
     if user_id is None:
-        user_id = current_user_id() or get_owner_id()
+        user_id = current_user_id()
     if not user_id or not cv_data:
         return {}
     existing = load_preferences(user_id) or {}
@@ -2927,8 +2970,8 @@ def outbox():
     Paginated server-side — the queue has ~1k+ rows and rendering all of
     them shipped 10+ MB of HTML per request.
     """
-    from database import get_outreach_queue
-    PER_PAGE = 25
+    from database import get_outreach_queue, get_outreach_queue_count
+    PER_PAGE = 50
     tab = (request.args.get("tab") or "pending").lower()
     if tab not in ("pending", "sent", "skipped"):
         tab = "pending"
@@ -2937,19 +2980,10 @@ def outbox():
     except (ValueError, TypeError):
         page = 1
 
-    all_pending = get_outreach_queue("pending")
-    all_sent    = get_outreach_queue("sent")
-    all_skipped = get_outreach_queue("skipped")
-    totals = {
-        "pending": len(all_pending),
-        "sent": len(all_sent),
-        "skipped": len(all_skipped),
-    }
-    active_rows = {"pending": all_pending, "sent": all_sent, "skipped": all_skipped}[tab]
-    total_pages = max(1, (len(active_rows) + PER_PAGE - 1) // PER_PAGE)
+    totals = {s: get_outreach_queue_count(s) for s in ("pending", "sent", "skipped")}
+    total_pages = max(1, (totals[tab] + PER_PAGE - 1) // PER_PAGE)
     page = min(page, total_pages)
-    start = (page - 1) * PER_PAGE
-    page_rows = active_rows[start:start + PER_PAGE]
+    page_rows = get_outreach_queue(tab, limit=PER_PAGE, offset=(page - 1) * PER_PAGE)
 
     return render_template(
         "outbox.html",
@@ -2963,18 +2997,17 @@ def outbox():
 
 
 @app.route("/api/approve/<token>")
+@csrf.exempt
 def approve_outreach(token):
     """Approve and send a cold email for the given token."""
     import smtplib
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
-    from database import get_outreach_by_token, update_outreach_status
+    from database import claim_outreach_token
 
-    item = get_outreach_by_token(token)
-    if not item:
-        return "Invalid or expired link.", 404
-    if item["status"] != "pending":
-        return f"This outreach was already {item['status']}.", 200
+    item = claim_outreach_token(token)
+    if item is None:
+        return "This approval link has already been used, has expired, or is invalid.", 200
 
     prefs = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
     gmail_address = prefs.get("gmail_address", "")
@@ -3003,9 +3036,7 @@ def approve_outreach(token):
             smtp.login(gmail_address, gmail_password)
             smtp.sendmail(gmail_address, recipient_email, msg.as_string())
 
-        update_outreach_status(token, "sent")
-        # Also mark the job as Applied for the current user (or legacy global
-        # when this is being clicked anonymously from an email link).
+        # claim_outreach_token already set status='sent'; mark job applied too
         _uid = current_user_id()
         if _uid:
             update_applied_status_user(_uid, item["job_id"], 1)
@@ -3020,6 +3051,7 @@ def approve_outreach(token):
 
 
 @app.route("/api/skip/<token>")
+@csrf.exempt
 def skip_outreach(token):
     """Mark an outreach draft as skipped."""
     from database import get_outreach_by_token, update_outreach_status
@@ -3095,6 +3127,7 @@ def _run_agent_background():
 @app.route("/api/agent/run", methods=["POST"])
 def run_agent_now():
     """Manually trigger the AI agent pipeline."""
+    require_user_id()
     global agent_status
     with agent_lock:
         if agent_status["running"]:
@@ -3205,7 +3238,7 @@ def reminders_create():
         user_email = dict(session).get('user', {}).get('email')
         all_reminders = load_reminders()
         all_reminders.append({
-            "id": uuid.uuid4().hex[:8],
+            "id": uuid.uuid4().hex,
             "owner_email": user_email,
             "type": "prd",
             "name": name,
@@ -3249,7 +3282,7 @@ def reminders_create():
 
     all_reminders = load_reminders()
     all_reminders.append({
-        "id": uuid.uuid4().hex[:8],
+        "id": uuid.uuid4().hex,
         "owner_email": user_email,
         "type": "jobs",
         "name": name,
@@ -3648,6 +3681,9 @@ def pipeline():
 @app.route("/api/pipeline/open-terminal", methods=["POST"])
 def pipeline_open_terminal():
     """Open Terminal.app at the career-ops directory (macOS)."""
+    require_user_id()
+    if _IS_VERCEL:
+        return jsonify({"ok": False, "error": "Not available on Vercel"}), 400
     import subprocess
     career_ops = os.path.join(BASE_DIR, "tmp_career_ops")
     try:
@@ -3824,6 +3860,10 @@ def prd_library():
 
 @app.route("/prds/<date_str>")
 def prd_detail(date_str):
+    import re
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date_str):
+        from flask import abort
+        abort(400)
     from prd_generator import PRD_DIR
     import json
     cache_path = os.path.join(PRD_DIR, f"prd_{date_str}.json")
@@ -3838,6 +3878,7 @@ def prd_detail(date_str):
 @app.route("/api/prd/send-now", methods=["POST"])
 def prd_send_now():
     """Manually trigger today's PRD email."""
+    require_user_id()
     try:
         threading.Thread(target=_send_prd_email_job, daemon=True).start()
         return jsonify({"ok": True, "message": "PRD email queued"})
@@ -3847,6 +3888,10 @@ def prd_send_now():
 
 @app.route("/api/prd/<date_str>")
 def prd_json(date_str):
+    import re
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date_str):
+        from flask import abort
+        abort(400)
     from prd_generator import PRD_DIR
     import json
     cache_path = os.path.join(PRD_DIR, f"prd_{date_str}.json")

@@ -84,6 +84,7 @@
     </div>
 
     <form method="POST" action="{{ url_for('reminders_create') }}" enctype="multipart/form-data" id="create-rem-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="type" id="rem-type-input" value="jobs">
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
@@ -193,6 +194,7 @@
         <!-- Actions -->
         <div class="flex items-center gap-2 flex-shrink-0 flex-wrap">
           <form method="POST" action="{{ url_for('reminders_send', reminder_id=r.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn-teal" style="padding:0.45rem 1rem;">
               {% if rtype == 'prd' %}Send PRD Now{% else %}Send Now{% endif %}
             </button>
@@ -217,6 +219,7 @@
               <button type="button" onclick="document.getElementById('edit-{{ r.id }}').classList.toggle('hidden'); document.getElementById('hr-{{ r.id }}').classList.add('hidden'); document.getElementById('dropdown-{{ r.id }}').classList.add('hidden')"
                       class="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-zinc-100" style="color:var(--ink);">Edit Settings</button>
               <form method="POST" action="{{ url_for('reminders_update_cv', reminder_id=r.id) }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label class="block w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-zinc-100 cursor-pointer" style="color:var(--ink);">
                   {% if r.cv_data %}Update CV{% else %}Upload CV{% endif %}
                   <input type="file" name="cv_file" accept=".pdf,.docx,.txt" class="hidden" onchange="this.form.submit()">
@@ -224,12 +227,14 @@
               </form>
               {% endif %}
               <form method="POST" action="{{ url_for('reminders_toggle', reminder_id=r.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-zinc-100" style="color:{% if r.enabled %}var(--muted-strong){% else %}var(--muted-strong){% endif %};">
                   {% if r.enabled %}Pause{% else %}Enable{% endif %}
                 </button>
               </form>
               <hr class="rem-divider my-1">
               <form method="POST" action="{{ url_for('reminders_delete', reminder_id=r.id) }}" onsubmit="return confirm('Delete reminder?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-gray-50" style="color:var(--muted-foreground);">Delete</button>
               </form>
             </div>
@@ -242,6 +247,7 @@
       <div id="edit-{{ r.id }}" class="hidden mt-4 pt-4" style="border-top:1px solid rgba(0,0,0,0.06);">
         <h3 class="text-xs font-semibold mb-3" style="color:var(--mute);">EDIT REMINDER</h3>
         <form method="POST" action="{{ url_for('reminders_edit', reminder_id=r.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
             <div>
               <label class="field-label">Alert name</label>
@@ -286,13 +292,16 @@
         </p>
         <div class="flex flex-wrap gap-2 mb-4">
           <form method="POST" action="{{ url_for('reminders_hr_toggle', reminder_id=r.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="gloss-btn-secondary">{% if r.hr_email_enabled %}Disable Daily Email{% else %}Enable Daily Email{% endif %}</button>
           </form>
           <form method="POST" action="{{ url_for('reminders_hr_send', reminder_id=r.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="gloss-btn-secondary">Send HR Email Now</button>
           </form>
         </div>
         <form method="POST" action="{{ url_for('reminders_hr_schedule', reminder_id=r.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label class="field-label">Hour (0–23)</label>

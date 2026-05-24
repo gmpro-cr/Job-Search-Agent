@@ -3,10 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}Job Search Agent{% endblock %}</title>
   <link rel="preload" as="font" type="font/woff2" crossorigin href="{{ url_for('static', filename='fonts/InterVariable.woff2') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   {% block head %}{% endblock %}
+  <script>
+  (function() {
+    var _csrfToken = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : '';
+    var _origFetch = window.fetch;
+    window.fetch = function(url, opts) {
+      opts = opts || {};
+      if (opts.method && opts.method.toUpperCase() !== 'GET') {
+        opts.headers = Object.assign({'X-CSRFToken': _csrfToken}, opts.headers || {});
+      }
+      return _origFetch(url, opts);
+    };
+  })();
+  </script>
 </head>
 <body>
 <!-- Restore the user's last sidebar state before paint so we never flash an
