@@ -121,6 +121,7 @@
             <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Recipient</th>
             <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Keywords</th>
             <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Last sent</th>
+            <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);"></th>
           </tr>
         </thead>
         <tbody>
@@ -136,6 +137,13 @@
             <td style="padding:.75rem 1rem;vertical-align:middle;font-size:.8125rem;color:var(--muted-foreground);white-space:nowrap;">
               {{ alert.last_sent[:10] if alert.last_sent and alert.last_sent != 'Never' else 'Never' }}
             </td>
+            <td style="padding:.75rem 1rem;vertical-align:middle;">
+              <button onclick="openAlertEdit('{{ alert.id }}', {{ alert | tojson | forceescape }})"
+                      style="display:inline-flex;align-items:center;gap:.3rem;font-size:.8125rem;color:var(--primary);background:none;border:none;cursor:pointer;font-weight:500;padding:0;">
+                <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                Edit
+              </button>
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -143,6 +151,56 @@
     </div>
   </div>
   {% endif %}
+
+  <!-- Edit alert modal -->
+  <div id="alert-edit-modal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:1rem;padding:1.5rem;width:min(480px,92vw);box-shadow:0 8px 32px rgba(0,0,0,.18);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+        <h3 style="font-size:1rem;font-weight:600;margin:0;">Edit job alert</h3>
+        <button onclick="closeAlertEdit()" style="background:none;border:none;cursor:pointer;color:var(--muted-foreground);padding:.25rem;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form onsubmit="saveAlertEdit(event)" style="display:flex;flex-direction:column;gap:.875rem;">
+        <input type="hidden" id="ae-id">
+        <div>
+          <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Recipient email</label>
+          <input id="ae-email" type="email" class="input" style="width:100%;font-size:.875rem;" placeholder="recipient@email.com">
+        </div>
+        <div>
+          <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Label / name</label>
+          <input id="ae-name" type="text" class="input" style="width:100%;font-size:.875rem;" placeholder="e.g. Product Manager 1">
+        </div>
+        <div>
+          <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Keywords <span style="font-weight:400;color:var(--muted-foreground);">(comma-separated)</span></label>
+          <textarea id="ae-keyword" class="input" rows="3" style="width:100%;font-size:.875rem;resize:vertical;"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+          <div>
+            <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Min score</label>
+            <select id="ae-min-score" class="input" style="width:100%;font-size:.875rem;">
+              {% for s in [20, 30, 40, 50, 60, 70, 80] %}
+              <option value="{{ s }}">{{ s }}+</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Max jobs</label>
+            <select id="ae-max-jobs" class="input" style="width:100%;font-size:.875rem;">
+              {% for n in [5, 10, 15, 20, 30, 50] %}
+              <option value="{{ n }}">{{ n }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.75rem;padding-top:.25rem;">
+          <button type="submit" id="ae-save-btn" class="btn btn-default">Save</button>
+          <button type="button" onclick="closeAlertEdit()" class="btn" style="background:transparent;border:1px solid var(--border);">Cancel</button>
+          <span id="ae-status" style="font-size:.8125rem;color:var(--muted-foreground);display:none;margin-left:.25rem;"></span>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Digest archive -->
   <div class="card">
@@ -243,6 +301,65 @@ async function saveDigestSettings(e) {
     btn.textContent = 'Save settings';
   }
 }
+
+function openAlertEdit(id, alert) {
+  document.getElementById('ae-id').value = id;
+  document.getElementById('ae-email').value = alert.email || '';
+  document.getElementById('ae-name').value = alert.name || '';
+  document.getElementById('ae-keyword').value = alert.keyword || '';
+  const scoreEl = document.getElementById('ae-min-score');
+  const scoreVal = String(alert.min_score || 30);
+  for (const opt of scoreEl.options) { opt.selected = opt.value === scoreVal; }
+  const jobsEl = document.getElementById('ae-max-jobs');
+  const jobsVal = String(alert.max_jobs || 20);
+  for (const opt of jobsEl.options) { opt.selected = opt.value === jobsVal; }
+  document.getElementById('ae-status').style.display = 'none';
+  const modal = document.getElementById('alert-edit-modal');
+  modal.style.display = 'flex';
+}
+
+function closeAlertEdit() {
+  document.getElementById('alert-edit-modal').style.display = 'none';
+}
+
+async function saveAlertEdit(e) {
+  e.preventDefault();
+  const btn = document.getElementById('ae-save-btn');
+  const status = document.getElementById('ae-status');
+  const id = document.getElementById('ae-id').value;
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  status.style.display = 'none';
+  const payload = {
+    email:     document.getElementById('ae-email').value.trim(),
+    name:      document.getElementById('ae-name').value.trim(),
+    keyword:   document.getElementById('ae-keyword').value.trim(),
+    min_score: parseInt(document.getElementById('ae-min-score').value),
+    max_jobs:  parseInt(document.getElementById('ae-max-jobs').value),
+  };
+  try {
+    const r = await fetch('/api/reminder/' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Save failed');
+    closeAlertEdit();
+    location.reload();
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+    status.style.color = 'var(--destructive)';
+    status.style.display = '';
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
+// Close modal on backdrop click
+document.getElementById('alert-edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeAlertEdit();
+});
 
 function editDigest() {
   const el = document.getElementById('ds-email');

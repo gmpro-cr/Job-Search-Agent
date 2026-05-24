@@ -2725,6 +2725,39 @@ def api_set_reminder():
     save_reminders(reminders)
     return jsonify({"ok": True, "reminder_id": new_reminder["id"]})
 
+@app.route("/api/reminder/<reminder_id>", methods=["PATCH"])
+def api_update_reminder(reminder_id):
+    """Update editable fields on an existing reminder."""
+    from reminder_runner import load_reminders, save_reminders
+    data = request.get_json(silent=True) or {}
+    reminders = load_reminders() or []
+    target = next((r for r in reminders if r.get("id") == reminder_id), None)
+    if not target:
+        return jsonify({"ok": False, "error": "Reminder not found"}), 404
+    if "email" in data:
+        target["email"] = (data["email"] or "").strip()
+    if "keyword" in data:
+        target["keyword"] = (data["keyword"] or "").strip()
+    if "name" in data:
+        target["name"] = (data["name"] or "").strip()
+    if "min_score" in data:
+        try:
+            target["min_score"] = max(0, min(100, int(data["min_score"])))
+        except (ValueError, TypeError):
+            pass
+    if "max_jobs" in data:
+        try:
+            target["max_jobs"] = max(1, min(100, int(data["max_jobs"])))
+        except (ValueError, TypeError):
+            pass
+    try:
+        save_reminders(reminders)
+    except Exception as e:
+        logger.error("Failed to update reminder %s: %s", reminder_id, e)
+        return jsonify({"ok": False, "error": "Save failed"}), 500
+    return jsonify({"ok": True})
+
+
 @app.route("/api/cv/rescore", methods=["POST"])
 def rescore_jobs():
     """Re-score all jobs in the DB against the uploaded CV."""
