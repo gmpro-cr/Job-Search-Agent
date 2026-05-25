@@ -73,11 +73,14 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block modals %}
 <!-- ── Preferences Modal ──────────────────────────────────────── -->
 <div id="prefs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:1rem;" onclick="closePrefsModal(event)">
   <div id="prefs-panel" style="background:var(--card);border:1px solid var(--border);border-radius:1rem;max-width:36rem;width:100%;max-height:min(calc(100vh - 2rem),680px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.18);" onclick="event.stopPropagation()">
 
-    <!-- Header (fixed) -->
+    <!-- Header -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:1.125rem 1.5rem;border-bottom:1px solid var(--border);flex-shrink:0;">
       <div>
         <div style="font-size:1.0625rem;font-weight:700;color:var(--foreground);">Preferences &amp; filters</div>
@@ -91,7 +94,7 @@
     <!-- Body (scrollable) -->
     <div style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:1.25rem;overflow-y:auto;flex:1;">
 
-      <!-- ── Display filters ── -->
+      <!-- Display filters -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
         <div>
           <div style="font-size:.8125rem;font-weight:600;color:var(--foreground);margin-bottom:.375rem;">Min score</div>
@@ -189,7 +192,7 @@
 
     </div><!-- /body -->
 
-    <!-- Footer (fixed) -->
+    <!-- Footer -->
     <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.875rem 1.5rem;border-top:1px solid var(--border);background:var(--card);flex-shrink:0;border-radius:0 0 1rem 1rem;">
       <span style="font-size:.8125rem;color:var(--muted-foreground);">Esc to close</span>
       <div style="display:flex;gap:.625rem;">
@@ -199,7 +202,6 @@
     </div>
   </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
