@@ -1624,7 +1624,7 @@ def jobs():
     _internal_keys = {"cv_uploaded", "show_hidden", "show_international"}
     clean_filters = {k: v for k, v in filters.items() if v and v != "0" and k not in _internal_keys}
 
-    prefs = load_preferences(uid) if uid else DEFAULT_PREFS.copy()
+    prefs = (load_preferences(uid) if uid else None) or DEFAULT_PREFS.copy()
 
     return render_template(
         "jobs.html",
