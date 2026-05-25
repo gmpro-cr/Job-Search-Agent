@@ -3,19 +3,16 @@
 
 {% block content %}
 <div class="space-y-6">
-  <header class="page-header">
-    <div class="page-header-row">
-      <div style="flex:1;min-width:0;">
-        <span class="eyebrow">Live database</span>
-        <h1>Every role we've found for you.</h1>
-        <p class="page-lede">Filter, sort, and act on the freshest matches across all the portals we watch.</p>
-      </div>
-      <div class="jobs-count-display">
-        <div class="stat-figure tabular" id="jobs-count-figure">—</div>
-        <div class="stat-label">Showing</div>
-      </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);">
+    <div>
+      <span class="eyebrow">Live database</span>
+      <h1 style="font-size:1.5rem;font-weight:700;margin:.125rem 0 0;">All Jobs</h1>
     </div>
-  </header>
+    <div class="jobs-count-display">
+      <div class="stat-figure tabular" id="jobs-count-figure">—</div>
+      <div class="stat-label">Showing</div>
+    </div>
+  </div>
 
   {% if not cv_uploaded %}
   <div class="cv-nudge">
