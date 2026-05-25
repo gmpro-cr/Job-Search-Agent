@@ -384,33 +384,25 @@
       const portal = job.portal || '';
       const date = job.date_found ? timeAgo(job.date_found) : '';
       const applyUrl = escHtml(job.apply_url || '#');
+      const scoreClass = score >= 80 ? 'color:#16a34a;font-weight:700;' : score >= 60 ? 'color:#d97706;font-weight:700;' : 'color:var(--muted-foreground);font-weight:600;';
 
-      return `<div class="card" style="margin-bottom:.5rem;">
-        <div class="card-content" style="padding:.875rem 1rem;">
-          <div style="display:flex;align-items:center;gap:.75rem;">
-            <div style="width:2.75rem;height:2.75rem;border-radius:.5rem;background:rgba(3,2,19,.08);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;color:var(--primary);flex-shrink:0;">${initial}</div>
-            <div style="flex:1;min-width:0;">
-              <h3 style="font-weight:600;font-size:.9375rem;margin:0 0 .2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(job.role||'Untitled')}</h3>
-              <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.375rem;font-size:.8125rem;color:var(--muted-foreground);">
-                <span>${escHtml(job.company||'')}</span>
-                ${job.location ? `<span>·</span><span>${escHtml(job.location)}</span>` : ''}
-                ${remote ? `<span>·</span><span class="badge badge-outline" style="font-size:.7rem;">${escHtml(remote)}</span>` : ''}
-              </div>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.375rem;flex-shrink:0;">
-              <div style="display:flex;align-items:center;gap:.375rem;">
-                <span class="${scoreBadgeClass(score)}" style="font-weight:700;">${score}</span>
-                ${portal ? `<span class="badge badge-outline" style="font-size:.7rem;">${escHtml(portal)}</span>` : ''}
-              </div>
-              ${date ? `<span style="font-size:.75rem;color:var(--muted-foreground);">${date}</span>` : ''}
-              <a href="${applyUrl}" target="_blank" rel="noopener noreferrer"
-                style="display:inline-flex;align-items:center;gap:.3rem;padding:.3125rem .75rem;border-radius:999px;background:var(--foreground);color:#fff;font-size:.75rem;font-weight:600;text-decoration:none;white-space:nowrap;transition:opacity .18s cubic-bezier(.32,.72,0,1);"
-                onmouseenter="this.style.opacity='.8'" onmouseleave="this.style.opacity='1'">
-                Apply
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-              </a>
-            </div>
-          </div>
+      return `<div style="display:flex;align-items:center;gap:.625rem;padding:.5rem .75rem;border-bottom:1px solid var(--border);min-width:0;">
+        <div style="width:1.75rem;height:1.75rem;border-radius:.375rem;background:rgba(3,2,19,.07);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;color:var(--primary);flex-shrink:0;">${initial}</div>
+        <div style="flex:1;min-width:0;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+          <span style="font-weight:600;font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22ch;">${escHtml(job.role||'Untitled')}</span>
+          <span style="font-size:.8rem;color:var(--muted-foreground);white-space:nowrap;">${escHtml(job.company||'')}</span>
+          ${job.location ? `<span style="font-size:.75rem;color:var(--muted-foreground);white-space:nowrap;">· ${escHtml(job.location)}</span>` : ''}
+          ${remote ? `<span style="font-size:.7rem;padding:.1rem .4rem;border:1px solid var(--border);border-radius:.25rem;color:var(--muted-foreground);white-space:nowrap;">${escHtml(remote)}</span>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0;">
+          ${score ? `<span style="font-size:.8125rem;min-width:2.25ch;text-align:right;${scoreClass}">${score}</span>` : ''}
+          ${portal ? `<span style="font-size:.7rem;color:var(--muted-foreground);white-space:nowrap;">${escHtml(portal)}</span>` : ''}
+          ${date ? `<span style="font-size:.7rem;color:var(--muted-foreground);white-space:nowrap;">${date}</span>` : ''}
+          <a href="${applyUrl}" target="_blank" rel="noopener noreferrer"
+            style="display:inline-flex;align-items:center;gap:.25rem;padding:.25rem .625rem;border-radius:999px;background:var(--foreground);color:#fff;font-size:.7rem;font-weight:600;text-decoration:none;white-space:nowrap;transition:opacity .15s ease;"
+            onmouseenter="this.style.opacity='.75'" onmouseleave="this.style.opacity='1'">
+            Apply <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+          </a>
         </div>
       </div>`;
     }).join('');
