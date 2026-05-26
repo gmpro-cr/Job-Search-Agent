@@ -112,6 +112,13 @@
             <option value="1w">Last week</option>
           </select>
         </div>
+        <div>
+          <div style="font-size:.8125rem;font-weight:600;color:var(--foreground);margin-bottom:.375rem;">Sort by</div>
+          <select id="p-sort" class="input" style="width:100%;font-size:.875rem;" onchange="applyDisplayFilters()">
+            <option value="date">Newest first</option>
+            <option value="score">Best match first</option>
+          </select>
+        </div>
       </div>
       <hr style="border:none;border-top:1px solid var(--border);margin:-.25rem 0;">
 
@@ -236,11 +243,13 @@
     return {
       minScore: parseInt(localStorage.getItem('jobs_min_score') || '0', 10),
       recency:  localStorage.getItem('jobs_recency') || '',
+      sortBy:   localStorage.getItem('jobs_sort') || 'date',
     };
   }
-  function saveDisplayFilters(minScore, recency) {
+  function saveDisplayFilters(minScore, recency, sortBy) {
     localStorage.setItem('jobs_min_score', minScore);
     localStorage.setItem('jobs_recency', recency);
+    localStorage.setItem('jobs_sort', sortBy || 'date');
   }
 
   // ── Jobs loading ──────────────────────────────────────────────
@@ -313,8 +322,12 @@
       return true;
     });
 
-    // Default sort: score descending
-    filtered.sort((a, b) => (b.cv_score || b.relevance_score || 0) - (a.cv_score || a.relevance_score || 0));
+    const sortBy = document.getElementById('p-sort')?.value || getDisplayFilters().sortBy;
+    if (sortBy === 'score') {
+      filtered.sort((a, b) => (b.cv_score || b.relevance_score || 0) - (a.cv_score || a.relevance_score || 0));
+    } else {
+      filtered.sort((a, b) => asUtcMs(b.date_found) - asUtcMs(a.date_found));
+    }
     renderJobs(filtered);
   }
 
@@ -439,20 +452,24 @@
 
   // Restore display filter selects on page load (UI only — actual filtering in applyDisplayFilters)
   (function() {
-    const { minScore, recency } = getDisplayFilters();
+    const { minScore, recency, sortBy } = getDisplayFilters();
     const ms = document.getElementById('p-min-score');
     const rc = document.getElementById('p-recency');
+    const so = document.getElementById('p-sort');
     if (ms) ms.value = String(minScore);
     if (rc) rc.value = recency;
+    if (so) so.value = sortBy;
   })();
 
   loadJobs();
 
   // ── Preferences modal ────────────────────────────────────────
   function openPrefsModal() {
-    const { minScore, recency } = getDisplayFilters();
+    const { minScore, recency, sortBy } = getDisplayFilters();
     document.getElementById('p-min-score').value = String(minScore);
     document.getElementById('p-recency').value = recency;
+    const so = document.getElementById('p-sort');
+    if (so) so.value = sortBy;
     document.querySelectorAll('input[name="p_work_modes"]').forEach(cb => pSyncModeStyle(cb.value));
     document.getElementById('prefs-modal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
@@ -515,7 +532,8 @@
     // Save display filters to localStorage immediately
     const minScore = parseInt(document.getElementById('p-min-score').value || '0', 10);
     const recency  = document.getElementById('p-recency').value || '';
-    saveDisplayFilters(minScore, recency);
+    const sortBy   = document.getElementById('p-sort')?.value || 'date';
+    saveDisplayFilters(minScore, recency, sortBy);
 
     const getTags = id => Array.from(document.querySelectorAll('#' + id + ' .tag-pill')).map(pPillText).filter(Boolean);
     const modes = Array.from(document.querySelectorAll('input[name="p_work_modes"]:checked')).map(cb => cb.value);
