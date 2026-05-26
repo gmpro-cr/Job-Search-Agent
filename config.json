@@ -80,6 +80,16 @@
       "base_url": "https://x.com",
       "timeout": 20,
       "max_results": 15
+    },
+    "lever": {
+      "enabled": true,
+      "timeout": 20,
+      "companies": ["meesho", "cred", "paytm", "freshworks"]
+    },
+    "greenhouse": {
+      "enabled": true,
+      "timeout": 20,
+      "companies": ["groww", "phonepe", "postman"]
     }
   },
   "scraping": {

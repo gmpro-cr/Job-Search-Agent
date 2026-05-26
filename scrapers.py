@@ -1752,6 +1752,153 @@ def scrape_twitter(job_titles, locations, config):
     return jobs
 
 
+# ---------------------------------------------------------------------------
+# Lever ATS scraper (public JSON API, no auth required)
+# ---------------------------------------------------------------------------
+
+_LEVER_COMPANIES = [
+    # Verified slugs — Indian fintech/tech companies on Lever ATS
+    "meesho",
+    "cred",
+    "paytm",
+    "freshworks",
+]
+
+
+def scrape_lever(job_titles, locations, config):
+    """
+    Scrape Lever ATS boards for Indian fintech/tech companies.
+    Uses the public Lever JSON API — no authentication required.
+    Returns list of normalised job dicts.
+    """
+    if not config.get("portals", {}).get("lever", {}).get("enabled", False):
+        return []
+
+    companies = config.get("portals", {}).get("lever", {}).get("companies", _LEVER_COMPANIES)
+    user_titles = [t.lower() for t in (job_titles or [])]
+    timeout = config.get("portals", {}).get("lever", {}).get("timeout", 20)
+    jobs = []
+
+    for company in companies:
+        url = f"https://api.lever.co/v0/postings/{company}?mode=json"
+        try:
+            resp = requests.get(url, timeout=timeout, headers={"User-Agent": random_ua()})
+            if resp.status_code == 404:
+                logger.warning("Lever: unknown company slug '%s' (404) — remove from config", company)
+                continue
+            if not resp.ok:
+                logger.warning("Lever %s returned %s", company, resp.status_code)
+                continue
+            postings = resp.json()
+            if not isinstance(postings, list):
+                logger.warning("Lever %s: unexpected response shape", company)
+                continue
+            for p in postings:
+                role = p.get("text", "")
+                # Only include if title overlaps user job title preferences
+                if user_titles and not any(t in role.lower() for t in user_titles):
+                    continue
+                location = (p.get("categories") or {}).get("location", "")
+                description = p.get("descriptionPlain") or ""
+                jobs.append({
+                    "portal": "lever",
+                    "company": company.split("-")[0].title(),
+                    "role": role,
+                    "location": location,
+                    "job_description": description[:3000],
+                    "apply_url": p.get("hostedUrl", ""),
+                    "date_posted": "",
+                    "salary": "",
+                    "salary_currency": "INR",
+                })
+        except requests.RequestException as e:
+            logger.warning("Lever scrape failed for %s: %s", company, e)
+        random_delay(config)
+
+    logger.info("Lever: %d matching jobs scraped across %d companies", len(jobs), len(companies))
+    return jobs
+
+
+# ---------------------------------------------------------------------------
+# Greenhouse ATS scraper (public JSON API, no auth required)
+# ---------------------------------------------------------------------------
+
+_GREENHOUSE_COMPANIES = [
+    # Verified slugs — Indian fintech/tech companies on Greenhouse ATS
+    "groww",
+    "phonepe",
+    "postman",
+]
+
+
+def scrape_greenhouse(job_titles, locations, config):
+    """
+    Scrape Greenhouse ATS boards for Indian fintech/tech companies.
+    Uses the public Greenhouse boards API — no authentication required.
+    Returns list of normalised job dicts.
+    """
+    import re as _re
+
+    if not config.get("portals", {}).get("greenhouse", {}).get("enabled", False):
+        return []
+
+    companies = config.get("portals", {}).get("greenhouse", {}).get("companies", _GREENHOUSE_COMPANIES)
+    user_titles = [t.lower() for t in (job_titles or [])]
+    timeout = config.get("portals", {}).get("greenhouse", {}).get("timeout", 20)
+    jobs = []
+
+    for company in companies:
+        url = f"https://boards-api.greenhouse.io/v1/boards/{company}/jobs"
+        try:
+            resp = requests.get(url, timeout=timeout, headers={"User-Agent": random_ua()})
+            if resp.status_code == 404:
+                logger.warning("Greenhouse: unknown company slug '%s' (404) — remove from config", company)
+                continue
+            if not resp.ok:
+                logger.warning("Greenhouse %s returned %s", company, resp.status_code)
+                continue
+            postings = resp.json().get("jobs", [])
+            for p in postings:
+                role = p.get("title", "")
+                if user_titles and not any(t in role.lower() for t in user_titles):
+                    continue
+                location = (p.get("location") or {}).get("name", "")
+                # Fetch full JD for matching roles (one extra request per job)
+                description = ""
+                job_id = p.get("id")
+                if job_id:
+                    try:
+                        jd_resp = requests.get(
+                            f"https://boards-api.greenhouse.io/v1/boards/{company}/jobs/{job_id}",
+                            timeout=timeout,
+                            headers={"User-Agent": random_ua()},
+                        )
+                        if jd_resp.ok:
+                            raw_html = jd_resp.json().get("content", "")
+                            description = _re.sub(r'<[^>]+>', ' ', raw_html)
+                            description = _re.sub(r'\s+', ' ', description).strip()
+                    except Exception:
+                        pass
+                    time.sleep(1)
+                jobs.append({
+                    "portal": "greenhouse",
+                    "company": company.title(),
+                    "role": role,
+                    "location": location,
+                    "job_description": description[:3000],
+                    "apply_url": p.get("absolute_url", ""),
+                    "date_posted": p.get("updated_at", ""),
+                    "salary": "",
+                    "salary_currency": "INR",
+                })
+        except requests.RequestException as e:
+            logger.warning("Greenhouse scrape failed for %s: %s", company, e)
+        random_delay(config)
+
+    logger.info("Greenhouse: %d matching jobs scraped across %d companies", len(jobs), len(companies))
+    return jobs
+
+
 # =============================================================================
 # Orchestrator
 # =============================================================================
@@ -1770,6 +1917,8 @@ SCRAPER_MAP = {
     "reddit": scrape_reddit,
     "hackernews": scrape_hackernews,
     "twitter": scrape_twitter,
+    "lever": scrape_lever,
+    "greenhouse": scrape_greenhouse,
 }
 
 # Portals that use plain HTTP/API — no Selenium, no Chrome required.
