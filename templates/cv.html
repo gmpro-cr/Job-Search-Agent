@@ -282,13 +282,106 @@
           background:{% if pct >= 15 %}rgba(3,2,19,.1){% elif pct >= 8 %}rgba(3,2,19,.06){% else %}rgba(3,2,19,.03){% endif %};
           border:1px solid {% if pct >= 15 %}rgba(3,2,19,.15){% elif pct >= 8 %}rgba(3,2,19,.08){% else %}var(--border){% endif %};
           color:{% if pct >= 15 %}var(--foreground){% else %}var(--muted-foreground){% endif %};">
-          {{ skill }}{% if pct >= 3 %}<span style="margin-left:.3rem;font-size:.7em;opacity:.55;">{{ pct }}%</span>{% endif %}
+          {{ skill }}<span style="margin-left:.3rem;font-size:.7em;opacity:.55;">{{ pct }}%</span>
         </span>
         {% endfor %}
       </div>
     </div>
   </div>
   {% endif %}
+
+  <!-- How to get more jobs -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">How to Get More Shortlists</div>
+      <div class="card-description">Actionable steps based on your profile and market data.</div>
+    </div>
+    <div class="card-content" style="padding-top:0;">
+
+      <!-- Step grid -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">
+
+        <!-- 1 Tailor resume -->
+        <div style="padding:1rem;border-radius:.625rem;border:1px solid var(--border);background:rgba(3,2,19,.02);">
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+            <span style="width:1.5rem;height:1.5rem;border-radius:50%;background:var(--foreground);color:#fff;font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">1</span>
+            <span style="font-size:.875rem;font-weight:600;">Tailor for every role</span>
+          </div>
+          <p style="font-size:.8rem;color:var(--muted-foreground);margin:0;line-height:1.55;">Recruiters spend 8–15 s on a resume. Ctrl+F the job description — every keyword that appears in the JD but not in your resume is a missed ATS point. Keep 2–3 versions for Finance, AI, and SaaS roles.</p>
+        </div>
+
+        <!-- 2 ATS -->
+        <div style="padding:1rem;border-radius:.625rem;border:1px solid var(--border);background:rgba(3,2,19,.02);">
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+            <span style="width:1.5rem;height:1.5rem;border-radius:50%;background:var(--foreground);color:#fff;font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">2</span>
+            <span style="font-size:.875rem;font-weight:600;">Pass the ATS filter</span>
+          </div>
+          <p style="font-size:.8rem;color:var(--muted-foreground);margin:0;line-height:1.55;">Use a plain one-column PDF — no colours, tables, icons, or graphics. ATS systems can't parse them. Verify at <a href="https://resumeworded.com" target="_blank" rel="noopener" style="color:var(--primary);">resumeworded.com</a>. Every bullet: what you did + how + measurable impact.</p>
+        </div>
+
+        <!-- 3 Bullet formula -->
+        <div style="padding:1rem;border-radius:.625rem;border:1px solid var(--border);background:rgba(3,2,19,.02);">
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+            <span style="width:1.5rem;height:1.5rem;border-radius:50%;background:var(--foreground);color:#fff;font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">3</span>
+            <span style="font-size:.875rem;font-weight:600;">Impact-first bullet points</span>
+          </div>
+          <p style="font-size:.8rem;color:var(--muted-foreground);margin:0;line-height:1.55;">Max 4–5 bullets per role; max 2 lines each. Lead with a past-tense verb. Format: <em>"Reduced [X] by [Y]% by [method], resulting in [business impact]."</em> Quantify time saved, revenue, retention, or user growth.</p>
+        </div>
+
+        <!-- 4 LinkedIn -->
+        <div style="padding:1rem;border-radius:.625rem;border:1px solid var(--border);background:rgba(3,2,19,.02);">
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+            <span style="width:1.5rem;height:1.5rem;border-radius:50%;background:var(--foreground);color:#fff;font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">4</span>
+            <span style="font-size:.875rem;font-weight:600;">Optimise LinkedIn</span>
+          </div>
+          <p style="font-size:.8rem;color:var(--muted-foreground);margin:0;line-height:1.55;">Headline: "AI Product Builder | Banking &amp; Credit Risk | 9 yrs". About: PM skills + domain edge + passion. Add "User Research", "Product Roadmap", "Stakeholder Management" to skills and collect endorsements. Post once/week.</p>
+        </div>
+
+        <!-- 5 Cold outreach -->
+        <div style="padding:1rem;border-radius:.625rem;border:1px solid var(--border);background:rgba(3,2,19,.02);">
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+            <span style="width:1.5rem;height:1.5rem;border-radius:50%;background:var(--foreground);color:#fff;font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">5</span>
+            <span style="font-size:.875rem;font-weight:600;">Cold outreach to HMs</span>
+          </div>
+          <p style="font-size:.8rem;color:var(--muted-foreground);margin:0;line-height:1.55;">80 % of roles are filled through referrals. Find the hiring manager on LinkedIn, send a 3-line note — why the company, one relevant achievement, clear ask. Use the Hiring Managers tab in this app to build your outreach list.</p>
+        </div>
+
+        <!-- 6 Portfolio / case studies -->
+        <div style="padding:1rem;border-radius:.625rem;border:1px solid var(--border);background:rgba(3,2,19,.02);">
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+            <span style="width:1.5rem;height:1.5rem;border-radius:50%;background:var(--foreground);color:#fff;font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">6</span>
+            <span style="font-size:.875rem;font-weight:600;">Build PM case studies</span>
+          </div>
+          <p style="font-size:.8rem;color:var(--muted-foreground);margin:0;line-height:1.55;">Create 4–6 case studies for your top target companies — problem → your thinking → proposed solution. Attach the portfolio link to your resume and LinkedIn. Product teardowns and PRDs work well for finance / AI roles.</p>
+        </div>
+
+      </div>
+
+      <!-- Skill gap call-to-action -->
+      {% if skill_gaps %}
+      <div style="padding:.875rem 1.125rem;border-radius:.625rem;border:1px solid rgba(234,179,8,.35);background:rgba(234,179,8,.06);">
+        <p style="font-size:.8125rem;font-weight:600;margin:0 0 .4rem;color:#92400e;">
+          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align:-.15em;margin-right:.3rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Skill gaps costing you matches
+        </p>
+        <p style="font-size:.8rem;color:#92400e;margin:0;line-height:1.55;">
+          Your top missing skills —
+          {% for g in skill_gaps[:5] %}<strong>{{ g.skill }}</strong> ({{ g.demand_count }} jobs){% if not loop.last %}, {% endif %}{% endfor %} —
+          appear frequently in job postings. Add a short course or a bullet in "Key Initiatives" using PM language before your next batch of applications.
+        </p>
+      </div>
+      {% endif %}
+
+      <!-- Adjacent roles tip -->
+      <div style="margin-top:1rem;padding:.875rem 1.125rem;border-radius:.625rem;border:1px solid rgba(3,2,19,.1);background:rgba(3,2,19,.02);">
+        <p style="font-size:.8125rem;font-weight:600;margin:0 0 .4rem;">Target adjacent titles too</p>
+        <p style="font-size:.8rem;color:var(--muted-foreground);margin:0;line-height:1.55;">
+          Don't limit searches to "Product Manager". Roles like <strong>Product Analyst</strong>, <strong>Product Owner</strong>, <strong>APM</strong>, <strong>Product Consultant</strong>, <strong>Founders Office</strong>, and <strong>Product Specialist</strong> — especially in BFSI and fintech — are a fast path to a full PM title. Your banking domain is a hard-to-replicate edge; use it.
+        </p>
+      </div>
+
+    </div>
+  </div>
 
   {% endif %}<!-- end cv_filename -->
 </div>
