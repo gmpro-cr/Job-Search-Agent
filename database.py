@@ -387,9 +387,53 @@ def init_db():
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_reminders_user ON user_reminders(user_id)")
 
+    # Idempotent column additions on users / outreach_queue
+    _add_columns_idempotent(conn, cursor, "users", ["is_admin INTEGER DEFAULT 0"])
+    _add_columns_idempotent(conn, cursor, "outreach_queue", ["user_id INTEGER"])
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_outreach_user ON outreach_queue(user_id)")
+
     conn.commit()
     conn.close()
     logger.info("Database initialized at %s", DB_PATH)
+
+
+def is_admin_user(user_id: int) -> bool:
+    """Return True if the user has is_admin=1."""
+    if not user_id:
+        return False
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return False
+    return bool(row["is_admin"])
+
+
+def promote_first_user_to_admin() -> None:
+    """If there's exactly one user and no admin yet, mark them admin.
+
+    Owner-only deployment convenience: the first OAuth sign-in becomes
+    the admin without any manual SQL.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) AS n FROM users WHERE is_admin = 1")
+        admins = (cursor.fetchone() or {"n": 0})["n"]
+        if admins:
+            return
+        cursor.execute("SELECT COUNT(*) AS n FROM users")
+        total = (cursor.fetchone() or {"n": 0})["n"]
+        if total == 1:
+            cursor.execute("UPDATE users SET is_admin = 1 WHERE id IN (SELECT id FROM users LIMIT 1)")
+            conn.commit()
+            logger.info("Promoted the sole user to admin (first-user bootstrap)")
+    finally:
+        conn.close()
 
 
 def generate_job_id(portal, company, role, location):
@@ -1339,7 +1383,7 @@ def insert_outreach_draft(job_id: str, company: str, role: str,
                            email_draft: str, linkedin_draft: str,
                            approval_token: str, llm_score: int,
                            llm_reason: str, apply_url: str = "",
-                           hm_linkedin: str = "") -> None:
+                           hm_linkedin: str = "", user_id: int = None) -> None:
     """Insert a new outreach draft into the queue."""
     from datetime import datetime
     conn = get_connection()
@@ -1348,12 +1392,12 @@ def insert_outreach_draft(job_id: str, company: str, role: str,
         INSERT INTO outreach_queue
         (job_id, company, role, hiring_manager, hm_email, hm_linkedin,
          email_draft, linkedin_draft, approval_token,
-         status, llm_score, llm_reason, created_at, apply_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+         status, llm_score, llm_reason, created_at, apply_url, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
         ON CONFLICT (job_id) DO NOTHING
     """, (job_id, company, role, hiring_manager, hm_email, hm_linkedin,
           email_draft, linkedin_draft, approval_token,
-          llm_score, llm_reason, datetime.now().isoformat(), apply_url))
+          llm_score, llm_reason, datetime.now().isoformat(), apply_url, user_id))
     conn.commit()
     conn.close()
 

@@ -161,6 +161,21 @@ def _current_session_user_id():
         return None
 
 
+def _strip_credentials(prefs):
+    """Remove any credential keys before persisting or returning preferences.
+
+    Secrets must only live in .env / platform env vars — never in
+    user_preferences.prefs_json (which is per-user storage and would
+    otherwise persist each user's Gmail App Password etc. in plaintext).
+    """
+    if not isinstance(prefs, dict):
+        return prefs
+    clean = dict(prefs)
+    for key in _CREDENTIAL_KEYS:
+        clean.pop(key, None)
+    return clean
+
+
 def load_preferences(user_id: int = None):
     """
     Load preferences.
@@ -170,33 +185,24 @@ def load_preferences(user_id: int = None):
       developer's prefs to every new user.
     - Outside a user context (CLI / scraper), fall back to the legacy
       user_preferences.json so single-user workflows still work.
+    Credentials are stripped on read in case any leaked into storage
+    before _strip_credentials() was added.
     """
     resolved = user_id if user_id is not None else _current_session_user_id()
     if resolved:
         try:
             from database import get_user_preferences as _gup
-            return _gup(resolved)  # may be None — valid for a fresh user
+            return _strip_credentials(_gup(resolved))
         except Exception:
             return None
     if os.path.exists(PREFS_PATH):
         with open(PREFS_PATH, "r") as f:
-            return json.load(f)
+            return _strip_credentials(json.load(f))
     return None
 
 
 def save_preferences(prefs, user_id: int = None):
-    # Strip credential keys when corresponding env vars are set so secrets
-    # stay only in .env and never land in storage.
-    clean = dict(prefs)
-    env_cred_map = {
-        "gmail_app_password": "GMAIL_APP_PASSWORD",
-        "telegram_bot_token": "TELEGRAM_BOT_TOKEN",
-        "apollo_api_key": "APOLLO_API_KEY",
-        "linkedin_password": "LINKEDIN_PASSWORD",
-    }
-    for pref_key, env_key in env_cred_map.items():
-        if os.environ.get(env_key):
-            clean.pop(pref_key, None)
+    clean = _strip_credentials(prefs)
 
     if user_id is None:
         user_id = _current_session_user_id()
