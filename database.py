@@ -293,6 +293,7 @@ def init_db():
         "company_size TEXT", "company_funding_stage TEXT", "company_glassdoor_rating TEXT",
         "cv_score INTEGER DEFAULT 0",
         "hidden INTEGER DEFAULT 0",
+        "score_breakdown TEXT",
     ]
     _add_columns_idempotent(conn, cursor, "job_listings", _extra_cols)
 
@@ -523,9 +524,9 @@ def insert_job(job):
                  company_type, date_found, date_posted, applied_status,
                  experience_min, experience_max, salary_min, salary_max,
                  company_size, company_funding_stage, company_glassdoor_rating,
-                 cv_score)
+                 cv_score, score_breakdown)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0,
-                    ?, ?, ?, ?, ?, ?, ?, ?)
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job_id,
@@ -550,6 +551,7 @@ def insert_job(job):
                 job.get("company_funding_stage"),
                 job.get("company_glassdoor_rating"),
                 job.get("cv_score", 0),
+                job.get("score_breakdown"),
             ),
         )
         conn.commit()

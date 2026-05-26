@@ -7,6 +7,7 @@ viewing jobs, and browsing digests.
 import os
 import sys
 import uuid
+import json
 import logging
 import threading
 from datetime import datetime, timedelta
@@ -3529,6 +3530,29 @@ def gap_analysis(job_id):
     job = dict(row)
     result = compute_gap_analysis(job, cv_data)
     return jsonify({"ok": True, **result})
+
+
+@app.route("/api/jobs/<job_id>/score-breakdown")
+def score_breakdown_api(job_id):
+    """Return per-component score breakdown for a specific job."""
+    uid = current_user_id()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM job_listings WHERE job_id = ?", (job_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({"error": "not found"}), 404
+
+    job = dict(row)
+    raw = (job.get("score_breakdown") or "")
+    try:
+        data = json.loads(raw) if raw else {}
+    except Exception:
+        data = {}
+    return jsonify(data)
 
 
 def _extract_cv_text(file_storage) -> str:

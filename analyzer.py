@@ -342,7 +342,7 @@ def extract_skills(text, max_skills=8):
     return found[:max_skills] if max_skills else found
 
 
-def keyword_score(job, preferences, cv_data=None):
+def keyword_score(job, preferences, cv_data=None, breakdown=False):
     """
     Score a job 0-100 using keyword matching.
     This is the fallback scorer when Ollama is unavailable.
@@ -369,6 +369,8 @@ def keyword_score(job, preferences, cv_data=None):
     # --- Irrelevance penalty: bail early for obviously wrong domains ---
     for kw in IRRELEVANT_KEYWORDS:
         if kw in text:
+            if breakdown:
+                return {"total": 0, "irrelevant": True}
             return max(0, score - 20)
 
     # Title match (0-30) — strongest signal
@@ -394,8 +396,10 @@ def keyword_score(job, preferences, cv_data=None):
     job_loc = job.get("location", "").lower()
     remote_status = job.get("remote_status", "").lower()
     _preferred_locs = {"pune", "remote", "hybrid", "wfh", "work from home", "work from anywhere"}
+    location_score = 0
     if any(kw in job_loc or kw in remote_status or kw in text for kw in _preferred_locs):
-        score += 10
+        location_score = 10
+    score += location_score
 
     # Industry/domain relevance (0-30) — accumulate multiple matches
     industry_score = 0
@@ -415,8 +419,8 @@ def keyword_score(job, preferences, cv_data=None):
     cv_skills = (cv_data or {}).get("skills") or []
     pref_skills = preferences.get("transferable_skills") or []
     transferable = list({s.lower() for s in cv_skills + pref_skills if s})
+    ts_score = 0
     if transferable:
-        ts_score = 0
         for skill in transferable:
             if skill.lower() in text:
                 ts_score += 5
@@ -426,6 +430,16 @@ def keyword_score(job, preferences, cv_data=None):
     seniority_penalty = -15 if _SENIORITY_PENALTY_RE.search(text) else 0
     score = max(0, score + seniority_penalty)
 
+    if breakdown:
+        return {
+            "total": min(score, 100),
+            "title": best_title_score,
+            "location": location_score,
+            "domain": min(industry_score, 30),
+            "pm_keywords": min(pm_score, 20),
+            "cv_skills": min(ts_score, 15) if transferable else 0,
+            "seniority_penalty": seniority_penalty,
+        }
     return min(score, 100)
 
 
@@ -650,6 +664,11 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
                 job["llm_reason"] = result.get("reason", "")
                 job["remote_status"] = result.get("remote_status") or detect_remote_status(text)
                 job["company_type"] = result.get("company_type") or detect_company_type(text)
+                job["score_breakdown"] = json.dumps({
+                    "total": job["relevance_score"],
+                    "llm": True,
+                    "reason": result.get("reason", ""),
+                })
                 scored = True
                 llm_consecutive_failures = 0  # reset on success
             else:
@@ -658,7 +677,9 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
                     logger.warning("LLM circuit breaker tripped after %d failures — using keyword scoring for remaining jobs", LLM_CIRCUIT_BREAKER)
 
         if not scored:
-            job["relevance_score"] = kw
+            kw_breakdown = keyword_score(job, preferences, cv_data=cv_data, breakdown=True)
+            job["relevance_score"] = kw_breakdown["total"]
+            job["score_breakdown"] = json.dumps(kw_breakdown)
             job["remote_status"] = detect_remote_status(text)
             job["company_type"] = detect_company_type(text)
 

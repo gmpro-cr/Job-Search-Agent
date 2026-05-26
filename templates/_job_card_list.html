@@ -144,33 +144,167 @@
       <div class="bg-gray-800 h-1.5 rounded-full transition-all duration-500"
            style="width: {{ [job.relevance_score | int, 100] | min }}%"></div>
     </div>
-    <!-- Dimension bars (rubric: Role 35, Domain 25, Seniority 20, Location 10, AI 10) -->
-    <div class="space-y-2.5 mb-4">
-      {% set dims = [
-        ('Role Match', 35),
-        ('Domain Fit', 25),
-        ('Seniority', 20),
-        ('Location', 10),
-        ('AI Leverage', 10)
-      ] %}
-      {% set score = job.relevance_score | int %}
-      {% for dim, weight in dims %}
-      <div class="flex items-center gap-3">
-        <span class="text-[11px] text-gray-500 w-24 flex-shrink-0">{{ dim }}</span>
-        <div class="flex-1 bg-gray-200 rounded-full h-1">
-          <div class="bg-gray-700 h-1 rounded-full"
-               style="width: {{ [(score * weight / 100 * 2.5) | round | int, 100] | min }}%"></div>
-        </div>
-        <span class="text-[11px] font-semibold text-gray-500 w-8 text-right">{{ weight }}pt</span>
-      </div>
-      {% endfor %}
+    <!-- Dimension bars loaded via JS -->
+    <div id="breakdown-bars-{{ job.job_id }}" class="space-y-2.5 mb-4">
+      <!-- bars loaded via JS -->
     </div>
-    {% if job.llm_reason %}
-    <p class="text-xs text-gray-600 leading-relaxed border-t border-gray-200 pt-3">{{ job.llm_reason }}</p>
-    {% else %}
-    <p class="text-xs text-gray-400 italic">Re-run the scraper to generate a detailed score explanation.</p>
-    {% endif %}
   </div>
 
 </div>
 {% endfor %}
+
+<script>
+(function () {
+  // Guard: only define functions once even if this partial is re-injected
+  if (window._jobCardFunctionsLoaded) return;
+  window._jobCardFunctionsLoaded = true;
+
+  window.toggleCardMenu = function (jobId) {
+    const menu = document.getElementById('card-menu-' + jobId);
+    if (!menu) return;
+    const isHidden = menu.classList.contains('hidden');
+    // Close all open menus first
+    document.querySelectorAll('.card-more-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
+    if (isHidden) menu.classList.remove('hidden');
+  };
+  // Close menus when clicking outside
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.relative.group\\/menu')) {
+      document.querySelectorAll('.card-more-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
+    }
+  }, true);
+
+  window.toggleNotes = function (jobId) {
+    const panel = document.getElementById('notes-' + jobId);
+    if (!panel) return;
+    panel.classList.toggle('hidden');
+    if (!panel.classList.contains('hidden')) {
+      const ta = document.getElementById('notes-text-' + jobId);
+      if (ta) ta.focus();
+    }
+  };
+
+  window.toggleGapAnalysis = function (jobId, btn) {
+    const panel = document.getElementById('gap-' + jobId);
+    if (!panel) return;
+    const wasHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden');
+    if (wasHidden) loadGapAnalysis(jobId);
+  };
+
+  window.loadGapAnalysis = function (jobId) {
+    const content = document.getElementById('gap-content-' + jobId);
+    const scoreEl = document.getElementById('gap-score-' + jobId);
+    if (!content || content.dataset.loaded) return;
+    fetch('/api/jobs/' + jobId + '/gap-analysis')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) { content.textContent = 'No gap data available.'; return; }
+        if (scoreEl) scoreEl.textContent = 'CV match: ' + (data.cv_score || 0) + '/100';
+        const missing = data.missing_skills || [];
+        const strong = data.strong_skills || [];
+        let html = '';
+        if (strong.length) html += '<div class="text-xs font-semibold text-green-700 mb-1">Strong: ' + strong.slice(0,5).map(s => '<span class="inline-block bg-green-50 border border-green-200 text-green-800 text-[10px] font-medium px-1.5 py-0.5 rounded-md mr-1">' + s + '</span>').join('') + '</div>';
+        if (missing.length) html += '<div class="text-xs font-semibold text-red-700 mb-1">Missing: ' + missing.slice(0,5).map(s => '<span class="inline-block bg-red-50 border border-red-200 text-red-800 text-[10px] font-medium px-1.5 py-0.5 rounded-md mr-1">' + s + '</span>').join('') + '</div>';
+        if (!html) html = '<p class="text-xs text-gray-400 italic">No gap data available.</p>';
+        content.innerHTML = html;
+        content.dataset.loaded = '1';
+      })
+      .catch(() => { content.textContent = 'Could not load gap analysis.'; });
+  };
+
+  window.toggleScorePanel = function (jobId) {
+    const panel = document.getElementById('score-panel-' + jobId);
+    if (!panel) return;
+    const wasHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden');
+    if (wasHidden) loadScoreBreakdown(jobId);
+  };
+
+  window.loadScoreBreakdown = function (jobId) {
+    const container = document.getElementById('breakdown-bars-' + jobId);
+    if (!container || container.dataset.loaded) return;
+    fetch('/api/jobs/' + jobId + '/score-breakdown')
+      .then(r => r.json())
+      .then(data => {
+        if (!data || data.irrelevant) {
+          container.innerHTML = '<p class="text-xs text-gray-400 italic">No breakdown available.</p>';
+          container.dataset.loaded = '1';
+          return;
+        }
+        if (data.llm) {
+          container.innerHTML = '<p class="text-xs text-gray-500 italic">' + (data.reason || 'LLM scored — no component breakdown.') + '</p>';
+          container.dataset.loaded = '1';
+          return;
+        }
+        const dims = [
+          ['Title Match', data.title || 0, 30],
+          ['Domain Fit', data.domain || 0, 30],
+          ['PM Keywords', data.pm_keywords || 0, 20],
+          ['Location', data.location || 0, 10],
+          ['CV Skills', data.cv_skills || 0, 15],
+        ];
+        if (data.seniority_penalty) {
+          dims.push(['Seniority', data.seniority_penalty, 15]);
+        }
+        container.innerHTML = dims.map(function (d) {
+          var label = d[0], val = d[1], max = d[2];
+          var pct = max ? Math.min(100, Math.round(Math.abs(val) / max * 100)) : 0;
+          var barColor = val < 0 ? 'bg-red-400' : 'bg-gray-700';
+          return '<div class="flex items-center gap-3">'
+            + '<span class="text-[11px] text-gray-500 w-28 flex-shrink-0">' + label + '</span>'
+            + '<div class="flex-1 bg-gray-200 rounded-full h-1">'
+            + '<div class="h-1 rounded-full ' + barColor + '" style="width:' + pct + '%"></div>'
+            + '</div>'
+            + '<span class="text-[11px] font-semibold text-gray-500 w-8 text-right">' + val + '</span>'
+            + '</div>';
+        }).join('');
+        container.dataset.loaded = '1';
+      })
+      .catch(function () {
+        container.innerHTML = '<p class="text-xs text-gray-400 italic">Could not load breakdown.</p>';
+      });
+  };
+
+  window.updateJobStatus = function (jobId, status, selectEl) {
+    fetch('/api/jobs/' + jobId + '/status', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: parseInt(status, 10) || 0}),
+    }).catch(function () {});
+  };
+
+  window.saveNote = function (jobId) {
+    const ta = document.getElementById('notes-text-' + jobId);
+    const btn = document.getElementById('notes-save-' + jobId);
+    if (!ta) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    fetch('/api/jobs/' + jobId + '/notes', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({notes: ta.value}),
+    }).then(function () {
+      if (btn) { btn.disabled = false; btn.textContent = 'Saved'; setTimeout(function () { btn.textContent = 'Save Note'; }, 1500); }
+    }).catch(function () {
+      if (btn) { btn.disabled = false; btn.textContent = 'Save Note'; }
+    });
+  };
+
+  window.hideJob = function (jobId) {
+    fetch('/api/jobs/' + jobId + '/hide', {method: 'POST'})
+      .then(function () {
+        const card = document.getElementById('job-' + jobId);
+        if (card) { card.style.opacity = '0'; card.style.transition = 'opacity .3s'; setTimeout(function () { card.remove(); }, 350); }
+      }).catch(function () {});
+  };
+
+  window.onApplyClick = function (jobId) {
+    // Mark as applied when clicking Apply button
+    fetch('/api/jobs/' + jobId + '/status', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: 1}),
+    }).catch(function () {});
+  };
+})();
+</script>
