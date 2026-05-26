@@ -112,6 +112,15 @@ _WRONG_LEVEL_PATTERNS = [
 ]
 _WRONG_LEVEL_RE = re.compile('|'.join(_WRONG_LEVEL_PATTERNS), re.IGNORECASE)
 
+# Seniority-overreach penalty: roles requiring 10-12 yr experience or VP/Director titles.
+# 15+/18+/20+ yr and plain VP/Director-as-role cases are caught by quality_gate() first;
+# these patterns handle the grey zone that quality_gate allows through.
+_SENIORITY_PENALTY_RE = re.compile(
+    r'(?:\b(?:10|12)\s*\+?\s*(?:years?|yrs?)\b'
+    r'|\b(?:vp|vice\s+president|chief\s+\w+\s+officer|cxo|director|managing\s+director)\b)',
+    re.IGNORECASE,
+)
+
 
 def quality_gate(job):
     """
@@ -345,6 +354,7 @@ def keyword_score(job, preferences, cv_data=None):
       - PM keywords:           0-20  (product management terms in description)
       - Transferable skills:   0-15  (skills extracted from CV, matched against JD)
       - Penalty:               -20   (irrelevant domain detected)
+      - Seniority penalty:    -15   (10+ yr / VP / Director requirement detected)
     """
     score = 0
     role_lower = job.get("role", "").lower()
@@ -413,13 +423,7 @@ def keyword_score(job, preferences, cv_data=None):
         score += min(ts_score, 15)
 
     # Seniority penalty (-15): JD targets a level above IC PM candidate
-    _SENIORITY_PENALTY_PATTERNS = [
-        r'\b(?:10|12)\s*\+?\s*(?:years?|yrs?)\b',
-        r'(?:minimum|required?|must\s+have|at\s+least)\s*(?:10|12)\s*\+?\s*(?:years?|yrs?)',
-        r'\b(?:vp|vice\s+president|chief\s+\w+\s+officer|cxo|director|managing\s+director)\b',
-    ]
-    _sen_re = re.compile('|'.join(_SENIORITY_PENALTY_PATTERNS), re.IGNORECASE)
-    seniority_penalty = -15 if _sen_re.search(text) else 0
+    seniority_penalty = -15 if _SENIORITY_PENALTY_RE.search(text) else 0
     score = max(0, score + seniority_penalty)
 
     return min(score, 100)
