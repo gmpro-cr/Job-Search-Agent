@@ -655,7 +655,8 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
         # Keyword pre-filter: only send to LLM if basic keyword match passes.
         # Keeps LLM calls to ~50-100 per run (free-tier Gemini: 15 RPM).
         # Circuit breaker: if LLM fails 5 times in a row, skip it for the rest of the run.
-        kw = keyword_score(job, preferences, cv_data=cv_data)
+        kw_breakdown = keyword_score(job, preferences, cv_data=cv_data, breakdown=True)
+        kw = kw_breakdown["total"]
         scored = False
         if llm_available and kw >= 35 and llm_consecutive_failures < LLM_CIRCUIT_BREAKER:
             result = llm_score(job, cv_data)
@@ -677,7 +678,6 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
                     logger.warning("LLM circuit breaker tripped after %d failures — using keyword scoring for remaining jobs", LLM_CIRCUIT_BREAKER)
 
         if not scored:
-            kw_breakdown = keyword_score(job, preferences, cv_data=cv_data, breakdown=True)
             job["relevance_score"] = kw_breakdown["total"]
             job["score_breakdown"] = json.dumps(kw_breakdown)
             job["remote_status"] = detect_remote_status(text)

@@ -3535,7 +3535,7 @@ def gap_analysis(job_id):
 @app.route("/api/jobs/<job_id>/score-breakdown")
 def score_breakdown_api(job_id):
     """Return per-component score breakdown for a specific job."""
-    uid = current_user_id()
+    uid = require_user_id()
 
     conn = get_connection()
     cursor = conn.cursor()

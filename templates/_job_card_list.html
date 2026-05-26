@@ -245,7 +245,7 @@
           ['CV Skills', data.cv_skills || 0, 15],
         ];
         if (data.seniority_penalty) {
-          dims.push(['Seniority', data.seniority_penalty, 15]);
+          dims.push(['Seniority', data.seniority_penalty, 0]);
         }
         container.innerHTML = dims.map(function (d) {
           var label = d[0], val = d[1], max = d[2];
