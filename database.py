@@ -10,7 +10,16 @@ for Postgres so the rest of this file stays driver-agnostic.
 import sqlite3
 import os
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as _tz
+
+
+def _utcnow() -> str:
+    """Return current UTC time as an ISO-8601 string with 'Z' suffix.
+
+    Stored in date_found so all timestamps are unambiguously UTC regardless
+    of where the scraper runs (GitHub Actions = UTC, local dev = IST).
+    """
+    return datetime.now(_tz.utc).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
 
 # Make sure .env-supplied DATABASE_URL is visible even when this module is
 # imported before app.py (e.g. by the migration script).
@@ -484,7 +493,7 @@ def insert_job(job):
         _cur = _conn.cursor()
         _cur.execute(
             "UPDATE job_listings SET date_found = ? WHERE job_id = ?",
-            (datetime.now().isoformat(), job_id),
+            (_utcnow(), job_id),
         )
         _conn.commit()
         _conn.close()
@@ -499,7 +508,7 @@ def insert_job(job):
         _cur = _conn.cursor()
         _cur.execute(
             "UPDATE job_listings SET date_found = ? WHERE job_id = ?",
-            (datetime.now().isoformat(), similar_id),
+            (_utcnow(), similar_id),
         )
         _conn.commit()
         _conn.close()
@@ -541,7 +550,7 @@ def insert_job(job):
                 job.get("relevance_score", 0),
                 job.get("remote_status", "on-site"),
                 job.get("company_type", "corporate"),
-                datetime.now().isoformat(),
+                _utcnow(),
                 job.get("date_posted"),
                 job.get("experience_min"),
                 job.get("experience_max"),
