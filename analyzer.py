@@ -95,11 +95,12 @@ IRRELEVANT_KEYWORDS = [
 ]
 
 # Seniority overqualification patterns — roles clearly above IC PM target
+# Years sub-pattern requires explicit experience-requirement context to avoid
+# false positives on company-age copy ("Founded 15 years ago").
 _OVERQUALIFIED_PATTERNS = [
     r'\b(?:vp|vice\s+president|chief\s+\w+\s+officer|cxo|c-suite)\b',
     r'\b(?:director|managing\s+director|president)\b',
-    r'\b(?:15|18|20)\s*\+?\s*(?:years?|yrs?)\b',
-    r'minimum\s+(?:15|18|20)\s*years?',
+    r'(?:minimum|required?|must\s+have|at\s+least|needs?\s+)\s*(?:15|18|20)\s*\+?\s*(?:years?|yrs?)',
 ]
 _OVERQUALIFIED_RE = re.compile('|'.join(_OVERQUALIFIED_PATTERNS), re.IGNORECASE)
 
