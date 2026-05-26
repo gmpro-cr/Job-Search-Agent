@@ -1802,12 +1802,12 @@ def scrape_lever(job_titles, locations, config):
                 description = p.get("descriptionPlain") or ""
                 jobs.append({
                     "portal": "lever",
-                    "company": company.split("-")[0].title(),
+                    "company": company.replace("-", " ").title(),
                     "role": role,
                     "location": location,
                     "job_description": description[:3000],
                     "apply_url": p.get("hostedUrl", ""),
-                    "date_posted": "",
+                    "date_posted": datetime.fromtimestamp(p["createdAt"] / 1000).strftime("%Y-%m-%d") if p.get("createdAt") else "",
                     "salary": "",
                     "salary_currency": "INR",
                 })
@@ -1879,7 +1879,7 @@ def scrape_greenhouse(job_titles, locations, config):
                             description = _re.sub(r'\s+', ' ', description).strip()
                     except Exception:
                         pass
-                    time.sleep(1)
+                    random_delay(config)
                 jobs.append({
                     "portal": "greenhouse",
                     "company": company.title(),
@@ -1887,7 +1887,7 @@ def scrape_greenhouse(job_titles, locations, config):
                     "location": location,
                     "job_description": description[:3000],
                     "apply_url": p.get("absolute_url", ""),
-                    "date_posted": p.get("updated_at", ""),
+                    "date_posted": (p.get("updated_at") or "")[:10],
                     "salary": "",
                     "salary_currency": "INR",
                 })
@@ -1923,7 +1923,7 @@ SCRAPER_MAP = {
 
 # Portals that use plain HTTP/API — no Selenium, no Chrome required.
 # Safe to run inside Vercel serverless functions.
-VERCEL_SAFE_PORTALS = frozenset({"hiringcafe", "remotive", "hackernews"})
+VERCEL_SAFE_PORTALS = frozenset({"hiringcafe", "remotive", "hackernews", "lever", "greenhouse"})
 
 
 def _normalize_company_name(name):
