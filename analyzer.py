@@ -94,6 +94,49 @@ IRRELEVANT_KEYWORDS = [
     "hvac", "plumbing", "welding", "carpentry",
 ]
 
+# Seniority overqualification patterns — roles clearly above IC PM target
+_OVERQUALIFIED_PATTERNS = [
+    r'\b(?:vp|vice\s+president|chief\s+\w+\s+officer|cxo|c-suite)\b',
+    r'\b(?:director|managing\s+director|president)\b',
+    r'\b(?:15|18|20)\s*\+?\s*(?:years?|yrs?)\b',
+    r'minimum\s+(?:15|18|20)\s*years?',
+]
+_OVERQUALIFIED_RE = re.compile('|'.join(_OVERQUALIFIED_PATTERNS), re.IGNORECASE)
+
+# Underqualified/irrelevant role patterns
+_WRONG_LEVEL_PATTERNS = [
+    r'\bfreshers?\s+only\b',
+    r'\b0[\s-]1\s*(?:year|yr)\b',
+    r'\binternship\s+(?:only|position|role|opportunity)\b',
+]
+_WRONG_LEVEL_RE = re.compile('|'.join(_WRONG_LEVEL_PATTERNS), re.IGNORECASE)
+
+
+def quality_gate(job):
+    """
+    Pre-filter a job before scoring.
+    Returns (passed: bool, reason: str).
+    'passed=False' means the job should be skipped entirely.
+    """
+    desc = job.get("job_description") or ""
+    role = job.get("role") or ""
+    combined = f"{role} {desc}"
+
+    # Reject clearly overqualified roles (VP, Director, 15+ yrs)
+    if _OVERQUALIFIED_RE.search(combined):
+        return False, "overqualified_level"
+
+    # Reject fresher-only / intern-only postings
+    if _WRONG_LEVEL_RE.search(combined):
+        return False, "wrong_level"
+
+    # Reject thin descriptions (< 40 words)
+    word_count = len(desc.split())
+    if 0 < word_count < 40:
+        return False, f"thin_description:{word_count}_words"
+
+    return True, ""
+
 
 # =============================================================================
 # Experience & Salary extraction
@@ -566,6 +609,14 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None):
     LLM_CIRCUIT_BREAKER = 5  # give up on LLM after this many consecutive failures
 
     for i, job in enumerate(jobs):
+        passed, gate_reason = quality_gate(job)
+        if not passed:
+            logger.debug("Quality gate rejected %s @ %s: %s",
+                         job.get("role"), job.get("company"), gate_reason)
+            if progress_callback:
+                progress_callback(i + 1, total, job.get("role", ""), 0)
+            continue
+
         text = " ".join([
             job.get("role", ""),
             job.get("job_description", ""),
@@ -1293,13 +1344,36 @@ def load_cv_data(user_id: int = None):
 
 
 def save_cv_data(cv_data, user_id: int = None):
-    """Save CV data. Writes to DB when a user is in scope, else to JSON."""
+    """Save CV data.
+
+    Requires a user_id whenever called from a Flask request context — we
+    refuse to silently fall through to the legacy global cv_data.json
+    because that would overwrite the owner's CV with another user's data
+    (and conversely, leak it to every CLI/scraper code path that reads
+    cv_data.json as a fallback).
+
+    The legacy JSON write path is only retained for true CLI usage
+    (no Flask app loaded) and bootstrap scripts.
+    """
     if user_id is None:
         user_id = _current_session_user_id()
     if user_id:
         from database import save_user_cv_data as _sucd
         _sucd(user_id, cv_data)
         return
+
+    # If Flask is loaded but no session, refuse to clobber the global file.
+    try:
+        from flask import has_request_context as _hrc
+        if _hrc():
+            raise RuntimeError(
+                "save_cv_data called from a Flask request with no user_id. "
+                "Pass current_user_id() explicitly to avoid clobbering the "
+                "legacy global cv_data.json."
+            )
+    except ImportError:
+        pass
+
     with open(CV_DATA_PATH, "w", encoding="utf-8") as f:
         json.dump(cv_data, f, indent=2)
 
