@@ -412,6 +412,16 @@ def keyword_score(job, preferences, cv_data=None):
                 ts_score += 5
         score += min(ts_score, 15)
 
+    # Seniority penalty (-15): JD targets a level above IC PM candidate
+    _SENIORITY_PENALTY_PATTERNS = [
+        r'\b(?:10|12)\s*\+?\s*(?:years?|yrs?)\b',
+        r'(?:minimum|required?|must\s+have|at\s+least)\s*(?:10|12)\s*\+?\s*(?:years?|yrs?)',
+        r'\b(?:vp|vice\s+president|chief\s+\w+\s+officer|cxo|director|managing\s+director)\b',
+    ]
+    _sen_re = re.compile('|'.join(_SENIORITY_PENALTY_PATTERNS), re.IGNORECASE)
+    seniority_penalty = -15 if _sen_re.search(text) else 0
+    score = max(0, score + seniority_penalty)
+
     return min(score, 100)
 
 
