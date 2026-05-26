@@ -55,6 +55,79 @@
     </div>
   </div>
 
+  <!-- Extracted profile card -->
+  {% set _u = session.get('user') %}
+  {% set _titles = cv_data.get('suggested_job_titles', []) if cv_data else [] %}
+  {% set _locs   = cv_data.get('suggested_locations', []) if cv_data else [] %}
+  <div class="card">
+    <div class="card-header" style="padding-bottom:.75rem;">
+      <div class="card-title">Extracted Profile</div>
+      <div class="card-description">Details parsed from your CV — used to match and score every job.</div>
+    </div>
+    <div class="card-content" style="padding-top:0;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem;">
+
+        <!-- Identity -->
+        <div>
+          <p style="font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);margin:0 0 .5rem;">Identity</p>
+          <div style="display:flex;flex-direction:column;gap:.375rem;">
+            {% if _u and _u.get('name') %}
+            <div style="display:flex;align-items:center;gap:.5rem;">
+              {% if _u.get('picture') %}<img src="{{ _u.picture }}" width="24" height="24" style="border-radius:50%;flex-shrink:0;" alt="">{% endif %}
+              <span style="font-size:.875rem;font-weight:600;">{{ _u.name }}</span>
+            </div>
+            {% endif %}
+            {% if _u and _u.get('email') %}
+            <div style="font-size:.8125rem;color:var(--muted-foreground);">{{ _u.email }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Target roles -->
+        <div>
+          <p style="font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);margin:0 0 .5rem;">Target roles</p>
+          {% if _titles %}
+          <div style="display:flex;flex-wrap:wrap;gap:.375rem;">
+            {% for t in _titles[:6] %}
+            <span style="display:inline-block;padding:.25rem .625rem;border-radius:.375rem;background:rgba(3,2,19,.05);border:1px solid var(--border);font-size:.8rem;font-weight:500;">{{ t }}</span>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p style="font-size:.8125rem;color:var(--muted-foreground);margin:0;">Not detected</p>
+          {% endif %}
+        </div>
+
+        <!-- Preferred locations -->
+        <div>
+          <p style="font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);margin:0 0 .5rem;">Preferred locations</p>
+          {% if _locs %}
+          <div style="display:flex;flex-wrap:wrap;gap:.375rem;">
+            {% for l in _locs[:6] %}
+            <span style="display:inline-block;padding:.25rem .625rem;border-radius:.375rem;background:rgba(3,2,19,.05);border:1px solid var(--border);font-size:.8rem;">{{ l }}</span>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p style="font-size:.8125rem;color:var(--muted-foreground);margin:0;">Not detected</p>
+          {% endif %}
+        </div>
+
+      </div>
+
+      <!-- Skills list -->
+      {% if cv_data and cv_data.get('skills') %}
+      <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border);">
+        <p style="font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);margin:0 0 .625rem;">Detected skills ({{ cv_skills_count }})</p>
+        <div style="display:flex;flex-wrap:wrap;gap:.375rem;">
+          {% for sk in cv_data.get('skills', []) %}
+          <span style="display:inline-block;padding:.25rem .6rem;border-radius:.375rem;font-size:.8rem;background:var(--muted);border:1px solid var(--border);color:var(--foreground);">{{ sk }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
   <!-- Summary stat strip -->
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;">
     <div class="card" style="padding:1rem 1.25rem;">

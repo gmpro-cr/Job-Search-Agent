@@ -114,58 +114,57 @@
       <div class="card-title">Job alert emails</div>
       <div class="card-description">Active reminders sending job matches by email daily.</div>
     </div>
-    <div class="card-content" style="padding:0;">
-      <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
-        <thead>
-          <tr style="background:var(--muted);text-align:left;">
-            <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Type</th>
-            <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Recipient</th>
-            <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Keywords / Notes</th>
-            <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Schedule</th>
-            <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Last sent</th>
-            <th style="padding:.625rem 1rem;"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for alert in job_alerts %}
-          <tr style="border-top:1px solid var(--border);" onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''">
-            <td style="padding:.75rem 1rem;vertical-align:middle;white-space:nowrap;">
-              {% if alert.alert_type == 'job_alert' %}
-              <span class="badge badge-secondary" style="font-size:.7rem;">Job alerts</span>
-              {% elif alert.alert_type == 'hiring_manager' %}
-              <span class="badge badge-outline" style="font-size:.7rem;">Hiring managers</span>
-              {% elif alert.alert_type == 'prd' %}
-              <span class="badge badge-default" style="font-size:.7rem;">PRD</span>
-              {% endif %}
-            </td>
-            <td style="padding:.75rem 1rem;vertical-align:middle;">
-              <div style="font-weight:500;font-size:.875rem;">{{ alert.email }}</div>
-              <div style="font-size:.75rem;color:var(--muted-foreground);margin-top:.1rem;">{{ alert.name }}</div>
-            </td>
-            <td style="padding:.75rem 1rem;vertical-align:middle;font-size:.8125rem;color:var(--muted-foreground);max-width:18rem;">
-              {{ alert.keyword }}
-            </td>
-            <td style="padding:.75rem 1rem;vertical-align:middle;font-size:.8125rem;color:var(--muted-foreground);white-space:nowrap;">
-              {{ alert.schedule }}
-            </td>
-            <td style="padding:.75rem 1rem;vertical-align:middle;font-size:.8125rem;color:var(--muted-foreground);white-space:nowrap;">
-              {{ alert.last_sent if alert.last_sent else 'Never' }}
-            </td>
-            <td style="padding:.75rem 1rem;vertical-align:middle;">
-              {% if alert.alert_type != 'prd' %}
-              <button onclick="openAlertEdit('{{ alert.id }}', {{ alert | tojson | forceescape }})"
-                      style="display:inline-flex;align-items:center;gap:.3rem;font-size:.8125rem;color:var(--primary);background:none;border:none;cursor:pointer;font-weight:500;padding:0;">
-                <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                Edit
-              </button>
-              {% else %}
-              <a href="{{ url_for('preferences') }}" style="display:inline-flex;align-items:center;gap:.3rem;font-size:.8125rem;color:var(--muted-foreground);text-decoration:none;">Settings</a>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="card-content" style="padding:1rem 1.5rem 1.5rem;display:flex;flex-direction:column;gap:.75rem;">
+      {% for alert in job_alerts %}
+      <div style="display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border-radius:.625rem;border:1px solid var(--border);background:var(--card);">
+
+        <!-- Type badge -->
+        <div style="flex-shrink:0;width:7rem;">
+          {% if alert.alert_type == 'job_alert' %}
+          <span class="badge badge-secondary" style="font-size:.7rem;">Job alerts</span>
+          {% elif alert.alert_type == 'hiring_manager' %}
+          <span class="badge badge-outline" style="font-size:.7rem;">Hiring managers</span>
+          {% elif alert.alert_type == 'prd' %}
+          <span class="badge badge-default" style="font-size:.7rem;">PRD</span>
+          {% endif %}
+        </div>
+
+        <!-- Recipient -->
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:500;font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ alert.email }}</div>
+          {% if alert.name %}<div style="font-size:.75rem;color:var(--muted-foreground);margin-top:.1rem;">{{ alert.name }}</div>{% endif %}
+        </div>
+
+        <!-- Keywords -->
+        <div style="flex:1.5;min-width:0;font-size:.8125rem;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ alert.keyword }}">
+          {{ alert.keyword or '—' }}
+        </div>
+
+        <!-- Schedule -->
+        <div style="flex-shrink:0;font-size:.8125rem;color:var(--muted-foreground);white-space:nowrap;min-width:5rem;text-align:right;">
+          {{ alert.schedule or '—' }}
+        </div>
+
+        <!-- Last sent -->
+        <div style="flex-shrink:0;font-size:.8125rem;color:var(--muted-foreground);white-space:nowrap;min-width:5.5rem;text-align:right;">
+          {{ alert.last_sent if alert.last_sent else 'Never' }}
+        </div>
+
+        <!-- Action -->
+        <div style="flex-shrink:0;margin-left:.25rem;">
+          {% if alert.alert_type != 'prd' %}
+          <button onclick="openAlertEdit('{{ alert.id }}', {{ alert | tojson | forceescape }})"
+                  style="display:inline-flex;align-items:center;gap:.3rem;font-size:.8125rem;color:var(--primary);background:none;border:none;cursor:pointer;font-weight:500;padding:0;">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            Edit
+          </button>
+          {% else %}
+          <a href="{{ url_for('preferences') }}" style="display:inline-flex;align-items:center;gap:.3rem;font-size:.8125rem;color:var(--muted-foreground);text-decoration:none;">Settings</a>
+          {% endif %}
+        </div>
+
+      </div>
+      {% endfor %}
     </div>
   </div>
   {% endif %}

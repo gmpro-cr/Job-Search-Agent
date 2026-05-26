@@ -2311,7 +2311,7 @@ def _load_all_hm_contacts() -> list:
 @app.route("/hiring-managers")
 def hiring_managers():
     """Recruiter/TA contacts found via LinkedIn search, sourced from hr_sent_contacts.json."""
-    contacts = _load_all_hm_contacts()
+    contacts = [c for c in _load_all_hm_contacts() if c.get("linkedin_url")]
     return render_template(
         "hiring_managers.html",
         contacts=contacts,
