@@ -376,9 +376,15 @@
     alert('Clean Old Jobs: No API endpoint available yet.');
   }
 
+  function asUtcMs(s) {
+    if (!s) return 0;
+    const norm = (s.endsWith('Z') || s.includes('+') || /\d[+-]\d{2}:\d{2}$/.test(s)) ? s : s + 'Z';
+    return new Date(norm).getTime();
+  }
+
   function toRelative(isoStr) {
     if (!isoStr) return null;
-    const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 60000);
+    const diff = Math.floor((Date.now() - asUtcMs(isoStr)) / 60000);
     if (diff < 1) return 'just now';
     if (diff < 60) return `${diff}m ago`;
     const h = Math.floor(diff / 60);
