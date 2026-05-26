@@ -5,11 +5,10 @@ viewing jobs, and browsing digests.
 """
 
 import os
-import uuid
 import sys
+import uuid
 import logging
 import threading
-import uuid
 from datetime import datetime, timedelta
 
 # Load .env before anything else reads os.environ
@@ -46,6 +45,7 @@ from database import (
     get_comprehensive_stats_user, get_dashboard_insights_user,
     get_application_pipeline_stats_user_with_legacy_fallback,
     user_state_join_sql,
+    is_admin_user, promote_first_user_to_admin,
 )
 from scrapers import scrape_all_portals
 from analyzer import analyze_jobs, generate_tailored_points, parse_nlp_query, parse_cv_text, cv_score, compute_gap_analysis, load_cv_data, save_cv_data, CV_DATA_PATH
@@ -64,6 +64,10 @@ from git_sync import sync_from_scrape
 # ---------------------------------------------------------------------------
 
 _IS_VERCEL = bool(os.environ.get("VERCEL"))
+# Dev login is OFF by default everywhere; opt in with ENABLE_DEV_LOGIN=1
+# (intended for local dev only). It bypasses OAuth so we never want it
+# accidentally enabled on a hosted deployment.
+_ENABLE_DEV_LOGIN = os.environ.get("ENABLE_DEV_LOGIN") == "1" and not _IS_VERCEL
 
 app = Flask(__name__)
 
@@ -81,10 +85,43 @@ app.config["SESSION_COOKIE_SECURE"]   = _IS_VERCEL
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB upload limit
+# 4 MB is more than enough for a CV (PDF/DOCX). Smaller cap reduces
+# memory pressure under abuse.
+app.config["MAX_CONTENT_LENGTH"] = 4 * 1024 * 1024
 
-logging.basicConfig(level=logging.INFO)
+# Logging: stderr on Vercel (platform collects it), rotating file locally.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
+if not _IS_VERCEL:
+    try:
+        from logging.handlers import RotatingFileHandler
+        _log_path = os.path.join(BASE_DIR, "app.log")
+        _file_handler = RotatingFileHandler(
+            _log_path, maxBytes=2 * 1024 * 1024, backupCount=3, encoding="utf-8"
+        )
+        _file_handler.setFormatter(logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+        ))
+        # Attach to the root so module loggers inherit it.
+        logging.getLogger().addHandler(_file_handler)
+    except Exception as _e:
+        logger.warning("RotatingFileHandler setup failed: %s", _e)
+
+
+@app.after_request
+def _security_headers(response):
+    """Conservative, defence-in-depth headers."""
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy",
+                                "geolocation=(), microphone=(), camera=()")
+    if _IS_VERCEL:
+        response.headers.setdefault(
+            "Strict-Transport-Security",
+            "max-age=63072000; includeSubDomains"
+        )
+    return response
 
 # ---------------------------------------------------------------------------
 # CSRF protection
@@ -113,9 +150,9 @@ google = oauth.register(
 )
 
 _PUBLIC_ENDPOINTS = frozenset({
-    'login', 'auth_google', 'auth_callback', 'auth_dev_login', 'static',
+    'login', 'auth_google', 'auth_callback', 'static',
     'approve_outreach', 'skip_outreach', 'favicon',
-})
+} | ({'auth_dev_login'} if _ENABLE_DEV_LOGIN else set()))
 
 @app.before_request
 def require_login():
@@ -160,6 +197,15 @@ def require_user_id():
     if not uid:
         from flask import abort
         abort(401)
+    return uid
+
+
+def require_admin():
+    """Like require_user_id() but also enforces is_admin=1. 403 if not."""
+    uid = require_user_id()
+    if not is_admin_user(uid):
+        from flask import abort
+        abort(403)
     return uid
 # Initialize the database on startup.
 #
@@ -748,13 +794,12 @@ def _run_scraper_pipeline():
         with scraper_lock:
             scraper_status["phase"] = "storing"
 
-        _cv_data = load_cv_data()
+        # Per-user CV scoring happens lazily on the read side via
+        # _score_unscored_for_user; no pre-scoring needed here.
         for job in all_analyzed:
             job["job_id"] = generate_job_id(
                 job["portal"], job["company"], job["role"], job.get("location", ""),
             )
-            if _cv_data:
-                job["cv_score"] = cv_score(job, _cv_data)
         inserted, skipped = insert_jobs_bulk(all_analyzed)
 
         with scraper_lock:
@@ -895,13 +940,12 @@ def _run_live_search(query, location):
         with live_search_lock:
             live_search_status["phase"] = "storing"
 
-        _cv_data = load_cv_data()
+        # Per-user CV scoring happens lazily on the read side; no
+        # pre-scoring against any single user's CV here.
         for job in all_analyzed:
             job["job_id"] = generate_job_id(
                 job["portal"], job["company"], job["role"], job.get("location", ""),
             )
-            if _cv_data:
-                job["cv_score"] = cv_score(job, _cv_data)
         inserted, skipped = insert_jobs_bulk(all_analyzed)
         result_ids = [j["job_id"] for j in all_analyzed if j.get("job_id")]
 
@@ -1038,7 +1082,8 @@ if _should_start_background_tasks():
 def login():
     if session.get('user'):
         return redirect(url_for('dashboard'))
-    return render_template('login.html', is_vercel=_IS_VERCEL)
+    return render_template('login.html', is_vercel=_IS_VERCEL,
+                           enable_dev_login=_ENABLE_DEV_LOGIN)
 
 @app.route('/auth/google')
 def auth_google():
@@ -1047,6 +1092,35 @@ def auth_google():
         return redirect(url_for('login'))
     redirect_uri = url_for('auth_callback', _external=True)
     return google.authorize_redirect(redirect_uri)
+
+def _signup_allowed(email: str) -> bool:
+    """Owner-only mode: only emails in ALLOWED_EMAILS (or already-existing
+    users) may sign in. ALLOWED_EMAILS is a comma-separated env var.
+
+    Existing users are always allowed (grandfathered) so a tightening of
+    the allowlist never locks the owner out of their own data.
+    """
+    if not email:
+        return False
+    raw = os.environ.get("ALLOWED_EMAILS", "").strip()
+    if not raw:
+        # Allowlist not configured → owner-only fallback to OWNER_EMAIL
+        owner = os.environ.get("OWNER_EMAIL", "").strip().lower()
+        if owner:
+            return email.lower() == owner
+        # No restriction configured at all — treat as open (matches
+        # local-dev convenience). Production should always set one.
+        return True
+    allowed = {e.strip().lower() for e in raw.split(",") if e.strip()}
+    if email.lower() in allowed:
+        return True
+    # Grandfather any user who already has a row
+    try:
+        existing = get_user_by_email(email)
+        return existing is not None
+    except Exception:
+        return False
+
 
 @app.route('/auth/callback')
 @csrf.exempt
@@ -1058,7 +1132,16 @@ def auth_callback():
         if not email:
             flash("Authentication failed: no email returned.", "error")
             return redirect(url_for('login'))
+        if not _signup_allowed(email):
+            logger.warning("Sign-in blocked by allowlist: %s", email)
+            flash("This deployment is invite-only. Contact the owner to be added.", "error")
+            return redirect(url_for('login'))
         uid = get_or_create_user(email, userinfo.get('name', ''), userinfo.get('picture', ''))
+        # First user signing into a fresh deployment becomes the admin.
+        try:
+            promote_first_user_to_admin()
+        except Exception as e:
+            logger.warning("First-user admin bootstrap failed: %s", e)
         session.permanent = True
         session['user'] = {
             'email': email,
@@ -1073,18 +1156,23 @@ def auth_callback():
     next_url = request.args.get('next') or url_for('dashboard')
     # Reject external redirects (open-redirect fix)
     from urllib.parse import urlparse
-    if urlparse(next_url).netloc:
+    if urlparse(next_url).netloc or next_url.startswith('//'):
         next_url = url_for('dashboard')
     return redirect(next_url)
 
 @app.route('/auth/dev-login', methods=['POST'])
 @csrf.exempt
 def auth_dev_login():
-    """Local dev only — not available when running on Vercel."""
-    if _IS_VERCEL:
+    """Local dev only — gated by ENABLE_DEV_LOGIN=1 (and never on Vercel)."""
+    if not _ENABLE_DEV_LOGIN:
         from flask import abort
         abort(403)
     uid = get_or_create_user('dev@localhost', 'Dev User')
+    # First-time bootstrap: dev user becomes admin so local dev "just works"
+    try:
+        promote_first_user_to_admin()
+    except Exception:
+        pass
     session.permanent = True
     session['user'] = {'email': 'dev@localhost', 'name': 'Dev User', 'picture': '', 'id': uid}
     return redirect(url_for('dashboard'))
@@ -1119,15 +1207,18 @@ def dashboard():
     cv_uploaded = cv_data is not None
     user_email = dict(session).get('user', {}).get('email', '')
 
-    # Keep lazy scoring fresh so today's numbers reflect today's scrape
+    # Score any new jobs before querying — raise limit so a fresh scrape batch
+    # (typically 500–1000 jobs) gets covered in one dashboard hit.
     if uid and cv_uploaded:
         try:
-            _score_unscored_for_user(uid, limit=300)
+            _score_unscored_for_user(uid, limit=1500)
         except Exception as e:
             logger.warning("Dashboard lazy scoring failed for user %s: %s", uid, e)
 
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    h12_ago = (datetime.now() - timedelta(hours=12)).isoformat()
+    # Always use UTC so the cutoff matches the UTC-stored date_found values.
+    from datetime import timezone as _tz
+    _now_utc = datetime.now(_tz.utc).replace(tzinfo=None)
+    today_str = _now_utc.strftime("%Y-%m-%d")
 
     conn = get_connection()
     cur = conn.cursor()
@@ -1168,48 +1259,62 @@ def dashboard():
         )
         high_match_today = cur.fetchone()["n"]
 
-    # 4) Top 10 scored matches from the last 12 hours (aligns with twice-daily scrape cadence).
-    #    Falls back to last 48 hours when the 12-hour window yields fewer than 3 results,
-    #    so the dashboard is never misleadingly empty after a delayed scrape.
+    # 4) Top 10 scored matches anchored to the DB's own latest scrape timestamp.
+    #    Using MAX(date_found) as the reference instead of datetime.now() makes
+    #    this query timezone-agnostic — no UTC/IST mismatch possible.
+    #    Window: jobs within 8 hours of the latest scrape (covers both twice-daily
+    #    batches).  Falls back to 72 hours if the fresh window has < 3 results.
     top_jobs = []
     if uid and cv_uploaded:
+        cur.execute("SELECT MAX(date_found) AS latest FROM job_listings")
+        _latest = (cur.fetchone() or {}).get("latest") or ""
+        if _latest:
+            # Subtract 8 h from the latest timestamp string via isoformat arithmetic
+            try:
+                _latest_dt = datetime.fromisoformat(_latest.replace("Z", ""))
+                _batch_cutoff = (_latest_dt - timedelta(hours=8)).isoformat()
+                _wide_cutoff  = (_latest_dt - timedelta(hours=72)).isoformat()
+            except Exception:
+                _batch_cutoff = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(hours=8)).isoformat()
+                _wide_cutoff  = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(hours=72)).isoformat()
+        else:
+            _batch_cutoff = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(hours=8)).isoformat()
+            _wide_cutoff  = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(hours=72)).isoformat()
+
         cur.execute(
             """
             SELECT j.job_id, j.role, j.company, j.location,
                    j.remote_status, j.salary, j.portal, j.apply_url,
                    j.date_found,
-                   s.cv_score
+                   COALESCE(s.cv_score, 0) AS cv_score
             FROM job_listings j
-            JOIN user_job_state s
+            LEFT JOIN user_job_state s
               ON s.job_id = j.job_id AND s.user_id = ?
             WHERE j.date_found >= ?
               AND COALESCE(s.hidden, 0) = 0
-              AND s.cv_score > 0
-            ORDER BY s.cv_score DESC, j.date_found DESC
+            ORDER BY COALESCE(s.cv_score, 0) DESC, j.date_found DESC
             LIMIT 10
             """,
-            (uid, h12_ago),
+            (uid, _batch_cutoff),
         )
         top_jobs = [dict(r) for r in cur.fetchall()]
+        # Widen to 72 h if the latest batch has fewer than 3 results
         if len(top_jobs) < 3:
-            # Widen to 48 hours if the last 12-hour window is sparse
-            h48_ago = (datetime.now() - timedelta(hours=48)).isoformat()
             cur.execute(
                 """
                 SELECT j.job_id, j.role, j.company, j.location,
                        j.remote_status, j.salary, j.portal, j.apply_url,
                        j.date_found,
-                       s.cv_score
+                       COALESCE(s.cv_score, 0) AS cv_score
                 FROM job_listings j
-                JOIN user_job_state s
+                LEFT JOIN user_job_state s
                   ON s.job_id = j.job_id AND s.user_id = ?
                 WHERE j.date_found >= ?
                   AND COALESCE(s.hidden, 0) = 0
-                  AND s.cv_score > 0
-                ORDER BY s.cv_score DESC, j.date_found DESC
+                ORDER BY COALESCE(s.cv_score, 0) DESC, j.date_found DESC
                 LIMIT 10
                 """,
-                (uid, h48_ago),
+                (uid, _wide_cutoff),
             )
             top_jobs = [dict(r) for r in cur.fetchall()]
     conn.close()
@@ -1288,7 +1393,8 @@ def dashboard_create_reminder():
     if not email or not keyword:
         return jsonify({"ok": False, "error": "Email and keyword are required"}), 400
 
-    cv_data = load_cv_data()
+    uid = require_user_id()
+    cv_data = load_cv_data(uid)
     all_reminders = load_reminders()
     # Update existing reminder for this email+keyword if present, otherwise create
     existing = next((r for r in all_reminders
@@ -1867,7 +1973,7 @@ def save_job_notes(job_id):
 @app.route("/api/admin/dedup", methods=["POST"])
 def admin_dedup():
     """Remove cross-portal duplicate jobs, keeping highest-scoring copy."""
-    require_user_id()
+    require_admin()
     deleted = dedup_jobs()
     return jsonify({"ok": True, "deleted": deleted})
 
@@ -1990,8 +2096,7 @@ def import_jobs():
     if not jobs or not isinstance(jobs, list):
         return jsonify({"ok": False, "error": "Missing or invalid 'jobs' array"}), 400
 
-    # Generate job IDs and insert
-    _cv_data = load_cv_data()
+    # Per-user CV scoring is deferred to the read-side lazy scorer.
     for job in jobs:
         job["job_id"] = generate_job_id(
             job.get("portal", "unknown"),
@@ -1999,8 +2104,6 @@ def import_jobs():
             job.get("role", ""),
             job.get("location", ""),
         )
-        if _cv_data:
-            job["cv_score"] = cv_score(job, _cv_data)
     inserted, skipped = insert_jobs_bulk(jobs)
     logger.info("Import API: inserted=%d, skipped=%d (total submitted=%d)", inserted, skipped, len(jobs))
 
@@ -2030,7 +2133,7 @@ def import_jobs():
 @app.route("/api/portals/update", methods=["POST"])
 def update_portals():
     """Enable or disable job portals. Persists to config.json."""
-    require_user_id()
+    require_admin()
     data = request.get_json(force=True) or {}
     enabled_portals = data.get("enabled", [])   # list of portal names to enable
 
@@ -2056,7 +2159,7 @@ def update_portals():
 
 @app.route("/api/scraper/start", methods=["POST"])
 def start_scraper():
-    require_user_id()
+    require_admin()
     if _IS_VERCEL:
         return jsonify({"ok": False, "error": "Scraper is not available in cloud mode. Run the scraper locally with: python main.py"}), 503
     global scraper_status
@@ -2091,7 +2194,7 @@ def quick_scraper():
     Vercel-safe quick scrape — runs only HiringCafe, Remotive, and Hacker News.
     No Selenium required. Completes in ~20s. Available on both local and Vercel.
     """
-    uid = require_user_id()
+    uid = require_admin()
     from scrapers import VERCEL_SAFE_PORTALS
 
     config = load_config()
@@ -2114,7 +2217,7 @@ def quick_scraper():
         return jsonify({"ok": True, "inserted": 0, "skipped": 0, "portals": counts,
                         "message": "No new jobs found."})
 
-    cv_data = load_cv_data(uid)
+    # Per-user scoring is handled by the lazy scorer on next /api/jobs hit.
     for job in all_jobs:
         job["job_id"] = generate_job_id(
             job.get("portal", "unknown"),
@@ -2122,8 +2225,6 @@ def quick_scraper():
             job.get("role", ""),
             job.get("location", ""),
         )
-        if cv_data:
-            job["cv_score"] = cv_score(job, cv_data)
 
     inserted, skipped = insert_jobs_bulk(all_jobs)
     logger.info("Quick scrape: inserted=%d skipped=%d portals=%s", inserted, skipped,
@@ -2138,7 +2239,7 @@ def trigger_github_scrape():
     Dispatch the GitHub Actions scrape workflow via the GitHub REST API.
     Requires GITHUB_TOKEN (PAT with workflow scope) and GITHUB_REPO env vars.
     """
-    require_user_id()
+    require_admin()
     import requests as _req
 
     token = os.environ.get("GITHUB_TOKEN", "")
@@ -2174,6 +2275,7 @@ def trigger_github_scrape():
 @app.route("/api/scraper/stop", methods=["POST"])
 def stop_scraper():
     """Stop a manually triggered scraper run. Does NOT affect scheduled runs."""
+    require_admin()
     global scraper_status
     with scraper_lock:
         if not scraper_status["running"]:
@@ -2189,6 +2291,7 @@ def stop_scraper():
 @app.route("/api/scraper/stop-scheduled", methods=["POST"])
 def stop_scheduled_scraper():
     """Stop the currently running scheduled scraper run."""
+    require_admin()
     global scraper_status
     with scraper_lock:
         if not scraper_status["running"]:
@@ -2215,6 +2318,7 @@ def scraper_status_api():
 
 @app.route("/api/search/start", methods=["POST"])
 def start_live_search():
+    require_admin()
     if _IS_VERCEL:
         return jsonify({"ok": False, "error": "Live search is not available in cloud mode. Run the scraper locally with: python main.py"}), 503
     global live_search_status
@@ -2608,19 +2712,15 @@ def cv_page():
                 return redirect(url_for("cv_page"))
         else:
             text = f.read().decode("utf-8", errors="ignore")
+        _uid = require_user_id()
         cv_data = parse_cv_text(text)
         cv_data["filename"] = filename
-        save_cv_data(cv_data)
+        save_cv_data(cv_data, user_id=_uid)
         # Auto-populate any empty preference fields (titles / locations /
         # skills) from the parsed CV so first-time users land on a
         # working dashboard without filling forms.
-        merged_prefs = _autofill_prefs_from_cv(cv_data)
-        _uid = current_user_id()
-        threading.Thread(
-            target=_rescore_in_background,
-            args=(cv_data, merged_prefs, _uid),
-            daemon=True,
-        ).start()
+        merged_prefs = _autofill_prefs_from_cv(cv_data, user_id=_uid)
+        _schedule_rescore(cv_data, merged_prefs, _uid)
         flash(f"CV uploaded — {len(cv_data['skills'])} skills detected. Scoring jobs in the background…", "success")
         _next = request.form.get("next", "")
         from urllib.parse import urlparse as _urlparse
@@ -2628,8 +2728,8 @@ def cv_page():
             _next = url_for("cv_page")
         return redirect(_next)
 
-    cv_data = load_cv_data()
-    uid = current_user_id()
+    uid = require_user_id()
+    cv_data = load_cv_data(uid)
 
     cv_filename = cv_data.get("filename") if cv_data else None
     cv_uploaded_at = cv_data.get("uploaded_at") if cv_data else None
@@ -2754,7 +2854,8 @@ def cv_page():
 
 @app.route("/api/cv/upload", methods=["POST"])
 def upload_cv():
-    """Accept a CV file upload, parse it, and store cv_data.json."""
+    """Accept a CV file upload, parse it, and store it for the current user."""
+    uid = require_user_id()
     if "cv_file" not in request.files:
         return jsonify({"ok": False, "error": "No file provided"}), 400
 
@@ -2786,13 +2887,16 @@ def upload_cv():
         return jsonify({"ok": False, "error": "Could not extract text from the file"}), 400
 
     cv_data = parse_cv_text(text)
-    save_cv_data(cv_data)
-    logger.info("CV uploaded: %d skills detected", len(cv_data["skills"]))
+    cv_data["filename"] = filename
+    save_cv_data(cv_data, user_id=uid)
+    logger.info("CV uploaded by user %s: %d skills detected", uid, len(cv_data["skills"]))
 
-    # Auto-fill preferences from the CV (only empty fields), then rescore
-    # everything against the merged CV + prefs.
-    merged_prefs = _autofill_prefs_from_cv(cv_data)
-    updated = _rescore_all_jobs(cv_data, preferences=merged_prefs)
+    # Auto-fill preferences from the CV (only empty fields), then schedule a
+    # rescore. On Vercel the rescore is deferred to the lazy path on the
+    # next /api/jobs hit — synchronous full-table rescore would burn the
+    # function timeout for a large job_listings table.
+    merged_prefs = _autofill_prefs_from_cv(cv_data, user_id=uid)
+    rescored = _schedule_rescore(cv_data, merged_prefs, uid)
 
     return jsonify({
         "ok": True,
@@ -2800,7 +2904,7 @@ def upload_cv():
         "skills": cv_data["skills"],
         "suggested_job_titles": cv_data.get("suggested_job_titles", []),
         "suggested_locations":  cv_data.get("suggested_locations", []),
-        "rescored": updated,
+        "rescored": rescored,
     })
 
 
@@ -2811,22 +2915,81 @@ def _rescore_in_background(cv_data, preferences, user_id):
         logger.error("Background rescore failed for user %s: %s", user_id, e)
 
 
-def _rescore_all_jobs(cv_data, user_id: int = None, preferences: dict = None):
+# Cap for inline rescores on Vercel — large job tables would otherwise
+# exceed the function timeout. Remaining jobs get picked up lazily by
+# _score_unscored_for_user on the next /api/jobs hit.
+_VERCEL_INLINE_RESCORE_CAP = 500
+
+
+def _schedule_rescore(cv_data, preferences, user_id):
+    """Rescore after a CV/preferences change.
+
+    - Local: fire-and-forget thread (existing behaviour).
+    - Vercel: background threads get killed when the function returns,
+      so we run an inline batch (capped) and let the lazy
+      _score_unscored_for_user path fill in the rest on subsequent
+      requests.
+
+    Returns the number of jobs scored synchronously (always 0 on local
+    since the thread runs after we return).
     """
-    Score every job in the DB against cv_data + preferences and persist
-    into user_job_state (per-user). When user_id is omitted falls back
-    to the legacy global column.
+    if not user_id:
+        return 0
+    if _IS_VERCEL:
+        try:
+            return _rescore_all_jobs(
+                cv_data,
+                preferences=preferences,
+                user_id=user_id,
+                limit=_VERCEL_INLINE_RESCORE_CAP,
+            )
+        except Exception as e:
+            logger.error("Inline rescore failed for user %s: %s", user_id, e)
+            return 0
+    threading.Thread(
+        target=_rescore_in_background,
+        args=(cv_data, preferences, user_id),
+        daemon=True,
+    ).start()
+    return 0
+
+
+def _rescore_all_jobs(cv_data, user_id: int = None, preferences: dict = None,
+                      limit: int = None):
+    """Score jobs in the DB against cv_data + preferences and persist
+    into user_job_state for the given user.
+
+    Requires user_id in a Flask request context (the legacy global path
+    only exists for CLI / scraper use).
     """
     if user_id is None:
         user_id = current_user_id()
+    # Refuse to silently fall through to the legacy global column when we
+    # have a Flask request context — that would clobber the owner's data.
+    if user_id is None:
+        try:
+            from flask import has_request_context as _hrc
+            if _hrc():
+                raise RuntimeError(
+                    "_rescore_all_jobs called from a Flask request with no user_id"
+                )
+        except ImportError:
+            pass
     if preferences is None and user_id:
         preferences = load_preferences(user_id) or {}
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT job_id, role, company, location, job_description, remote_status "
-        "FROM job_listings"
-    )
+    if limit:
+        cursor.execute(
+            "SELECT job_id, role, company, location, job_description, remote_status "
+            "FROM job_listings ORDER BY date_found DESC LIMIT ?",
+            (int(limit),),
+        )
+    else:
+        cursor.execute(
+            "SELECT job_id, role, company, location, job_description, remote_status "
+            "FROM job_listings"
+        )
     jobs = [dict(r) for r in cursor.fetchall()]
     conn.close()
 
@@ -2920,7 +3083,8 @@ def _score_unscored_for_user(user_id: int, limit: int = 200) -> int:
 @app.route("/api/cv/skills")
 def api_cv_skills():
     """Return parsed CV skills and raw text."""
-    cv_data = load_cv_data()
+    uid = require_user_id()
+    cv_data = load_cv_data(uid)
     if not cv_data:
         return jsonify({"ok": False, "error": "CV not uploaded yet"}), 400
     return jsonify({"ok": True, "skills": cv_data.get("skills", []), "raw_text": cv_data.get("raw_text", "")})
@@ -2928,8 +3092,8 @@ def api_cv_skills():
 @app.route("/api/cv/top_jobs")
 def api_top_jobs():
     """Return top 10 jobs matched to the uploaded CV, sorted by cv_score descending."""
-    uid = current_user_id()
-    cv_data = load_cv_data()
+    uid = require_user_id()
+    cv_data = load_cv_data(uid)
     if not cv_data:
         return jsonify({"ok": False, "error": "CV not uploaded yet"}), 400
     conn = get_connection()
@@ -2959,12 +3123,13 @@ def api_top_jobs():
 @app.route("/api/reminder/set", methods=["POST"])
 def api_set_reminder():
     """Create a reminder to email CV and top jobs at a specified datetime (ISO format)."""
+    uid = require_user_id()
     data = request.get_json() or {}
     email = data.get("email", "").strip()
     remind_at = data.get("remind_at", "")
     if not email or not remind_at:
         return jsonify({"ok": False, "error": "Missing email or remind_at"}), 400
-    cv_data = load_cv_data()
+    cv_data = load_cv_data(uid)
     if not cv_data:
         return jsonify({"ok": False, "error": "CV not uploaded yet"}), 400
     # Load existing reminders
@@ -3022,23 +3187,24 @@ def api_update_reminder(reminder_id):
 @app.route("/api/cv/rescore", methods=["POST"])
 def rescore_jobs():
     """Re-score all jobs in the DB against the uploaded CV."""
-    cv_data = load_cv_data()
+    uid = require_user_id()
+    cv_data = load_cv_data(uid)
     if not cv_data:
         return jsonify({"ok": False, "error": "No CV uploaded yet"}), 400
-    updated = _rescore_all_jobs(cv_data)
-    if updated == 0:
-        return jsonify({"ok": True, "updated": 0, "message": "No jobs in database"})
-    return jsonify({"ok": True, "updated": updated})
+    preferences = load_preferences(uid) or {}
+    rescored = _schedule_rescore(cv_data, preferences, uid)
+    return jsonify({"ok": True, "updated": rescored})
 
 
 @app.route("/api/cv/skills-gap")
 def cv_skills_gap():
     """Return skill frequency across target-role jobs vs CV skills."""
-    cv_data = load_cv_data()
+    uid = require_user_id()
+    cv_data = load_cv_data(uid)
     # If no CV data, redirect to upload page
     if not cv_data:
         return redirect(url_for('cv_page'))
-    preferences = load_preferences() or DEFAULT_PREFS.copy()
+    preferences = load_preferences(uid) or DEFAULT_PREFS.copy()
     job_titles = preferences.get("job_titles", [])
 
     from database import get_skill_frequency
@@ -3059,7 +3225,8 @@ def cv_skills_gap():
 @app.route("/api/cv/keyword-heatmap")
 def cv_keyword_heatmap():
     """Return top keywords across target-role jobs."""
-    preferences = load_preferences() or DEFAULT_PREFS.copy()
+    uid = require_user_id()
+    preferences = load_preferences(uid) or DEFAULT_PREFS.copy()
     job_titles = preferences.get("job_titles", [])
 
     from database import get_keyword_frequency
@@ -3070,8 +3237,9 @@ def cv_keyword_heatmap():
 @app.route("/api/cv/profile-score")
 def cv_profile_score():
     """Return a simple profile completeness score 0-100."""
-    cv_data = load_cv_data()
-    preferences = load_preferences() or DEFAULT_PREFS.copy()
+    uid = require_user_id()
+    cv_data = load_cv_data(uid)
+    preferences = load_preferences(uid) or DEFAULT_PREFS.copy()
 
     score = 0
     breakdown = []
@@ -3148,18 +3316,37 @@ def outbox():
     )
 
 
-@app.route("/api/approve/<token>")
+@app.route("/api/approve/<token>", methods=["GET", "POST"])
 @csrf.exempt
 def approve_outreach(token):
-    """Approve and send a cold email for the given token."""
+    """Approve and send a cold email for the given token.
+
+    GET renders a confirmation page (so link prefetchers, Slack/Twitter
+    unfurl bots, anti-virus crawlers etc. cannot accidentally trigger a
+    send). POST from that page performs the actual action.
+    """
+    from database import get_outreach_by_token, claim_outreach_token
+
+    item = get_outreach_by_token(token)
+    if item is None:
+        return render_template("approve_result.html",
+                               success=False, item=None,
+                               message="This approval link is invalid."), 200
+
+    if request.method == "GET":
+        # Just show what would be sent; do nothing.
+        return render_template("approve_confirm.html", item=item, token=token)
+
+    # POST → claim + send.
     import smtplib
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
-    from database import claim_outreach_token
 
-    item = claim_outreach_token(token)
-    if item is None:
-        return "This approval link has already been used, has expired, or is invalid.", 200
+    claimed = claim_outreach_token(token)
+    if claimed is None:
+        return render_template("approve_result.html",
+                               success=False, item=item,
+                               message="This approval link has already been used or expired."), 200
 
     prefs = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
     gmail_address = prefs.get("gmail_address", "")
@@ -3168,18 +3355,18 @@ def approve_outreach(token):
     if not gmail_address or not gmail_password:
         return "Gmail not configured. Please set it up in Preferences.", 500
 
-    recipient_email = item.get("hm_email", "")
+    recipient_email = claimed.get("hm_email", "")
     if not recipient_email:
         return "No hiring manager email on file for this job.", 400
 
     try:
-        apply_url = (item.get("apply_url") or "").strip()
-        email_body = item["email_draft"]
+        apply_url = (claimed.get("apply_url") or "").strip()
+        email_body = claimed["email_draft"]
         if apply_url:
             email_body += f"\n\nJob posting: {apply_url}"
 
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"Regarding the {item['role']} role at {item['company']}"
+        msg["Subject"] = f"Regarding the {claimed['role']} role at {claimed['company']}"
         msg["From"] = gmail_address
         msg["To"] = recipient_email
         msg.attach(MIMEText(email_body, "plain"))
@@ -3188,48 +3375,78 @@ def approve_outreach(token):
             smtp.login(gmail_address, gmail_password)
             smtp.sendmail(gmail_address, recipient_email, msg.as_string())
 
-        # claim_outreach_token already set status='sent'; mark job applied too
-        _uid = current_user_id()
-        if _uid:
-            update_applied_status_user(_uid, item["job_id"], 1)
+        # Mark as applied for the owner of the outreach draft.
+        owner_uid = claimed.get("user_id")
+        if owner_uid:
+            update_applied_status_user(int(owner_uid), claimed["job_id"], 1)
         else:
-            update_applied_status(item["job_id"], 1)
+            update_applied_status(claimed["job_id"], 1)
         return render_template("approve_result.html",
-                               success=True, item=item,
+                               success=True, item=claimed,
                                message=f"Email sent to {recipient_email}!")
     except Exception as e:
         logger.error("approve_outreach send failed: %s", e)
         return f"Failed to send email: {e}", 500
 
 
-@app.route("/api/skip/<token>")
+@app.route("/api/skip/<token>", methods=["GET", "POST"])
 @csrf.exempt
 def skip_outreach(token):
-    """Mark an outreach draft as skipped."""
+    """Mark an outreach draft as skipped. GET confirms; POST acts."""
     from database import get_outreach_by_token, update_outreach_status
 
     item = get_outreach_by_token(token)
     if not item:
-        return "Invalid or expired link.", 404
+        return render_template("approve_result.html",
+                               success=False, item=None,
+                               message="Invalid or expired link."), 404
+
+    if request.method == "GET":
+        return render_template("approve_confirm.html",
+                               item=item, token=token, skip=True)
+
     update_outreach_status(token, "skipped")
     return render_template("approve_result.html",
                            success=False, item=item,
                            message="Skipped. This job won't appear again.")
 
 
+def _outreach_owned_by(item: dict, user_id: int) -> bool:
+    """True if this outreach row was created for `user_id` (or pre-multi-user
+    rows with NULL user_id, which only the admin may touch)."""
+    if not item:
+        return False
+    owner = item.get("user_id")
+    if owner is None:
+        return is_admin_user(user_id)
+    try:
+        return int(owner) == int(user_id)
+    except (TypeError, ValueError):
+        return False
+
+
 @app.route("/api/outreach/map")
 def outreach_map():
-    """Return {job_id: outreach_data} for all outreach queue entries. Used by jobs page."""
+    """Return {job_id: outreach_data} for outreach queue entries owned by this user."""
+    uid = require_user_id()
     from database import get_outreach_map
-    return jsonify(get_outreach_map())
+    full = get_outreach_map() or {}
+    # Filter to entries owned by the calling user (or NULL/legacy rows
+    # when the caller is the admin).
+    visible = {
+        jid: row for jid, row in full.items()
+        if _outreach_owned_by(row, uid)
+    }
+    return jsonify(visible)
 
 
 @app.route("/api/outreach/<token>/save", methods=["POST"])
 def save_outreach_draft(token):
     """Save edited draft text for an outreach item."""
+    uid = require_user_id()
     from database import update_outreach_draft, get_outreach_by_token
     item = get_outreach_by_token(token)
-    if not item:
+    if not item or not _outreach_owned_by(item, uid):
         return jsonify({"ok": False, "error": "Not found"}), 404
     data = request.get_json(silent=True) or {}
     email_draft = data.get("email_draft")
@@ -3241,15 +3458,12 @@ def save_outreach_draft(token):
 @app.route("/api/outreach/<token>/mark-applied", methods=["POST"])
 def mark_outreach_applied(token):
     """Mark the job associated with this outreach token as Applied."""
+    uid = require_user_id()
     from database import get_outreach_by_token
     item = get_outreach_by_token(token)
-    if not item:
+    if not item or not _outreach_owned_by(item, uid):
         return jsonify({"ok": False, "error": "Not found"}), 404
-    _uid = current_user_id()
-    if _uid:
-        update_applied_status_user(_uid, item["job_id"], 1)
-    else:
-        update_applied_status(item["job_id"], 1)
+    update_applied_status_user(uid, item["job_id"], 1)
     return jsonify({"ok": True})
 
 
@@ -3279,7 +3493,7 @@ def _run_agent_background():
 @app.route("/api/agent/run", methods=["POST"])
 def run_agent_now():
     """Manually trigger the AI agent pipeline."""
-    require_user_id()
+    require_admin()
     global agent_status
     with agent_lock:
         if agent_status["running"]:
@@ -3300,7 +3514,8 @@ def agent_run_status():
 @app.route("/api/jobs/<job_id>/gap-analysis")
 def gap_analysis(job_id):
     """Return gap analysis for a specific job against the uploaded CV."""
-    cv_data = load_cv_data()
+    uid = require_user_id()
+    cv_data = load_cv_data(uid)
 
     conn = get_connection()
     cursor = conn.cursor()

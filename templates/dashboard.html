@@ -124,6 +124,8 @@
               {% if job.location %}<span class="top-job-dot">·</span><span>{{ job.location }}</span>{% endif %}
               {% if job.remote_status %}<span class="top-job-dot">·</span><span>{{ job.remote_status|capitalize }}</span>{% endif %}
               {% if job.salary %}<span class="top-job-dot">·</span><span>{{ job.salary }}</span>{% endif %}
+              {% if job.portal %}<span class="top-job-dot">·</span><span>{{ job.portal }}</span>{% endif %}
+              {% if job.date_found %}<span class="top-job-dot">·</span><span class="job-age" data-ts="{{ job.date_found }}">{{ job.date_found[:10] }}</span>{% endif %}
             </div>
           </div>
           <div class="top-job-score-wrap">
@@ -153,4 +155,30 @@
   {% endif %}
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Convert static date strings to live "Xh ago" labels.
+// Appends 'Z' so bare UTC strings (no timezone suffix) are parsed correctly.
+(function() {
+  function asUtcMs(s) {
+    if (!s) return 0;
+    var norm = (s.endsWith('Z') || s.includes('+') || /\d[+-]\d{2}:\d{2}$/.test(s)) ? s : s + 'Z';
+    return new Date(norm).getTime();
+  }
+  function timeAgo(ms) {
+    var diff = Math.floor((Date.now() - ms) / 60000);
+    if (diff < 1) return 'just now';
+    if (diff < 60) return diff + 'm ago';
+    var h = Math.floor(diff / 60);
+    if (h < 24) return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  }
+  document.querySelectorAll('.job-age[data-ts]').forEach(function(el) {
+    var ms = asUtcMs(el.dataset.ts);
+    if (ms) el.textContent = timeAgo(ms);
+  });
+})();
+</script>
 {% endblock %}
