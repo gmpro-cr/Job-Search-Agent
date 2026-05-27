@@ -528,7 +528,25 @@
       fetch('/api/jobs/' + jid + '/score-breakdown')
         .then(r => r.json())
         .then(data => {
-          if (!data || data.irrelevant) { body.innerHTML = '<span class="tjp-empty">No breakdown available.</span>'; return; }
+          if (!data || data.error) { body.innerHTML = '<span class="tjp-empty">No breakdown available.</span>'; return; }
+
+          // Computed on-the-fly from gap analysis
+          if (data.computed) {
+            const matched = (data.matched_skills || []).slice(0, 8);
+            const missing = (data.missing_skills || []).slice(0, 8);
+            const steps   = (data.action_steps   || []).slice(0, 3);
+            let html = `<div style="display:flex;align-items:baseline;gap:.375rem;margin-bottom:.75rem;">
+              <span style="font-size:1.75rem;font-weight:700;color:var(--accent);">${data.cv_score}</span>
+              <span style="font-size:.8125rem;color:var(--muted-foreground);">/ 100 CV match</span>
+            </div>`;
+            if (matched.length) html += '<div class="tjp-skill-row"><span class="tjp-skill-label">Matched</span>' + matched.map(s => `<span class="tjp-chip tjp-chip-ok">${s}</span>`).join('') + '</div>';
+            if (missing.length) html += '<div class="tjp-skill-row"><span class="tjp-skill-label">Missing</span>' + missing.map(s => `<span class="tjp-chip tjp-chip-gap">${s}</span>`).join('') + '</div>';
+            if (steps.length)   html += '<div style="margin-top:.625rem;display:flex;flex-direction:column;gap:.375rem;">' + steps.map(s => `<div style="font-size:.8rem;color:var(--muted-foreground);line-height:1.5;">${s}</div>`).join('') + '</div>';
+            body.innerHTML = html || '<span class="tjp-empty">No skill data in job description.</span>';
+            return;
+          }
+
+          // Stored keyword-based breakdown
           if (data.llm) { body.innerHTML = '<span class="tjp-empty">' + (data.reason || 'Scored by AI — no component breakdown.') + '</span>'; return; }
           const dims = [
             ['Title Match', data.title||0, 30],
@@ -556,11 +574,11 @@
         .then(data => {
           if (!data.ok) { body.innerHTML = '<span class="tjp-empty">No gap data available.</span>'; return; }
           const missing = (data.missing_skills || []).slice(0, 8);
-          const strong  = (data.strong_skills  || []).slice(0, 8);
+          const matched = (data.matched_skills || []).slice(0, 8);
           let html = '';
-          if (strong.length)  html += '<div class="tjp-skill-row"><span class="tjp-skill-label">Strong</span>' + strong.map(s => `<span class="tjp-chip tjp-chip-ok">${s}</span>`).join('') + '</div>';
+          if (matched.length) html += '<div class="tjp-skill-row"><span class="tjp-skill-label">Matched</span>' + matched.map(s => `<span class="tjp-chip tjp-chip-ok">${s}</span>`).join('') + '</div>';
           if (missing.length) html += '<div class="tjp-skill-row"><span class="tjp-skill-label">Missing</span>' + missing.map(s => `<span class="tjp-chip tjp-chip-gap">${s}</span>`).join('') + '</div>';
-          body.innerHTML = html || '<span class="tjp-empty">No gap data available.</span>';
+          body.innerHTML = html || '<span class="tjp-empty">No skill keywords found in job description.</span>';
         }).catch(() => { body.innerHTML = '<span class="tjp-empty">Could not load.</span>'; });
     }
 

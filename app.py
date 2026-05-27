@@ -3569,18 +3569,44 @@ def score_breakdown_api(job_id):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM job_listings WHERE job_id = ?", (job_id,))
     row = cursor.fetchone()
-    conn.close()
-
     if not row:
+        conn.close()
         return jsonify({"error": "not found"}), 404
 
     job = dict(row)
     raw = (job.get("score_breakdown") or "")
     try:
-        data = json.loads(raw) if raw else {}
+        stored = json.loads(raw) if raw else {}
     except Exception:
-        data = {}
-    return jsonify(data)
+        stored = {}
+
+    # If we have a stored breakdown with real values, return it directly.
+    if stored and any(v for v in stored.values() if isinstance(v, (int, float)) and v != 0):
+        conn.close()
+        return jsonify(stored)
+
+    # No meaningful stored breakdown — compute from gap analysis so the
+    # panel always shows something useful.
+    cv_data = load_cv_data(uid)
+    gap = compute_gap_analysis(job, cv_data)
+
+    # Pull the stored cv_score for this user from user_job_state.
+    cursor.execute(
+        "SELECT cv_score FROM user_job_state WHERE user_id = ? AND job_id = ?",
+        (uid, job_id),
+    )
+    ujs = cursor.fetchone()
+    conn.close()
+    stored_cv = (ujs["cv_score"] if ujs else 0) or 0
+
+    return jsonify({
+        "computed": True,
+        "cv_score": stored_cv or gap.get("cv_score", 0),
+        "skill_match": gap.get("cv_score", 0),
+        "matched_skills": gap.get("matched_skills", []),
+        "missing_skills": gap.get("missing_skills", []),
+        "action_steps": gap.get("action_steps", []),
+    })
 
 
 def _extract_cv_text(file_storage) -> str:
