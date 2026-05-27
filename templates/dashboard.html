@@ -80,13 +80,13 @@
     <div class="card stat-card" style="--i:1">
       <div class="card-header">
         <div class="card-header-row">
-          <span class="card-title">Jobs applied today</span>
-          <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="card-title">Jobs viewed today</span>
+          <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
         </div>
       </div>
       <div class="card-content pt-0">
-        <div class="stat-value tabular" data-count-to="{{ applied_today }}">{{ applied_today }}</div>
-        <p class="stat-change">marked applied through this portal</p>
+        <div class="stat-value tabular" data-count-to="{{ viewed_today }}">{{ viewed_today }}</div>
+        <p class="stat-change">job listings opened today</p>
       </div>
     </div>
 
@@ -104,10 +104,10 @@
     </div>
   </div>
 
-  <!-- Top 10 best-matched jobs from the last 12 hours -->
+  <!-- Top 10 best-matched jobs from the last 24 hours -->
   <section class="card">
     <div class="card-header">
-      <h3 class="card-title">Top matches · last 12 hours</h3>
+      <h3 class="card-title">Top matches · last 24 hours</h3>
       <p class="card-description">Ranked by your CV + preferences score.</p>
     </div>
     <div class="card-content" style="padding:0;">
@@ -115,7 +115,8 @@
       <div class="top-jobs">
         {% for job in top_jobs %}
         <a href="{{ job.apply_url or '#' }}" target="_blank" rel="noopener noreferrer"
-           class="top-job">
+           class="top-job"
+           onclick="navigator.sendBeacon('/api/jobs/{{ job.job_id }}/view', '')">
           <div class="top-job-logo">{{ (job.company or '?')[0]|upper }}</div>
           <div class="top-job-body">
             <div class="top-job-role">{{ job.role or 'Untitled role' }}</div>
@@ -128,6 +129,11 @@
             </div>
           </div>
           <div class="top-job-score-wrap">
+            {% if job.viewed_at %}
+            <span style="font-size:.7rem;color:var(--muted-foreground);border:1px solid var(--border);border-radius:.25rem;padding:.1rem .35rem;line-height:1;">Viewed</span>
+            {% else %}
+            <span style="font-size:.7rem;color:var(--accent);border:1px solid var(--accent);border-radius:.25rem;padding:.1rem .35rem;line-height:1;">New</span>
+            {% endif %}
             <span class="top-job-score
               {% if job.cv_score >= 80 %}top-job-score-high
               {% elif job.cv_score >= 60 %}top-job-score-mid
@@ -145,6 +151,9 @@
           Check <a href="{{ url_for('jobs') }}">all jobs</a> manually,
           or refine your <a href="{{ url_for('preferences') }}">preferences</a> —
           the next scrape (07:00 / 19:00 IST) will use them to fetch fresh listings.
+        </p>
+        <p class="text-xs" style="margin-top:.25rem;color:var(--muted-foreground);max-width:42ch;margin-inline:auto;">
+          Showing jobs from the last 24&nbsp;hours only.
         </p>
       </div>
       {% endif %}

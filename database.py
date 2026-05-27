@@ -368,6 +368,7 @@ def init_db():
             rejection_reason  TEXT,
             hidden            INTEGER DEFAULT 0,
             updated_at        TEXT,
+            viewed_at         TEXT,
             PRIMARY KEY (user_id, job_id),
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
@@ -375,6 +376,7 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ujs_user_status ON user_job_state(user_id, applied_status)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ujs_user_hidden ON user_job_state(user_id, hidden)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ujs_user_cv_score ON user_job_state(user_id, cv_score)")
+    _add_columns_idempotent(conn, cursor, "user_job_state", ["viewed_at TEXT"])
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_preferences (
@@ -1801,6 +1803,25 @@ def update_job_notes_user(user_id: int, job_id: str, notes: str) -> None:
 
 def hide_job_user(user_id: int, job_id: str, hidden: bool = True) -> None:
     upsert_user_job_state(user_id, job_id, hidden=1 if hidden else 0)
+
+
+def mark_job_viewed(user_id: int, job_id: str) -> None:
+    """Record that the user opened/viewed this job. Idempotent — only sets
+    viewed_at the first time; subsequent calls are no-ops."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO user_job_state (user_id, job_id, viewed_at, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT (user_id, job_id) DO UPDATE
+          SET viewed_at  = COALESCE(user_job_state.viewed_at, EXCLUDED.viewed_at),
+              updated_at = EXCLUDED.updated_at
+        """,
+        (user_id, job_id, _utcnow(), _utcnow()),
+    )
+    conn.commit()
+    conn.close()
 
 
 def set_user_cv_score(user_id: int, job_id: str, cv_score_val: int) -> None:

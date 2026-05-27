@@ -41,7 +41,7 @@ from database import (
     _INTERNATIONAL_CANONICALS, _INTERNATIONAL_KEYWORDS,
     # Phase 1 multi-user helpers
     get_or_create_user, get_user_by_email,
-    update_applied_status_user, update_job_notes_user, hide_job_user,
+    update_applied_status_user, update_job_notes_user, hide_job_user, mark_job_viewed,
     bulk_set_user_cv_scores,
     get_comprehensive_stats_user, get_dashboard_insights_user,
     get_application_pipeline_stats_user_with_legacy_fallback,
@@ -1231,18 +1231,17 @@ def dashboard():
     )
     jobs_today = cur.fetchone()["n"]
 
-    # 2) Jobs the user marked Applied today
-    applied_today = 0
+    # 2) Jobs the user viewed today
+    viewed_today = 0
     if uid:
         cur.execute(
             """
             SELECT COUNT(*) AS n FROM user_job_state
-            WHERE user_id = ? AND applied_status = 1
-              AND applied_date LIKE ?
+            WHERE user_id = ? AND viewed_at LIKE ?
             """,
             (uid, f"{today_str}%"),
         )
-        applied_today = cur.fetchone()["n"]
+        viewed_today = cur.fetchone()["n"]
 
     # 3) High-match (≥80) jobs found today, scored for this user
     high_match_today = 0
@@ -1260,34 +1259,20 @@ def dashboard():
         )
         high_match_today = cur.fetchone()["n"]
 
-    # 4) Top 10 scored matches anchored to the DB's own latest scrape timestamp.
-    #    Using MAX(date_found) as the reference instead of datetime.now() makes
-    #    this query timezone-agnostic — no UTC/IST mismatch possible.
-    #    Window: jobs within 8 hours of the latest scrape (covers both twice-daily
-    #    batches).  Falls back to 72 hours if the fresh window has < 3 results.
+    # 4) Top 10 scored matches from the last 24 hours (date_first_seen window).
+    #    Falls back to 7 days if the 24-hour window has fewer than 3 results.
     top_jobs = []
     if uid and cv_uploaded:
-        cur.execute("SELECT MAX(date_found) AS latest FROM job_listings")
-        _latest = (cur.fetchone() or {}).get("latest") or ""
-        if _latest:
-            # Subtract 8 h from the latest timestamp string via isoformat arithmetic
-            try:
-                _latest_dt = datetime.fromisoformat(_latest.replace("Z", ""))
-                _batch_cutoff = (_latest_dt - timedelta(hours=8)).isoformat()
-                _wide_cutoff  = (_latest_dt - timedelta(hours=72)).isoformat()
-            except Exception:
-                _batch_cutoff = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(hours=8)).isoformat()
-                _wide_cutoff  = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(hours=72)).isoformat()
-        else:
-            _batch_cutoff = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(hours=8)).isoformat()
-            _wide_cutoff  = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(hours=72)).isoformat()
+        _batch_cutoff = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(hours=24)).isoformat()
+        _wide_cutoff  = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(days=7)).isoformat()
 
         cur.execute(
             """
             SELECT j.job_id, j.role, j.company, j.location,
                    j.remote_status, j.salary, j.portal, j.apply_url,
                    j.date_found, j.date_first_seen,
-                   COALESCE(s.cv_score, 0) AS cv_score
+                   COALESCE(s.cv_score, 0) AS cv_score,
+                   s.viewed_at
             FROM job_listings j
             LEFT JOIN user_job_state s
               ON s.job_id = j.job_id AND s.user_id = ?
@@ -1300,14 +1285,15 @@ def dashboard():
             (uid, _batch_cutoff),
         )
         top_jobs = [dict(r) for r in cur.fetchall()]
-        # Widen to 72 h if the latest batch has fewer than 3 results
+        # Widen to 7 days if the 24-hour window has fewer than 3 results
         if len(top_jobs) < 3:
             cur.execute(
                 """
                 SELECT j.job_id, j.role, j.company, j.location,
                        j.remote_status, j.salary, j.portal, j.apply_url,
                        j.date_found, j.date_first_seen,
-                       COALESCE(s.cv_score, 0) AS cv_score
+                       COALESCE(s.cv_score, 0) AS cv_score,
+                       s.viewed_at
                 FROM job_listings j
                 LEFT JOIN user_job_state s
                   ON s.job_id = j.job_id AND s.user_id = ?
@@ -1325,7 +1311,7 @@ def dashboard():
     return render_template(
         "dashboard.html",
         jobs_today=jobs_today,
-        applied_today=applied_today,
+        viewed_today=viewed_today,
         high_match_today=high_match_today,
         top_jobs=top_jobs,
         cv_uploaded=cv_uploaded,
@@ -1951,6 +1937,13 @@ def update_job_status(job_id):
         status = 0
     update_applied_status_user(uid, job_id, status, notes, follow_up_date, rejection_reason)
     return jsonify({"ok": True, "job_id": job_id, "status": status})
+
+
+@app.route("/api/jobs/<job_id>/view", methods=["POST"])
+def mark_job_viewed_route(job_id):
+    uid = require_user_id()
+    mark_job_viewed(uid, job_id)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/jobs/<job_id>/hide", methods=["POST"])
