@@ -125,7 +125,6 @@
               {% if job.remote_status %}<span class="top-job-dot">·</span><span>{{ job.remote_status|capitalize }}</span>{% endif %}
               {% if job.salary %}<span class="top-job-dot">·</span><span>{{ job.salary }}</span>{% endif %}
               {% if job.portal %}<span class="top-job-dot">·</span><span>{{ job.portal }}</span>{% endif %}
-              {% if job.date_found %}<span class="top-job-dot">·</span><span class="job-age" data-ts="{{ job.date_found }}">{{ job.date_found[:10] }}</span>{% endif %}
             </div>
           </div>
           <div class="top-job-score-wrap">
