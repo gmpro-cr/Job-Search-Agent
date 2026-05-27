@@ -384,6 +384,18 @@ def _run_hr_email(reminder_id: str):
         gmail.send_email(to=recipient, subject=subject, body=body)
         if contacts:
             hm.update_hr_sent(reminder_id, contacts)
+            # Mirror to Blob so the /hiring-managers page stays current on Vercel
+            from datetime import date as _date2
+            existing = _hm_load_json()
+            existing.setdefault(reminder_id, [])
+            for c in contacts:
+                existing[reminder_id].append({
+                    "name": c["name"], "company": c["company"],
+                    "their_role": c.get("their_role", ""),
+                    "linkedin_url": c.get("linkedin_url", ""),
+                    "date_sent": _date2.today().isoformat(),
+                })
+            _hm_save_json(existing)
 
         # Update last_hr_sent timestamp
         for r in all_reminders:
@@ -2372,26 +2384,58 @@ def scheduler_status():
     return jsonify({"enabled": False, "next_run": None, "next_run_human": None})
 
 
-def _load_all_hm_contacts() -> list:
-    """
-    Load all sent hiring-manager contacts from hr_sent_contacts.json,
-    deduplicated by name, newest first. Works on both local and Vercel.
-    """
+_HM_BLOB_PATH = "data/hr_sent_contacts.json"
+
+
+def _hm_load_json() -> dict:
+    """Load hr_sent_contacts dict from Vercel Blob, then local fallback."""
     import json as _json
-    # Try the local Documents/Claude path first, then DATA_DIR fallback
-    candidates = [
+    from blob_storage import get as _blob_get
+    raw = _blob_get(_HM_BLOB_PATH)
+    if raw:
+        try:
+            return _json.loads(raw)
+        except Exception:
+            pass
+    # Local fallback for dev
+    for path in [
         os.path.join(_HR_EMAIL_DIR, "hr_sent_contacts.json"),
         os.path.join(BASE_DIR, "data", "hr_sent_contacts.json"),
-    ]
-    data = {}
-    for path in candidates:
+    ]:
         if os.path.exists(path):
             try:
                 with open(path, encoding="utf-8") as _f:
-                    data = _json.load(_f)
-                break
+                    return _json.load(_f)
             except Exception:
                 pass
+    return {}
+
+
+def _hm_save_json(data: dict) -> None:
+    """Persist hr_sent_contacts dict to Vercel Blob (and local file for dev)."""
+    import json as _json
+    from blob_storage import put as _blob_put
+    payload = _json.dumps(data, indent=2).encode()
+    try:
+        _blob_put(_HM_BLOB_PATH, payload, content_type="application/json")
+    except Exception as _e:
+        logger.warning("Blob write for HM contacts failed: %s", _e)
+    # Also write locally so dev works without Blob token
+    local = os.path.join(BASE_DIR, "data", "hr_sent_contacts.json")
+    try:
+        os.makedirs(os.path.dirname(local), exist_ok=True)
+        with open(local, "w", encoding="utf-8") as _f:
+            _f.write(_json.dumps(data, indent=2))
+    except Exception:
+        pass
+
+
+def _load_all_hm_contacts() -> list:
+    """
+    Load all sent hiring-manager contacts, deduplicated by name, newest first.
+    Reads from Vercel Blob so data persists across Vercel function instances.
+    """
+    data = _hm_load_json()
     if not data:
         return []
     seen_names = set()
@@ -2440,18 +2484,8 @@ def api_hiring_managers_search():
             location=location, target=10,
         )
         if new_contacts:
-            hm.update_hr_sent(reminder["id"], new_contacts)
-            # Also write to DATA_DIR fallback so Vercel can read it
-            import json as _json
-            fallback = os.path.join(BASE_DIR, "data", "hr_sent_contacts.json")
-            try:
-                if os.path.exists(fallback):
-                    with open(fallback, encoding="utf-8") as _f:
-                        existing = _json.load(_f)
-                else:
-                    existing = {}
-            except Exception:
-                existing = {}
+            # Write to Blob (persists on Vercel) + local file (dev fallback)
+            existing = _hm_load_json()
             rid = reminder["id"]
             existing.setdefault(rid, [])
             for c in new_contacts:
@@ -2461,9 +2495,7 @@ def api_hiring_managers_search():
                     "linkedin_url": c.get("linkedin_url", ""),
                     "date_sent": date.today().isoformat(),
                 })
-            os.makedirs(os.path.dirname(fallback), exist_ok=True)
-            with open(fallback, "w", encoding="utf-8") as _f:
-                _json.dump(existing, _f, indent=2)
+            _hm_save_json(existing)
         return jsonify({"ok": True, "found": len(new_contacts)})
     except Exception as e:
         logger.error("Hiring manager search failed: %s", e)
