@@ -303,6 +303,7 @@ def init_db():
         "cv_score INTEGER DEFAULT 0",
         "hidden INTEGER DEFAULT 0",
         "score_breakdown TEXT",
+        "quality_flag TEXT",
     ]
     _add_columns_idempotent(conn, cursor, "job_listings", _extra_cols)
 

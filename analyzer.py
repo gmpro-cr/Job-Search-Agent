@@ -94,15 +94,24 @@ IRRELEVANT_KEYWORDS = [
     "hvac", "plumbing", "welding", "carpentry",
 ]
 
-# Seniority overqualification patterns — roles clearly above IC PM target
-# Years sub-pattern requires explicit experience-requirement context to avoid
-# false positives on company-age copy ("Founded 15 years ago").
-_OVERQUALIFIED_PATTERNS = [
-    r'\b(?:vp|vice\s+president|chief\s+\w+\s+officer|cxo|c-suite)\b',
-    r'\b(?:director|managing\s+director|president)\b',
+# Seniority overqualification — split into title-level patterns (role only)
+# and years-based patterns (full text, but context-anchored).
+
+# Title-level seniority — only match in the job ROLE/TITLE, not the description body
+_OVERQUALIFIED_TITLE_RE = re.compile(
+    r'\b(?:vp|vice\s+president|chief\s+\w+\s+officer|cxo|c-suite'
+    r'|managing\s+director|president)\b',
+    re.IGNORECASE,
+)
+
+# Director alone is only overqualified when it's in the role title
+_DIRECTOR_TITLE_RE = re.compile(r'\bdirector\b', re.IGNORECASE)
+
+# Experience-requirement overqualification — safe to check in full text (context-anchored)
+_OVERQUALIFIED_EXP_RE = re.compile(
     r'(?:minimum|required?|must\s+have|at\s+least|needs?\s+)\s*(?:15|18|20)\s*\+?\s*(?:years?|yrs?)',
-]
-_OVERQUALIFIED_RE = re.compile('|'.join(_OVERQUALIFIED_PATTERNS), re.IGNORECASE)
+    re.IGNORECASE,
+)
 
 # Underqualified/irrelevant role patterns
 _WRONG_LEVEL_PATTERNS = [
@@ -116,7 +125,8 @@ _WRONG_LEVEL_RE = re.compile('|'.join(_WRONG_LEVEL_PATTERNS), re.IGNORECASE)
 # 15+/18+/20+ yr and plain VP/Director-as-role cases are caught by quality_gate() first;
 # these patterns handle the grey zone that quality_gate allows through.
 _SENIORITY_PENALTY_RE = re.compile(
-    r'(?:\b(?:10|12)\s*\+?\s*(?:years?|yrs?)\b'
+    r'(?:(?:minimum|required?|must\s+have|at\s+least|needs?\s+)\s*(?:10|12)\s*\+?\s*(?:years?|yrs?)'
+    r'|\b(?:10|12)\s*\+\s*(?:years?|yrs?)\b'
     r'|\b(?:vp|vice\s+president|chief\s+\w+\s+officer|cxo|director|managing\s+director)\b)',
     re.IGNORECASE,
 )
@@ -132,8 +142,12 @@ def quality_gate(job):
     role = job.get("role") or ""
     combined = f"{role} {desc}"
 
-    # Reject clearly overqualified roles (VP, Director, 15+ yrs)
-    if _OVERQUALIFIED_RE.search(combined):
+    # Check seniority titles only against the role field (not JD body)
+    if _OVERQUALIFIED_TITLE_RE.search(role) or _DIRECTOR_TITLE_RE.search(role):
+        return False, "overqualified_level"
+
+    # Check years-based overqualification against full text (pattern is context-anchored)
+    if _OVERQUALIFIED_EXP_RE.search(combined):
         return False, "overqualified_level"
 
     # Reject fresher-only / intern-only postings
