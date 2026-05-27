@@ -1951,6 +1951,7 @@ def update_job_status(job_id):
     return jsonify({"ok": True, "job_id": job_id, "status": status})
 
 
+@csrf.exempt
 @app.route("/api/jobs/<job_id>/view", methods=["POST"])
 def mark_job_viewed_route(job_id):
     uid = require_user_id()

@@ -399,7 +399,8 @@
       const applyUrl = escHtml(job.apply_url || '#');
       const scoreClass = score >= 80 ? 'top-job-score-high' : score >= 60 ? 'top-job-score-mid' : 'top-job-score-low';
 
-      return `<a href="${applyUrl}" target="_blank" rel="noopener noreferrer" class="top-job">
+      return `<a href="${applyUrl}" target="_blank" rel="noopener noreferrer" class="top-job"
+        onclick="navigator.sendBeacon('/api/jobs/${encodeURIComponent(job.job_id)}/view', '')">
         <div class="top-job-logo">${initial}</div>
         <div class="top-job-body">
           <div class="top-job-role">${escHtml(job.role||'Untitled')}</div>
