@@ -117,18 +117,16 @@
     <div class="card-content" style="padding:0 1.5rem 1.5rem;">
 
       <!-- Column headers -->
-      <div style="display:grid;grid-template-columns:9rem 1fr 1.5fr 7rem 4rem;gap:.75rem;
+      <div style="display:grid;grid-template-columns:9rem 1fr 4rem;gap:.75rem;
                   padding:.5rem .75rem;border-bottom:1px solid var(--border);
                   font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);">
         <span>Type</span>
         <span>Alert name</span>
-        <span>Keywords</span>
-        <span>Schedule</span>
         <span></span>
       </div>
 
       {% for alert in job_alerts %}
-      <div style="display:grid;grid-template-columns:9rem 1fr 1.5fr 7rem 4rem;gap:.75rem;
+      <div style="display:grid;grid-template-columns:9rem 1fr 4rem;gap:.75rem;
                   align-items:center;padding:.75rem;border-bottom:1px solid var(--border);
                   transition:background .12s;"
            onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''">
@@ -154,22 +152,6 @@
             {{ alert.email }}
           </div>
           {% endif %}
-        </div>
-
-        <!-- Keywords / description -->
-        <div style="min-width:0;font-size:.8125rem;color:var(--muted-foreground);
-                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
-             title="{% if alert.alert_type == 'hiring_manager' %}LinkedIn recruiter search for: {{ alert.keyword }}{% else %}{{ alert.keyword }}{% endif %}">
-          {% if alert.alert_type == 'hiring_manager' %}
-          Recruiter search — {{ alert.keyword or '—' }}
-          {% else %}
-          {{ alert.keyword or '—' }}
-          {% endif %}
-        </div>
-
-        <!-- Schedule -->
-        <div style="font-size:.8125rem;color:var(--muted-foreground);white-space:nowrap;">
-          {{ alert.schedule or '—' }}
         </div>
 
         <!-- Action -->
