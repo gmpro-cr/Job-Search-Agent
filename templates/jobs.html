@@ -398,26 +398,68 @@
       const date = job.date_found ? timeAgo(job.date_found) : '';
       const applyUrl = escHtml(job.apply_url || '#');
       const scoreClass = score >= 80 ? 'top-job-score-high' : score >= 60 ? 'top-job-score-mid' : 'top-job-score-low';
+      const jid = job.job_id;
 
-      return `<a href="${applyUrl}" target="_blank" rel="noopener noreferrer" class="top-job"
-        onclick="navigator.sendBeacon('/api/jobs/${encodeURIComponent(job.job_id)}/view', '')">
-        <div class="top-job-logo">${initial}</div>
-        <div class="top-job-body">
-          <div class="top-job-role">${escHtml(job.role||'Untitled')}</div>
-          <div class="top-job-meta">
-            <span>${escHtml(job.company||'—')}</span>
-            ${job.location ? `<span class="top-job-dot">·</span><span>${escHtml(job.location)}</span>` : ''}
-            ${remote ? `<span class="top-job-dot">·</span><span>${escHtml(remote)}</span>` : ''}
-            ${portal ? `<span class="top-job-dot">·</span><span>${escHtml(portal)}</span>` : ''}
-            ${date ? `<span class="top-job-dot">·</span><span>${date}</span>` : ''}
+      return `<div class="top-job-card" id="jcard-${jid}">
+        <div class="top-job top-job-static">
+          <div class="top-job-logo">${initial}</div>
+          <div class="top-job-body">
+            <div class="top-job-role">${escHtml(job.role||'Untitled')}</div>
+            <div class="top-job-meta">
+              <span>${escHtml(job.company||'—')}</span>
+              ${job.location ? `<span class="top-job-dot">·</span><span>${escHtml(job.location)}</span>` : ''}
+              ${remote ? `<span class="top-job-dot">·</span><span>${escHtml(remote)}</span>` : ''}
+              ${portal ? `<span class="top-job-dot">·</span><span>${escHtml(portal)}</span>` : ''}
+              ${date ? `<span class="top-job-dot">·</span><span>${date}</span>` : ''}
+            </div>
+          </div>
+          <div class="top-job-score-wrap">
+            ${score ? `<span class="top-job-score ${scoreClass} tabular">${score}</span>` : ''}
           </div>
         </div>
-        <div class="top-job-score-wrap">
-          ${score ? `<span class="top-job-score ${scoreClass} tabular">${score}</span>` : ''}
-          <svg class="top-job-arrow" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        <div class="top-job-actions">
+          <button class="tja-btn" id="tja-score-${jid}" onclick="toggleJobPanel('score','${jid}')">
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+            Score
+          </button>
+          <button class="tja-btn" id="tja-gap-${jid}" onclick="toggleJobPanel('gap','${jid}')">
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Skills Gap
+          </button>
+          <button class="tja-btn" id="tja-points-${jid}" onclick="toggleJobPanel('points','${jid}')">
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Talking Points
+          </button>
+          <button class="tja-btn" id="tja-notes-${jid}" onclick="toggleJobPanel('notes','${jid}')">
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            Notes
+          </button>
+          <a href="${applyUrl}" target="_blank" rel="noopener noreferrer"
+             class="tja-apply" onclick="navigator.sendBeacon('/api/jobs/${encodeURIComponent(jid)}/view','')">
+            Apply
+            <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          </a>
         </div>
-      </a>`;
+        <div id="tjp-score-${jid}" class="top-job-panel" style="display:none">
+          <div class="tjp-label">Score Breakdown</div>
+          <div id="tjp-score-body-${jid}"><span class="tjp-loading">Loading…</span></div>
+        </div>
+        <div id="tjp-gap-${jid}" class="top-job-panel" style="display:none">
+          <div class="tjp-label">Skills Gap</div>
+          <div id="tjp-gap-body-${jid}"><span class="tjp-loading">Loading…</span></div>
+        </div>
+        <div id="tjp-points-${jid}" class="top-job-panel" style="display:none">
+          <div class="tjp-label">Talking Points</div>
+          <div id="tjp-points-body-${jid}"><span class="tjp-loading">Loading…</span></div>
+        </div>
+        <div id="tjp-notes-${jid}" class="top-job-panel" style="display:none">
+          <div class="tjp-label">Notes</div>
+          <textarea id="tjp-notes-ta-${jid}" rows="3" placeholder="Add notes about this job…" class="tjp-textarea">${escHtml(job.notes||'')}</textarea>
+          <button class="tjp-save-btn" onclick="saveJobNote('${jid}')">Save</button>
+        </div>
+      </div>`;
     }).join('');
+    attachJobPanelHandlers();
   }
 
   function resetFilters() {
@@ -461,6 +503,93 @@
     if (rc) rc.value = recency;
     if (so) so.value = sortBy;
   })();
+
+  // ── Job panel logic ──────────────────────────────────────────
+  function attachJobPanelHandlers() {}  // hook for future init if needed
+
+  window.toggleJobPanel = function(type, jid) {
+    const panel = document.getElementById('tjp-' + type + '-' + jid);
+    const btn   = document.getElementById('tja-' + type + '-' + jid);
+    if (!panel) return;
+    const isOpen = panel.style.display !== 'none';
+    panel.style.display = isOpen ? 'none' : 'block';
+    if (btn) btn.classList.toggle('active', !isOpen);
+    if (!isOpen) loadJobPanel(type, jid);
+  };
+
+  const _panelLoaded = {};
+  function loadJobPanel(type, jid) {
+    const key = type + ':' + jid;
+    if (_panelLoaded[key]) return;
+    _panelLoaded[key] = true;
+
+    if (type === 'score') {
+      const body = document.getElementById('tjp-score-body-' + jid);
+      fetch('/api/jobs/' + jid + '/score-breakdown')
+        .then(r => r.json())
+        .then(data => {
+          if (!data || data.irrelevant) { body.innerHTML = '<span class="tjp-empty">No breakdown available.</span>'; return; }
+          if (data.llm) { body.innerHTML = '<span class="tjp-empty">' + (data.reason || 'Scored by AI — no component breakdown.') + '</span>'; return; }
+          const dims = [
+            ['Title Match', data.title||0, 30],
+            ['Domain Fit',  data.domain||0, 30],
+            ['PM Keywords', data.pm_keywords||0, 20],
+            ['Location',    data.location||0, 10],
+            ['CV Skills',   data.cv_skills||0, 15],
+          ];
+          body.innerHTML = dims.map(([label, val, max]) => {
+            const pct = max ? Math.min(100, Math.round(Math.abs(val) / max * 100)) : 0;
+            const neg = val < 0;
+            return `<div class="tjp-bar-row">
+              <span class="tjp-bar-label">${label}</span>
+              <div class="tjp-bar-track"><div class="tjp-bar-fill${neg?' tjp-bar-neg':''}" style="width:${pct}%"></div></div>
+              <span class="tjp-bar-val">${val}</span>
+            </div>`;
+          }).join('');
+        }).catch(() => { body.innerHTML = '<span class="tjp-empty">Could not load.</span>'; });
+    }
+
+    if (type === 'gap') {
+      const body = document.getElementById('tjp-gap-body-' + jid);
+      fetch('/api/jobs/' + jid + '/gap-analysis')
+        .then(r => r.json())
+        .then(data => {
+          if (!data.ok) { body.innerHTML = '<span class="tjp-empty">No gap data available.</span>'; return; }
+          const missing = (data.missing_skills || []).slice(0, 8);
+          const strong  = (data.strong_skills  || []).slice(0, 8);
+          let html = '';
+          if (strong.length)  html += '<div class="tjp-skill-row"><span class="tjp-skill-label">Strong</span>' + strong.map(s => `<span class="tjp-chip tjp-chip-ok">${s}</span>`).join('') + '</div>';
+          if (missing.length) html += '<div class="tjp-skill-row"><span class="tjp-skill-label">Missing</span>' + missing.map(s => `<span class="tjp-chip tjp-chip-gap">${s}</span>`).join('') + '</div>';
+          body.innerHTML = html || '<span class="tjp-empty">No gap data available.</span>';
+        }).catch(() => { body.innerHTML = '<span class="tjp-empty">Could not load.</span>'; });
+    }
+
+    if (type === 'points') {
+      const body = document.getElementById('tjp-points-body-' + jid);
+      fetch('/api/jobs/' + jid + '/tailored-points')
+        .then(r => r.json())
+        .then(data => {
+          if (!data.ok || !data.points || !data.points.length) {
+            body.innerHTML = '<span class="tjp-empty">No talking points available.</span>'; return;
+          }
+          body.innerHTML = '<ul class="tjp-points-list">' + data.points.map(p => `<li>${p}</li>`).join('') + '</ul>';
+        }).catch(() => { body.innerHTML = '<span class="tjp-empty">Could not load.</span>'; });
+    }
+  }
+
+  window.saveJobNote = function(jid) {
+    const ta  = document.getElementById('tjp-notes-ta-' + jid);
+    const btn = ta ? ta.nextElementSibling : null;
+    if (!ta) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    fetch('/api/jobs/' + jid + '/notes', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({notes: ta.value}),
+    }).then(() => {
+      if (btn) { btn.disabled = false; btn.textContent = 'Saved'; setTimeout(() => { btn.textContent = 'Save'; }, 1500); }
+    }).catch(() => { if (btn) { btn.disabled = false; btn.textContent = 'Save'; } });
+  };
 
   loadJobs();
 

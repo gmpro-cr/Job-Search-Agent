@@ -152,6 +152,50 @@
     </div>
   </div>
 
+  <!-- Profile Analysis: completeness + keyword heatmap + skills gap -->
+  {% if cv_uploaded %}
+  <div class="card" id="cv-analysis-card">
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+      <div>
+        <div class="card-title">Profile Analysis</div>
+        <div class="card-description">Completeness, keyword coverage, and skills gap vs. your target roles.</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <span style="font-size:.75rem;color:var(--muted-foreground);">Profile score</span>
+        <span id="cva-score-badge" style="font-size:1.25rem;font-weight:700;color:var(--accent);">—</span>
+        <span style="font-size:.75rem;color:var(--muted-foreground);">/ 100</span>
+      </div>
+    </div>
+    <div class="card-content" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;">
+
+      <!-- Completeness checklist -->
+      <div>
+        <p style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);margin:0 0 .75rem;">Completeness</p>
+        <div id="cva-checklist" style="display:flex;flex-direction:column;gap:.5rem;">
+          <span style="color:var(--muted-foreground);font-size:.875rem;">Loading…</span>
+        </div>
+      </div>
+
+      <!-- Keyword heatmap -->
+      <div>
+        <p style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);margin:0 0 .75rem;">Top Keywords in Job Market</p>
+        <div id="cva-keywords" style="display:flex;flex-wrap:wrap;gap:.375rem;">
+          <span style="color:var(--muted-foreground);font-size:.875rem;">Loading…</span>
+        </div>
+      </div>
+
+      <!-- Skills gap -->
+      <div>
+        <p style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);margin:0 0 .75rem;">Skills Gap</p>
+        <div id="cva-gap" style="display:flex;flex-direction:column;gap:.375rem;">
+          <span style="color:var(--muted-foreground);font-size:.875rem;">Loading…</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Row 1: Score distribution + Skill demand -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
 
@@ -487,6 +531,71 @@
       },
     }
   });
+  {% endif %}
+
+  // ── Profile Analysis panel ──────────────────────────────────
+  {% if cv_uploaded %}
+  (function() {
+    // Profile score + completeness checklist
+    fetch('/api/cv/profile-score')
+      .then(r => r.json())
+      .then(data => {
+        const badge = document.getElementById('cva-score-badge');
+        if (badge) badge.textContent = data.score || 0;
+        const list = document.getElementById('cva-checklist');
+        if (!list || !data.breakdown) return;
+        list.innerHTML = data.breakdown.map(item => `
+          <div style="display:flex;align-items:flex-start;gap:.5rem;font-size:.8125rem;">
+            <span style="flex-shrink:0;margin-top:.1rem;color:${item.done ? 'var(--success)' : 'var(--muted-foreground)'}">
+              ${item.done
+                ? '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>'
+                : '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/></svg>'}
+            </span>
+            <span style="color:${item.done ? 'var(--foreground)' : 'var(--muted-foreground)'}">${item.label}</span>
+            <span style="margin-left:auto;font-weight:600;color:${item.done ? 'var(--accent)' : 'var(--muted-foreground)'}">+${item.points}</span>
+          </div>`).join('');
+      }).catch(() => {});
+
+    // Keyword heatmap
+    fetch('/api/cv/keyword-heatmap')
+      .then(r => r.json())
+      .then(data => {
+        const el = document.getElementById('cva-keywords');
+        if (!el || !data.keywords) return;
+        const top = data.keywords.slice(0, 20);
+        if (!top.length) { el.innerHTML = '<span style="color:var(--muted-foreground);font-size:.875rem;">No keyword data yet.</span>'; return; }
+        const maxCount = top[0].count || 1;
+        el.innerHTML = top.map(k => {
+          const intensity = Math.round((k.count / maxCount) * 100);
+          const bg = intensity > 66 ? 'var(--accent)' : intensity > 33 ? 'var(--accent-soft)' : 'var(--muted)';
+          const fg = intensity > 66 ? 'var(--accent-foreground)' : 'var(--foreground)';
+          return `<span style="display:inline-flex;align-items:center;gap:.25rem;padding:.25rem .5rem;border-radius:.25rem;font-size:.75rem;font-weight:500;background:${bg};color:${fg};">${k.keyword}<span style="opacity:.6;font-weight:400;">${k.count}</span></span>`;
+        }).join('');
+      }).catch(() => {});
+
+    // Skills gap
+    fetch('/api/cv/skills-gap')
+      .then(r => r.json())
+      .then(data => {
+        const el = document.getElementById('cva-gap');
+        if (!el || !data.skills) return;
+        const top = data.skills.slice(0, 12);
+        if (!top.length) { el.innerHTML = '<span style="color:var(--muted-foreground);font-size:.875rem;">No gap data yet.</span>'; return; }
+        el.innerHTML = top.map(s => `
+          <div style="display:flex;align-items:center;gap:.5rem;font-size:.8125rem;">
+            <span style="flex-shrink:0;color:${s.in_cv ? 'var(--success)' : 'var(--destructive)'}">
+              ${s.in_cv
+                ? '<svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>'
+                : '<svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'}
+            </span>
+            <span style="flex:1;${s.in_cv ? '' : 'color:var(--foreground);font-weight:500;'}">${s.skill}</span>
+            <div style="width:3.5rem;height:4px;background:var(--muted);border-radius:999px;overflow:hidden;">
+              <div style="height:100%;width:${s.pct}%;background:${s.in_cv ? 'var(--success)' : 'var(--destructive)'};border-radius:999px;"></div>
+            </div>
+            <span style="width:2rem;text-align:right;color:var(--muted-foreground);font-size:.75rem;">${s.pct}%</span>
+          </div>`).join('');
+      }).catch(() => {});
+  })();
   {% endif %}
 </script>
 {% endblock %}
