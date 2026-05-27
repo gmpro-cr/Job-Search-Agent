@@ -304,8 +304,18 @@ def init_db():
         "hidden INTEGER DEFAULT 0",
         "score_breakdown TEXT",
         "quality_flag TEXT",
+        # date_first_seen: set once on INSERT, never touched on re-encounter.
+        # date_found is refreshed every scrape; date_first_seen stays as the
+        # original discovery time so the dashboard can show genuinely new jobs.
+        "date_first_seen TEXT",
     ]
     _add_columns_idempotent(conn, cursor, "job_listings", _extra_cols)
+    # One-time backfill: any row with date_first_seen NULL gets date_found as a
+    # reasonable approximation of when it was first discovered.
+    cursor.execute(
+        "UPDATE job_listings SET date_first_seen = date_found WHERE date_first_seen IS NULL"
+    )
+    conn.commit()
 
     # outreach_queue: stores LLM-drafted outreach emails pending human approval
     cursor.execute("""
@@ -531,11 +541,11 @@ def insert_job(job):
             INSERT INTO job_listings
                 (job_id, portal, company, role, salary, salary_currency, location,
                  job_description, apply_url, relevance_score, remote_status,
-                 company_type, date_found, date_posted, applied_status,
+                 company_type, date_found, date_first_seen, date_posted, applied_status,
                  experience_min, experience_max, salary_min, salary_max,
                  company_size, company_funding_stage, company_glassdoor_rating,
                  cv_score, score_breakdown)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0,
                     ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
@@ -551,7 +561,8 @@ def insert_job(job):
                 job.get("relevance_score", 0),
                 job.get("remote_status", "on-site"),
                 job.get("company_type", "corporate"),
-                _utcnow(),
+                _utcnow(),   # date_found  — refreshed on re-encounter
+                _utcnow(),   # date_first_seen — set once, never changed
                 job.get("date_posted"),
                 job.get("experience_min"),
                 job.get("experience_max"),

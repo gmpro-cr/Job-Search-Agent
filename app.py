@@ -1286,14 +1286,15 @@ def dashboard():
             """
             SELECT j.job_id, j.role, j.company, j.location,
                    j.remote_status, j.salary, j.portal, j.apply_url,
-                   j.date_found,
+                   j.date_found, j.date_first_seen,
                    COALESCE(s.cv_score, 0) AS cv_score
             FROM job_listings j
             LEFT JOIN user_job_state s
               ON s.job_id = j.job_id AND s.user_id = ?
-            WHERE j.date_found >= ?
+            WHERE COALESCE(j.date_first_seen, j.date_found) >= ?
               AND COALESCE(s.hidden, 0) = 0
-            ORDER BY COALESCE(s.cv_score, 0) DESC, j.date_found DESC
+              AND COALESCE(s.applied_status, 0) = 0
+            ORDER BY COALESCE(s.cv_score, 0) DESC, j.date_first_seen DESC
             LIMIT 10
             """,
             (uid, _batch_cutoff),
@@ -1305,14 +1306,15 @@ def dashboard():
                 """
                 SELECT j.job_id, j.role, j.company, j.location,
                        j.remote_status, j.salary, j.portal, j.apply_url,
-                       j.date_found,
+                       j.date_found, j.date_first_seen,
                        COALESCE(s.cv_score, 0) AS cv_score
                 FROM job_listings j
                 LEFT JOIN user_job_state s
                   ON s.job_id = j.job_id AND s.user_id = ?
-                WHERE j.date_found >= ?
+                WHERE COALESCE(j.date_first_seen, j.date_found) >= ?
                   AND COALESCE(s.hidden, 0) = 0
-                ORDER BY COALESCE(s.cv_score, 0) DESC, j.date_found DESC
+                  AND COALESCE(s.applied_status, 0) = 0
+                ORDER BY COALESCE(s.cv_score, 0) DESC, j.date_first_seen DESC
                 LIMIT 10
                 """,
                 (uid, _wide_cutoff),
