@@ -117,19 +117,18 @@
     <div class="card-content" style="padding:0 1.5rem 1.5rem;">
 
       <!-- Column headers -->
-      <div style="display:grid;grid-template-columns:9rem 1fr 1.5fr 7rem 6rem 4rem;gap:.75rem;
+      <div style="display:grid;grid-template-columns:9rem 1fr 1.5fr 7rem 4rem;gap:.75rem;
                   padding:.5rem .75rem;border-bottom:1px solid var(--border);
                   font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);">
         <span>Type</span>
         <span>Alert name</span>
         <span>Keywords</span>
         <span>Schedule</span>
-        <span>Last sent</span>
         <span></span>
       </div>
 
       {% for alert in job_alerts %}
-      <div style="display:grid;grid-template-columns:9rem 1fr 1.5fr 7rem 6rem 4rem;gap:.75rem;
+      <div style="display:grid;grid-template-columns:9rem 1fr 1.5fr 7rem 4rem;gap:.75rem;
                   align-items:center;padding:.75rem;border-bottom:1px solid var(--border);
                   transition:background .12s;"
            onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''">
@@ -137,9 +136,9 @@
         <!-- Type badge -->
         <div>
           {% if alert.alert_type == 'job_alert' %}
-          <span class="badge badge-secondary" style="font-size:.7rem;white-space:nowrap;">Job alerts</span>
+          <span class="badge badge-default" style="font-size:.7rem;white-space:nowrap;">Job alerts</span>
           {% elif alert.alert_type == 'hiring_manager' %}
-          <span class="badge badge-outline" style="font-size:.7rem;white-space:nowrap;">Hiring managers</span>
+          <span class="badge badge-default" style="font-size:.7rem;white-space:nowrap;">Hiring managers</span>
           {% elif alert.alert_type == 'prd' %}
           <span class="badge badge-default" style="font-size:.7rem;white-space:nowrap;">Daily PRD</span>
           {% endif %}
@@ -171,11 +170,6 @@
         <!-- Schedule -->
         <div style="font-size:.8125rem;color:var(--muted-foreground);white-space:nowrap;">
           {{ alert.schedule or '—' }}
-        </div>
-
-        <!-- Last sent -->
-        <div style="font-size:.8125rem;color:var(--muted-foreground);white-space:nowrap;">
-          {{ alert.last_sent if alert.last_sent and alert.last_sent != 'Never' else 'Never' }}
         </div>
 
         <!-- Action -->
