@@ -2457,10 +2457,13 @@ def _load_all_hm_contacts() -> list:
 def hiring_managers():
     """Recruiter/TA contacts found via LinkedIn search, sourced from hr_sent_contacts.json."""
     contacts = [c for c in _load_all_hm_contacts() if c.get("linkedin_url")]
+    preferences = apply_env_overrides(load_preferences(current_user_id()) or DEFAULT_PREFS.copy())
+    user_pref_title = (preferences.get("job_titles") or ["a relevant role"])[0]
     return render_template(
         "hiring_managers.html",
         contacts=contacts,
         total=len(contacts),
+        user_pref_title=user_pref_title,
     )
 
 
@@ -3312,39 +3315,6 @@ def cv_profile_score():
 
 # ── Outreach agent routes ────────────────────────────────────────────────────
 
-@app.route("/outbox")
-def outbox():
-    """
-    Outbox page showing outreach drafts (pending/sent/skipped).
-    Paginated server-side — the queue has ~1k+ rows and rendering all of
-    them shipped 10+ MB of HTML per request.
-    """
-    from database import get_outreach_queue, get_outreach_queue_count
-    PER_PAGE = 50
-    tab = (request.args.get("tab") or "pending").lower()
-    if tab not in ("pending", "sent", "skipped"):
-        tab = "pending"
-    try:
-        page = max(1, int(request.args.get("page", 1)))
-    except (ValueError, TypeError):
-        page = 1
-
-    totals = {s: get_outreach_queue_count(s) for s in ("pending", "sent", "skipped")}
-    total_pages = max(1, (totals[tab] + PER_PAGE - 1) // PER_PAGE)
-    page = min(page, total_pages)
-    page_rows = get_outreach_queue(tab, limit=PER_PAGE, offset=(page - 1) * PER_PAGE)
-
-    return render_template(
-        "outbox.html",
-        tab=tab,
-        rows=page_rows,
-        totals=totals,
-        page=page,
-        total_pages=total_pages,
-        per_page=PER_PAGE,
-    )
-
-
 @app.route("/api/approve/<token>", methods=["GET", "POST"])
 @csrf.exempt
 def approve_outreach(token):
@@ -3438,62 +3408,6 @@ def skip_outreach(token):
     return render_template("approve_result.html",
                            success=False, item=item,
                            message="Skipped. This job won't appear again.")
-
-
-def _outreach_owned_by(item: dict, user_id: int) -> bool:
-    """True if this outreach row was created for `user_id` (or pre-multi-user
-    rows with NULL user_id, which only the admin may touch)."""
-    if not item:
-        return False
-    owner = item.get("user_id")
-    if owner is None:
-        return is_admin_user(user_id)
-    try:
-        return int(owner) == int(user_id)
-    except (TypeError, ValueError):
-        return False
-
-
-@app.route("/api/outreach/map")
-def outreach_map():
-    """Return {job_id: outreach_data} for outreach queue entries owned by this user."""
-    uid = require_user_id()
-    from database import get_outreach_map
-    full = get_outreach_map() or {}
-    # Filter to entries owned by the calling user (or NULL/legacy rows
-    # when the caller is the admin).
-    visible = {
-        jid: row for jid, row in full.items()
-        if _outreach_owned_by(row, uid)
-    }
-    return jsonify(visible)
-
-
-@app.route("/api/outreach/<token>/save", methods=["POST"])
-def save_outreach_draft(token):
-    """Save edited draft text for an outreach item."""
-    uid = require_user_id()
-    from database import update_outreach_draft, get_outreach_by_token
-    item = get_outreach_by_token(token)
-    if not item or not _outreach_owned_by(item, uid):
-        return jsonify({"ok": False, "error": "Not found"}), 404
-    data = request.get_json(silent=True) or {}
-    email_draft = data.get("email_draft")
-    linkedin_draft = data.get("linkedin_draft")
-    update_outreach_draft(token, email_draft=email_draft, linkedin_draft=linkedin_draft)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/outreach/<token>/mark-applied", methods=["POST"])
-def mark_outreach_applied(token):
-    """Mark the job associated with this outreach token as Applied."""
-    uid = require_user_id()
-    from database import get_outreach_by_token
-    item = get_outreach_by_token(token)
-    if not item or not _outreach_owned_by(item, uid):
-        return jsonify({"ok": False, "error": "Not found"}), 404
-    update_applied_status_user(uid, item["job_id"], 1)
-    return jsonify({"ok": True})
 
 
 def _run_agent_background():

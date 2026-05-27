@@ -28,6 +28,7 @@
               <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Name</th>
               <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Role &amp; Company</th>
               <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Profile Link</th>
+              <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Outreach Draft</th>
             </tr>
           </thead>
           <tbody>
@@ -57,6 +58,13 @@
                 </a>
               </td>
 
+              <!-- Draft -->
+              <td style="padding:.75rem 1rem;vertical-align:middle;max-width:260px;">
+                <div class="hm-draft-wrap">
+                  <p class="hm-draft-text" id="draft-{{ loop.index }}">Hi {{ c.name.split()[0] if c.name else 'there' }}, I came across your profile — I'm actively looking for {{ user_pref_title }} roles and your work at {{ c.company }} caught my attention. Would you be open to a quick chat?</p>
+                  <button class="hm-copy-btn" onclick="copyDraft('draft-{{ loop.index }}', this)">Copy</button>
+                </div>
+              </td>
 
             </tr>
             {% endfor %}
@@ -93,8 +101,22 @@ async function findNew(btn) {
     btn.innerHTML = '<svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.375rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>Find new';
   }
 }
+
+function copyDraft(id, btn) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+  }).catch(() => {
+    btn.textContent = 'Copy';
+  });
+}
 </script>
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
+.hm-draft-wrap { display:flex; flex-direction:column; gap:.375rem; }
+.hm-draft-text { font-size:.8rem; color:var(--muted-foreground); line-height:1.5; margin:0; max-width:240px; }
+.hm-copy-btn { align-self:flex-start; padding:.25rem .625rem; font-size:.75rem; font-weight:600; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--muted); color:var(--foreground); cursor:pointer; transition:background .12s; }
+.hm-copy-btn:hover { background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
 </style>
 {% endblock %}
