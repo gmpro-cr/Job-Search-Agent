@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import sys
+from datetime import date
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
@@ -197,7 +198,38 @@ def main():
     from reminder_runner import run_reminders
     run_reminders(preferences)
 
-    # --- Phase 8: AI agent — contact enrichment + outreach drafts ---
+    # --- Phase 8: Auto-discover hiring managers ---
+    try:
+        from hiring_managers_search import (
+            get_new_hiring_managers,
+            load_hm_contacts_dict,
+            save_hm_contacts_dict,
+            load_all_hm_contacts,
+        )
+        _role_kws = job_titles[:5]
+        _location = (locations[0] if locations else "India")
+        _existing = load_all_hm_contacts()
+        new_hms = get_new_hiring_managers(
+            sent_contacts=_existing,
+            role_keywords=_role_kws,
+            location=_location,
+            target=5,
+        )
+        if new_hms:
+            today = date.today().isoformat()
+            hm_data = load_hm_contacts_dict()
+            bucket = hm_data.setdefault("scraper_auto", [])
+            for c in new_hms:
+                c.setdefault("date_sent", today)
+                bucket.append(c)
+            save_hm_contacts_dict(hm_data)
+            logger.info("Auto-HM discovery: added %d new contacts", len(new_hms))
+        else:
+            logger.info("Auto-HM discovery: no new contacts found")
+    except Exception as e:
+        logger.warning("Auto-HM discovery skipped: %s", e)
+
+    # --- Phase 9: AI agent — contact enrichment + outreach drafts ---
     # Picks up freshly inserted jobs, looks up hiring manager contacts
     # (Apollo API if APOLLO_API_KEY is set, else falls back to portal-scraped
     # poster info), drafts cold emails, and queues them in outreach_queue.

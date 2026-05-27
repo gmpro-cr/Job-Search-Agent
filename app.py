@@ -2385,72 +2385,16 @@ def scheduler_status():
     return jsonify({"enabled": False, "next_run": None, "next_run_human": None})
 
 
-_HM_BLOB_PATH = "data/hr_sent_contacts.json"
-
-
 def _hm_load_json() -> dict:
-    """Load hr_sent_contacts dict from Vercel Blob, then local fallback."""
-    import json as _json
-    from blob_storage import get as _blob_get
-    raw = _blob_get(_HM_BLOB_PATH)
-    if raw:
-        try:
-            return _json.loads(raw)
-        except Exception:
-            pass
-    # Local fallback for dev
-    for path in [
-        os.path.join(_HR_EMAIL_DIR, "hr_sent_contacts.json"),
-        os.path.join(BASE_DIR, "data", "hr_sent_contacts.json"),
-    ]:
-        if os.path.exists(path):
-            try:
-                with open(path, encoding="utf-8") as _f:
-                    return _json.load(_f)
-            except Exception:
-                pass
-    return {}
+    return _load_hm().load_hm_contacts_dict()
 
 
 def _hm_save_json(data: dict) -> None:
-    """Persist hr_sent_contacts dict to Vercel Blob (and local file for dev)."""
-    import json as _json
-    from blob_storage import put as _blob_put
-    payload = _json.dumps(data, indent=2).encode()
-    try:
-        _blob_put(_HM_BLOB_PATH, payload, content_type="application/json")
-    except Exception as _e:
-        logger.warning("Blob write for HM contacts failed: %s", _e)
-    # Also write locally so dev works without Blob token
-    local = os.path.join(BASE_DIR, "data", "hr_sent_contacts.json")
-    try:
-        os.makedirs(os.path.dirname(local), exist_ok=True)
-        with open(local, "w", encoding="utf-8") as _f:
-            _f.write(_json.dumps(data, indent=2))
-    except Exception:
-        pass
+    _load_hm().save_hm_contacts_dict(data)
 
 
 def _load_all_hm_contacts() -> list:
-    """
-    Load all sent hiring-manager contacts, deduplicated by name, newest first.
-    Reads from Vercel Blob so data persists across Vercel function instances.
-    """
-    data = _hm_load_json()
-    if not data:
-        return []
-    seen_names = set()
-    all_entries = []
-    for contacts in data.values():
-        all_entries.extend(contacts)
-    all_entries.sort(key=lambda x: x.get("date_sent", ""), reverse=True)
-    result = []
-    for c in all_entries:
-        key = (c.get("name") or "").lower().strip()
-        if key and key not in seen_names:
-            seen_names.add(key)
-            result.append(c)
-    return result
+    return _load_hm().load_all_hm_contacts()
 
 
 @app.route("/hiring-managers")

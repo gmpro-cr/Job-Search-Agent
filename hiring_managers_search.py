@@ -9,10 +9,14 @@ Main functions:
     format_hiring_section(contacts, user_name, user_summary)                        -> str
     load_hr_sent(reminder_id)                                                        -> list
     update_hr_sent(reminder_id, contacts)                                            -> None
+    load_hm_contacts_dict()                                                          -> dict
+    save_hm_contacts_dict(data)                                                      -> None
+    load_all_hm_contacts()                                                           -> list
 """
 
 import json
 import logging
+import os
 import re
 from datetime import date
 from pathlib import Path
@@ -21,6 +25,68 @@ logger = logging.getLogger(__name__)
 
 # Sent contacts stored per-reminder: {reminder_id: [{name, company, date_sent}]}
 HR_SENT_FILE = Path.home() / "Documents" / "Claude" / "hr_sent_contacts.json"
+
+_HM_BLOB_PATH = "data/hr_sent_contacts.json"
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_HR_EMAIL_DIR = os.path.join(os.path.expanduser("~"), "Documents", "Claude")
+
+
+def load_hm_contacts_dict() -> dict:
+    """Load hr_sent_contacts dict from Vercel Blob, then local fallback."""
+    try:
+        from blob_storage import get as _blob_get
+        raw = _blob_get(_HM_BLOB_PATH)
+        if raw:
+            return json.loads(raw)
+    except Exception:
+        pass
+    for path in [
+        os.path.join(_HR_EMAIL_DIR, "hr_sent_contacts.json"),
+        os.path.join(_BASE_DIR, "data", "hr_sent_contacts.json"),
+    ]:
+        if os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as _f:
+                    return json.load(_f)
+            except Exception:
+                pass
+    return {}
+
+
+def save_hm_contacts_dict(data: dict) -> None:
+    """Persist hr_sent_contacts dict to Vercel Blob and local file."""
+    payload = json.dumps(data, indent=2).encode()
+    try:
+        from blob_storage import put as _blob_put
+        _blob_put(_HM_BLOB_PATH, payload, content_type="application/json")
+    except Exception as _e:
+        logger.warning("Blob write for HM contacts failed: %s", _e)
+    local = os.path.join(_BASE_DIR, "data", "hr_sent_contacts.json")
+    try:
+        os.makedirs(os.path.dirname(local), exist_ok=True)
+        with open(local, "w", encoding="utf-8") as _f:
+            _f.write(json.dumps(data, indent=2))
+    except Exception:
+        pass
+
+
+def load_all_hm_contacts() -> list:
+    """Return all sent contacts across all reminders, deduped by name, newest first."""
+    data = load_hm_contacts_dict()
+    if not data:
+        return []
+    all_entries = []
+    for contacts in data.values():
+        all_entries.extend(contacts)
+    all_entries.sort(key=lambda x: x.get("date_sent", ""), reverse=True)
+    seen_names: set = set()
+    result = []
+    for c in all_entries:
+        key = (c.get("name") or "").lower().strip()
+        if key and key not in seen_names:
+            seen_names.add(key)
+            result.append(c)
+    return result
 
 
 # ── Sent-contacts tracker ─────────────────────────────────────────────────────
