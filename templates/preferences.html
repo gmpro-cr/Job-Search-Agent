@@ -4,6 +4,25 @@
 {% block content %}
 <div class="space-y-6">
 
+  {% if request.args.get('welcome') %}
+  <div style="display:flex;align-items:flex-start;gap:1rem;padding:1rem 1.25rem;border-radius:.75rem;
+              background:rgba(22,163,74,.07);border:1px solid rgba(22,163,74,.25);">
+    <div style="width:2rem;height:2rem;border-radius:50%;background:rgba(22,163,74,.15);
+                display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.05rem;">
+      <svg width="14" height="14" fill="none" stroke="#16a34a" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+      </svg>
+    </div>
+    <div>
+      <div style="font-weight:600;font-size:.9375rem;color:#15803d;">Welcome! Two quick steps to get started</div>
+      <div style="font-size:.8125rem;color:var(--muted-foreground);margin-top:.25rem;line-height:1.6;">
+        1. Set your <strong>job titles</strong> and <strong>location</strong> in the Preferences card below — this tells the scraper what to look for.<br>
+        2. Upload your <strong>CV</strong> on the <a href="{{ url_for('cv') }}" style="color:var(--primary);font-weight:500;">Profile &amp; CV page</a> — your score is personalised to your skills.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <header class="page-header">
     <span class="eyebrow">Account</span>
     <h1>Account</h1>

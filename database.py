@@ -2271,3 +2271,62 @@ def _looks_like_person_name(name: str) -> bool:
     if n.isupper() and len(n) > 4:
         return False
     return True
+
+
+def get_all_users_with_cv_data() -> list:
+    """Return all users who have uploaded a CV, with their cv_data and preferences.
+
+    Used by the scraper to score new jobs for every user after each run.
+    Returns list of dicts: {user_id, cv_data, prefs}
+    """
+    import json as _json
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT u.id AS user_id, cv.cv_json, p.prefs_json
+        FROM users u
+        JOIN user_cv_data cv ON cv.user_id = u.id
+        LEFT JOIN user_preferences p ON p.user_id = u.id
+        """
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        try:
+            cv_data = _json.loads(row["cv_json"]) if row["cv_json"] else {}
+            prefs   = _json.loads(row["prefs_json"]) if row["prefs_json"] else {}
+            if cv_data.get("skills"):
+                result.append({"user_id": row["user_id"], "cv_data": cv_data, "prefs": prefs})
+        except Exception:
+            pass
+    return result
+
+
+def get_all_user_targets() -> tuple:
+    """Union of all users' job_titles and locations from user_preferences.
+
+    Used by the scraper to build search queries that cover every user.
+    Returns (titles: list[str], locations: list[str]).
+    """
+    import json as _json
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT prefs_json FROM user_preferences WHERE prefs_json IS NOT NULL")
+    rows = cursor.fetchall()
+    conn.close()
+    titles:    set = set()
+    locations: set = set()
+    for row in rows:
+        try:
+            prefs = _json.loads(row["prefs_json"])
+            for t in (prefs.get("job_titles") or []):
+                if t.strip():
+                    titles.add(t.strip())
+            for l in (prefs.get("locations") or []):
+                if l.strip():
+                    locations.add(l.strip())
+        except Exception:
+            pass
+    return list(titles), list(locations)

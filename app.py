@@ -1108,23 +1108,14 @@ def auth_google():
     return google.authorize_redirect(redirect_uri)
 
 def _signup_allowed(email: str) -> bool:
-    """Owner-only mode: only emails in ALLOWED_EMAILS (or already-existing
-    users) may sign in. ALLOWED_EMAILS is a comma-separated env var.
-
-    Existing users are always allowed (grandfathered) so a tightening of
-    the allowlist never locks the owner out of their own data.
+    """Open by default. Set ALLOWED_EMAILS (comma-separated) to restrict
+    sign-ups to a specific list. Existing users are always grandfathered.
     """
     if not email:
         return False
     raw = os.environ.get("ALLOWED_EMAILS", "").strip()
     if not raw:
-        # Allowlist not configured → owner-only fallback to OWNER_EMAIL
-        owner = os.environ.get("OWNER_EMAIL", "").strip().lower()
-        if owner:
-            return email.lower() == owner
-        # No restriction configured at all — treat as open (matches
-        # local-dev convenience). Production should always set one.
-        return True
+        return True  # open registration
     allowed = {e.strip().lower() for e in raw.split(",") if e.strip()}
     if email.lower() in allowed:
         return True
@@ -1167,11 +1158,22 @@ def auth_callback():
         logger.error("OAuth callback error: %s", e)
         flash("Authentication failed.", "error")
         return redirect(url_for('login'))
-    next_url = request.args.get('next') or url_for('dashboard')
+    next_url = request.args.get('next') or ''
     # Reject external redirects (open-redirect fix)
     from urllib.parse import urlparse
     if urlparse(next_url).netloc or next_url.startswith('//'):
-        next_url = url_for('dashboard')
+        next_url = ''
+    # New users (no saved preferences) go to preferences page with welcome flag
+    if not next_url:
+        try:
+            existing_prefs = load_preferences(uid) or {}
+            has_setup = bool(existing_prefs.get("job_titles") and existing_prefs.get("locations"))
+        except Exception:
+            has_setup = True
+        if not has_setup:
+            next_url = url_for('preferences') + '?welcome=1'
+        else:
+            next_url = url_for('dashboard')
     return redirect(next_url)
 
 @app.route('/auth/dev-login', methods=['POST'])

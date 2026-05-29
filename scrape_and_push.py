@@ -37,7 +37,9 @@ except ImportError:
 from main import load_config, load_preferences, DEFAULT_PREFS, apply_env_overrides
 from scrapers import scrape_all_portals
 from analyzer import analyze_jobs
-from database import generate_job_id, init_db, insert_jobs_bulk, delete_old_jobs
+from database import generate_job_id, init_db, insert_jobs_bulk, delete_old_jobs, \
+    get_all_user_targets, get_all_users_with_cv_data, get_unscored_jobs_for_user, \
+    bulk_set_user_cv_scores
 from email_notifier import send_job_email
 from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
 
@@ -51,60 +53,22 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 SCRAPE_OUTPUT = os.path.join(DATA_DIR, "latest_scrape.json")
 
 
-def _get_owner_targets():
-    """
-    Read job_titles + locations from the owner's preferences row in the DB.
-    Uses OWNER_EMAIL env var to identify the owner. Falls back to ([], [])
-    so the caller uses the JSON preferences file instead.
-    """
-    owner_email = os.environ.get("OWNER_EMAIL", "").strip().lower()
-    if not owner_email:
-        return [], []
-    try:
-        from database import get_connection
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT up.prefs_json FROM user_preferences up "
-            "JOIN users u ON u.id = up.user_id "
-            "WHERE lower(u.email) = ?",
-            (owner_email,),
-        )
-        row = cur.fetchone()
-        conn.close()
-        if not row:
-            return [], []
-        prefs = json.loads(row["prefs_json"])
-        titles = [t.strip() for t in (prefs.get("job_titles") or []) if t.strip()]
-        locs   = [l.strip() for l in (prefs.get("locations")   or []) if l.strip()]
-        return titles, locs
-    except Exception as e:
-        logger.warning("Could not load owner targets from DB: %s", e)
-        return [], []
-
-
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
 
     config = load_config()
     preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
 
-    # Single-owner mode: use only the owner's saved preferences.
-    # Falls back to JSON preferences file if DB lookup fails.
-    owner_titles, owner_locs = _get_owner_targets()
+    # Multi-user mode: union all users' job titles + locations from DB.
+    # Falls back to the JSON preferences file if no users have saved prefs yet.
+    db_titles, db_locs = get_all_user_targets()
     default_titles = preferences.get("job_titles") or DEFAULT_PREFS["job_titles"]
     default_locs   = preferences.get("locations")  or DEFAULT_PREFS["locations"]
-
-    # Owner prefs take priority; fall back to JSON/defaults if owner hasn't set prefs yet.
-    job_titles = owner_titles or default_titles
-    locations  = owner_locs  or default_locs
+    job_titles = db_titles or default_titles
+    locations  = db_locs  or default_locs
 
     top_n = preferences.get("top_jobs_per_digest", 5)
-    logger.info(
-        "Scraper targets — titles=%d, locations=%d (owner: %s)",
-        len(job_titles), len(locations),
-        os.environ.get("OWNER_EMAIL", "unset"),
-    )
+    logger.info("Scraper targets — %d titles, %d locations across all users", len(job_titles), len(locations))
 
     # --- Phase 1: Scrape ---
     logger.info("Scraping %d titles across %d locations...", len(job_titles), len(locations))
@@ -181,12 +145,9 @@ def main():
     else:
         logger.warning("Email credentials not set — skipping email notification")
 
-    # --- Phase 7: Reminders ---
+    # --- Phase 7: Insert jobs + retention sweep ---
     init_db()
     insert_jobs_bulk(all_analyzed)
-    # 7-day retention: drop everything older than a week, with dependent
-    # user_job_state + outreach_queue rows. Runs at the end of every
-    # scrape so storage stays bounded.
     try:
         purged = delete_old_jobs(days=7)
         logger.info(
@@ -195,6 +156,28 @@ def main():
         )
     except Exception as e:
         logger.warning("Retention sweep failed: %s", e)
+
+    # --- Phase 7b: Score new jobs for every user (incremental) ---
+    # Only scores jobs the user hasn't seen yet — ~150 new jobs per run,
+    # not the full 6k. Takes ~0.1s per user regardless of DB size.
+    try:
+        from analyzer import cv_score as _cv_score
+        all_users = get_all_users_with_cv_data()
+        logger.info("Scoring new jobs for %d users", len(all_users))
+        for _u in all_users:
+            _uid  = _u["user_id"]
+            _cv   = _u["cv_data"]
+            _pref = _u["prefs"]
+            _unscored = get_unscored_jobs_for_user(_uid, limit=500)
+            if not _unscored:
+                continue
+            _scores = {j["job_id"]: _cv_score(j, _cv, _pref) for j in _unscored}
+            bulk_set_user_cv_scores(_uid, _scores)
+            logger.info("  User %d: scored %d new jobs", _uid, len(_scores))
+    except Exception as e:
+        logger.warning("Per-user scoring failed: %s", e)
+
+    # --- Phase 7c: Reminders ---
     from reminder_runner import run_reminders
     run_reminders(preferences)
 
