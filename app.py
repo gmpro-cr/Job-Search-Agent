@@ -47,6 +47,7 @@ from database import (
     get_application_pipeline_stats_user_with_legacy_fallback,
     user_state_join_sql,
     is_admin_user, promote_first_user_to_admin,
+    get_user_cv_data,
 )
 from scrapers import scrape_all_portals
 from analyzer import analyze_jobs, generate_tailored_points, parse_nlp_query, parse_cv_text, cv_score, compute_gap_analysis, load_cv_data, save_cv_data, CV_DATA_PATH
@@ -2076,8 +2077,10 @@ def tailored_points(job_id):
         return jsonify({"ok": False, "error": "Job not found"}), 404
     job = dict(row)
     config = load_config()
-    preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
-    points = generate_tailored_points(job, preferences, config)
+    uid = current_user_id()
+    preferences = apply_env_overrides(load_preferences(uid) or DEFAULT_PREFS.copy())
+    cv = get_user_cv_data(uid) if uid else None
+    points = generate_tailored_points(job, preferences, config, cv_data=cv)
     return jsonify({"ok": True, "points": points})
 
 

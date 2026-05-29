@@ -358,17 +358,14 @@ def extract_skills(text, max_skills=8):
 
 def keyword_score(job, preferences, cv_data=None, breakdown=False):
     """
-    Score a job 0-100 using keyword matching.
-    This is the fallback scorer when Ollama is unavailable.
+    Score a job 0-100 using keyword matching against the user's own profile.
 
     Scoring breakdown:
-      - Title match:           0-30  (exact match in role title is heavily rewarded)
-      - Location match:        0-10  (only Pune / remote / hybrid)
-      - Industry match:        0-30  (fintech/banking/lending keywords)
-      - PM keywords:           0-20  (product management terms in description)
-      - Transferable skills:   0-15  (skills extracted from CV, matched against JD)
-      - Penalty:               -20   (irrelevant domain detected)
-      - Seniority penalty:    -15   (10+ yr / VP / Director requirement detected)
+      - Title match:        0-30  (user's preferred job titles vs role)
+      - Location match:     0-10  (user's preferred locations)
+      - CV skill match:     0-30  (user's CV skills + transferable skills in JD)
+      - Penalty:            -20   (irrelevant domain detected)
+      - Seniority penalty:  -15   (10+ yr / VP / Director requirement detected)
     """
     score = 0
     role_lower = job.get("role", "").lower()
@@ -392,10 +389,8 @@ def keyword_score(job, preferences, cv_data=None, breakdown=False):
     best_title_score = 0
     for title in user_titles:
         if title in role_lower:
-            # Exact phrase match in role title
             best_title_score = max(best_title_score, 30)
         else:
-            # Partial: check how many words from the preferred title appear in the role
             title_words = [w for w in title.split() if len(w) > 2]
             if title_words:
                 matches = sum(1 for w in title_words if w in role_lower)
@@ -406,41 +401,28 @@ def keyword_score(job, preferences, cv_data=None, breakdown=False):
                     best_title_score = max(best_title_score, 12)
     score += best_title_score
 
-    # Location match (0-10) — only for Pune, remote, or hybrid
+    # Location match (0-10)
     job_loc = job.get("location", "").lower()
     remote_status = job.get("remote_status", "").lower()
-    _preferred_locs = {"pune", "remote", "hybrid", "wfh", "work from home", "work from anywhere"}
+    pref_locs = {l.lower().strip() for l in preferences.get("locations", []) if l.strip()}
+    pref_locs.update({"remote", "hybrid", "wfh", "work from home", "work from anywhere"})
     location_score = 0
-    if any(kw in job_loc or kw in remote_status or kw in text for kw in _preferred_locs):
+    if any(kw in job_loc or kw in remote_status or kw in text for kw in pref_locs):
         location_score = 10
     score += location_score
 
-    # Industry/domain relevance (0-30) — accumulate multiple matches
-    industry_score = 0
-    for kw, pts in FINTECH_KEYWORDS.items():
-        if kw in text:
-            industry_score += pts
-    score += min(industry_score, 30)
-
-    # PM keywords in description/title (0-20) — accumulate
-    pm_score = 0
-    for kw, pts in PM_KEYWORDS.items():
-        if kw in text:
-            pm_score += pts
-    score += min(pm_score, 20)
-
-    # Transferable skills from CV (0-15)
+    # CV skill match in JD (0-30) — fully driven by the user's own skills/CV
     cv_skills = (cv_data or {}).get("skills") or []
     pref_skills = preferences.get("transferable_skills") or []
-    transferable = list({s.lower() for s in cv_skills + pref_skills if s})
+    all_skills = list({s.lower() for s in cv_skills + pref_skills if s})
     ts_score = 0
-    if transferable:
-        for skill in transferable:
-            if skill.lower() in text:
-                ts_score += 5
-        score += min(ts_score, 15)
+    if all_skills:
+        for skill in all_skills:
+            if skill in text:
+                ts_score += 4
+        score += min(ts_score, 30)
 
-    # Seniority penalty (-15): JD targets a level above IC PM candidate
+    # Seniority penalty (-15)
     seniority_penalty = -15 if _SENIORITY_PENALTY_RE.search(text) else 0
     score = max(0, score + seniority_penalty)
 
@@ -449,9 +431,7 @@ def keyword_score(job, preferences, cv_data=None, breakdown=False):
             "total": min(score, 100),
             "title": best_title_score,
             "location": location_score,
-            "domain": min(industry_score, 30),
-            "pm_keywords": min(pm_score, 20),
-            "cv_skills": min(ts_score, 15) if transferable else 0,
+            "cv_skills": min(ts_score, 30) if all_skills else 0,
             "seniority_penalty": seniority_penalty,
         }
     return min(score, 100)
@@ -533,31 +513,52 @@ def llm_score(job: dict, cv_data: dict) -> dict | None:
 # Main analysis pipeline
 # =============================================================================
 
-def generate_application_email(job, preferences):
+def generate_application_email(job, preferences, cv_data=None):
     """Generate a short personalized application email draft."""
     role = job.get("role", "the role")
     company = job.get("company", "your company")
     description = job.get("job_description", "")
 
-    # Extract a few skills from the description
     skills = extract_skills(description, max_skills=3)
-    skills_text = ", ".join(skills) if skills else "product strategy and data-driven decision making"
+    skills_text = ", ".join(skills) if skills else "the required skills"
+
+    # Derive background descriptor from CV summary or preferences
+    target_titles = [t.strip() for t in (preferences.get("job_titles") or []) if t.strip()]
+    background = _user_background(cv_data, target_titles)
 
     email = (
         f"Dear Hiring Team at {company},\n\n"
         f"I am writing to express my interest in the {role} position. "
-        f"With my background in banking and financial services, I bring a strong foundation in "
-        f"analytical thinking, stakeholder management, and customer-centric problem solving. "
+        f"With my background as {background}, I bring a strong foundation in "
+        f"analytical thinking, stakeholder management, and problem solving. "
         f"My experience with {skills_text} aligns well with this role's requirements. "
-        f"I am excited about the opportunity to leverage my domain expertise "
-        f"to drive product impact at {company}.\n\n"
-        f"I would welcome the chance to discuss how my skills can contribute to your team.\n\n"
+        f"I am excited about the opportunity to contribute at {company}.\n\n"
+        f"I would welcome the chance to discuss how my skills can add value to your team.\n\n"
         f"Best regards"
     )
     return email
 
 
-def generate_tailored_points(job, preferences, config):
+def _user_background(cv_data, target_titles=None):
+    """Return a short background descriptor derived from the user's CV and preferences."""
+    # Try to extract a headline from the CV's raw text (second non-empty line)
+    raw = (cv_data or {}).get("raw_text", "") or ""
+    lines = [l.strip() for l in raw.splitlines() if l.strip()]
+    if len(lines) >= 2:
+        headline = lines[1]
+        # Strip contact fragments
+        headline = re.sub(
+            r'[\|,]?\s*(\+?\d[\d\s\-]{7,}|[\w.]+@[\w.]+|\blinkedin\b.*|pune|bangalore|mumbai|india)\s*',
+            '', headline, flags=re.IGNORECASE,
+        ).strip().strip('|').strip()
+        if len(headline) > 10:
+            return headline
+    if target_titles:
+        return target_titles[0]
+    return "an experienced professional"
+
+
+def generate_tailored_points(job, preferences, config, cv_data=None):
     """
     Generate tailored resume/cover-letter bullet points for a specific job.
     Uses Ollama if available, otherwise keyword-based fallback.
@@ -567,6 +568,8 @@ def generate_tailored_points(job, preferences, config):
     description = job.get("job_description", "")
     transferable = preferences.get("transferable_skills", [])
     skills = extract_skills(description, max_skills=5)
+    target_titles = [t.strip() for t in (preferences.get("job_titles") or []) if t.strip()]
+    background = _user_background(cv_data, target_titles)
 
     # Try Ollama first
     use_ollama = config.get("scoring", {}).get("use_ollama", True)
@@ -575,15 +578,16 @@ def generate_tailored_points(job, preferences, config):
             import ollama as ollama_client
             model = config.get("scoring", {}).get("ollama_model", "mistral")
 
-            prompt = f"""Generate 4-5 tailored resume bullet points for a banking professional applying to this role.
+            prompt = f"""Generate 4-5 tailored resume bullet points for this candidate applying to a job.
 
-Role: {role} at {company}
-Key skills needed: {', '.join(skills) if skills else 'product management'}
-Candidate's transferable skills: {', '.join(transferable) if transferable else 'stakeholder management, data analysis, risk management'}
+Candidate background: {background}
+Target role: {role} at {company}
+Key skills needed: {', '.join(skills) if skills else 'see job description'}
+Candidate's transferable skills: {', '.join(transferable) if transferable else 'stakeholder management, data analysis, problem solving'}
 Job Description: {description[:600]}
 
 Write bullet points that:
-1. Map banking experience to the role requirements
+1. Map the candidate's background to the role requirements
 2. Use specific, quantifiable achievements
 3. Highlight transferable skills
 4. Show domain knowledge advantage
@@ -596,7 +600,6 @@ Respond with ONLY a JSON array of strings, like: ["point 1", "point 2", ...]"""
                 options={"temperature": 0.3},
             )
             content = response["message"]["content"].strip()
-            # Extract JSON array
             json_match = re.search(r'\[.*\]', content, re.DOTALL)
             if json_match:
                 points = json.loads(json_match.group())
@@ -605,17 +608,19 @@ Respond with ONLY a JSON array of strings, like: ["point 1", "point 2", ...]"""
         except Exception:
             pass  # Fall through to keyword-based
 
-    # Keyword-based fallback
+    # Keyword-based fallback — generic skill templates
     points = []
     skill_map = {
-        "stakeholder management": f"Led cross-functional stakeholder alignment across 5+ departments at previous banking role, directly applicable to {role} coordination needs",
-        "risk management": f"Built risk assessment frameworks processing 1000+ decisions monthly, transferable to product risk evaluation at {company}",
-        "data analysis": f"Analyzed large-scale financial datasets to drive business decisions, relevant to data-driven product management at {company}",
-        "regulatory compliance": f"Navigated complex regulatory requirements in banking, an advantage for {company}'s compliance-sensitive product decisions",
-        "p&l ownership": f"Managed P&L for banking products with revenue impact, directly applicable to product ownership metrics at {company}",
-        "process optimization": f"Optimized banking workflows reducing processing time by 30%, bringing operational efficiency mindset to {role}",
-        "cross-functional leadership": f"Led cross-functional teams of 10+ in banking transformation projects, relevant to product team collaboration at {company}",
-        "client relationship management": f"Managed relationships with 50+ enterprise banking clients, bringing customer-centric approach to product decisions at {company}",
+        "stakeholder management": f"Led cross-functional stakeholder alignment across multiple departments, directly applicable to {role} coordination needs at {company}",
+        "risk management": f"Built risk assessment frameworks processing high-volume decisions, transferable to risk evaluation requirements at {company}",
+        "data analysis": f"Analyzed large-scale datasets to drive business decisions, relevant to data-driven work at {company}",
+        "regulatory compliance": f"Navigated complex regulatory requirements, an advantage for {company}'s compliance-sensitive environment",
+        "p&l ownership": f"Managed P&L with direct revenue impact, applicable to ownership metrics required for {role} at {company}",
+        "process optimization": f"Optimized workflows reducing processing time by 30%, bringing operational efficiency mindset to {role}",
+        "cross-functional leadership": f"Led cross-functional teams of 10+ across complex projects, relevant to collaboration at {company}",
+        "client relationship management": f"Managed relationships with enterprise clients, bringing customer-centric approach to {role} at {company}",
+        "project management": f"Delivered end-to-end projects on time and within scope, directly applicable to {role} execution at {company}",
+        "business development": f"Drove business growth through strategic partnerships, relevant to growth objectives at {company}",
     }
     for skill in transferable:
         key = skill.lower()
@@ -623,10 +628,10 @@ Respond with ONLY a JSON array of strings, like: ["point 1", "point 2", ...]"""
             points.append(skill_map[key])
     if not points:
         points = [
-            f"Leverage 10+ years of banking domain expertise to bring unique financial services perspective to {role} at {company}",
-            f"Apply analytical rigor from financial services background to data-driven product decisions at {company}",
-            f"Bring enterprise stakeholder management experience to cross-functional product leadership at {company}",
-            f"Translate deep understanding of customer financial needs into user-centric product strategy for {company}",
+            f"Leverage domain expertise as {background} to bring a unique perspective to {role} at {company}",
+            f"Apply analytical rigour and problem-solving skills to drive measurable impact at {company}",
+            f"Bring stakeholder management and cross-functional collaboration experience to {role}",
+            f"Translate deep understanding of customer needs into effective solutions at {company}",
         ]
     return points[:5]
 
@@ -1513,13 +1518,6 @@ def cv_score(job, cv_data, preferences=None):
     return min(base + boost, 100)
 
 
-_DOMAIN_SIGNALS = frozenset({
-    "fintech", "banking", "lending", "payments", "credit", "nbfc", "upi",
-    "neobank", "insurance", "wealth management", "financial services",
-    "loan", "mortgage", "bfsi",
-})
-
-
 def _preference_boost(job, jd_text_lower, preferences):
     """Compute the additive boost from user preferences. See cv_score()."""
     boost = 0
@@ -1527,18 +1525,12 @@ def _preference_boost(job, jd_text_lower, preferences):
     loc_lower  = (job.get("location") or "").lower()
     remote_lower = (job.get("remote_status") or "").lower()
 
-    # +25 if any preferred job title appears in the role (was +12)
+    # +25 if any preferred job title appears in the role
     pref_titles = [t.strip().lower() for t in (preferences.get("job_titles") or []) if t and t.strip()]
-    title_matched = bool(pref_titles and any(t in role_lower for t in pref_titles))
-    if title_matched:
+    if pref_titles and any(t in role_lower for t in pref_titles):
         boost += 25
 
-    # +8 domain bonus: JD is in fintech/banking/lending domain AND role title matched.
-    # Rewards the user's deep finance background without inflating unrelated roles.
-    if title_matched and any(sig in jd_text_lower for sig in _DOMAIN_SIGNALS):
-        boost += 8
-
-    # +6 for a location match (token contains, or 'remote' on both sides)
+    # +6 for a location match
     pref_locs = [l.strip().lower() for l in (preferences.get("locations") or []) if l and l.strip()]
     if pref_locs:
         if any(l in loc_lower for l in pref_locs):
@@ -1558,21 +1550,21 @@ def _preference_boost(job, jd_text_lower, preferences):
 # Curated tips for common missing skills
 SKILL_TIPS = {
     "python": "Take a free Python for Data Analysis course on Kaggle (2-3 days). Focus on pandas.",
-    "sql": "You likely have SQL from banking work — emphasize this explicitly in your CV.",
+    "sql": "If you have any SQL experience, emphasize it explicitly in your CV with specific examples.",
     "figma": "Complete Figma basics on YouTube (1 day). Add 'basic Figma' to your skills section.",
-    "kafka": "Frame your banking messaging/event systems experience as equivalent. Add a note in your cover letter.",
-    "kubernetes": "Note your exposure to cloud infrastructure from banking IT projects.",
+    "kafka": "Frame any messaging or event-driven systems experience as equivalent. Add a note in your cover letter.",
+    "kubernetes": "Note any cloud infrastructure or DevOps exposure from your work experience.",
     "docker": "Mention any containerization or DevOps exposure. A 2-hour intro tutorial covers basics.",
-    "machine learning": "Highlight any analytics or predictive modelling work from banking.",
+    "machine learning": "Highlight any analytics or predictive modelling work from your experience.",
     "react": "Note your familiarity with web product decisions if you've worked with frontend teams.",
-    "javascript": "As a PM, familiarity (not proficiency) is sufficient. Mention product decisions around JS-heavy features.",
-    "aws": "Highlight any cloud migration or AWS-based projects from your banking background.",
-    "a/b testing": "Emphasize any data-driven experiments or hypothesis testing from your banking role.",
+    "javascript": "Familiarity (not proficiency) is often sufficient. Mention decisions around JS-heavy features.",
+    "aws": "Highlight any cloud migration or AWS-based projects from your work history.",
+    "a/b testing": "Emphasize any data-driven experiments or hypothesis testing you've done.",
     "user research": "Frame any customer interviews, NPS analysis, or journey mapping work you've done.",
-    "agile": "If you have this, make it explicit with specific examples of sprints, stand-ups, retrospectives.",
-    "data analysis": "Quantify your analytics work — rows analyzed, reports built, decisions influenced.",
+    "agile": "Make it explicit with specific examples of sprints, stand-ups, or retrospectives.",
+    "data analysis": "Quantify your analytics work — datasets analyzed, reports built, decisions influenced.",
     "tableau": "Free Tableau Public is available. Even basic dashboards count — add to skills.",
-    "jira": "Mention any project tracking tools used in banking (Jira, ServiceNow, etc.).",
+    "jira": "Mention any project tracking tools you've used (Jira, Asana, Trello, ServiceNow, etc.).",
 }
 
 
