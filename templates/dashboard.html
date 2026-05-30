@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — Job Search Agent{% endblock %}
+{% block topbar_title %}Dashboard{% endblock %}
 
 {% block content %}
 {% if not cv_uploaded %}
@@ -29,10 +30,18 @@
     });
   });
 </script>
-{% endif %}
-<div class="space-y-6">
 
-  {% if not cv_uploaded %}
+{# ─── First run: composed "getting started" panel ─── #}
+<section class="onboard">
+  <header class="onboard-head">
+    <span class="eyebrow">Getting started</span>
+    <h1>Upload your CV and your first brief is <em>ready tomorrow.</em></h1>
+    <p class="page-lede">
+      Your CV is the only thing the agent needs. Once it's in, every listing gets scored
+      against your actual experience — so the top of your list is genuinely worth your time.
+    </p>
+  </header>
+
   <form method="POST" action="{{ url_for('cv_page') }}" enctype="multipart/form-data" class="cv-onboard">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="next" value="{{ url_for('dashboard') }}">
@@ -41,134 +50,150 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
       </svg>
       <div class="cv-onboard-prompt">
-        <strong>Upload your CV to get started</strong>
-        <span>PDF, DOCX, or TXT · up to 5MB</span>
+        <strong>Drop your CV here, or click to choose a file</strong>
+        <span>PDF, DOCX, or TXT · up to 5MB · stays private to your account</span>
       </div>
       <input id="cv-onboard-input" type="file" name="cv_file" accept=".pdf,.doc,.docx,.txt" onchange="this.form.submit()">
     </label>
   </form>
 
-  {% else %}
+  <ol class="cv-onboard-bullets">
+    <li><span>1</span> We score every new role against your CV, out of 100.</li>
+    <li><span>2</span> Six portals are scraped twice a day — 07:00 &amp; 19:00 IST.</li>
+    <li><span>3</span> Your shortlist and hiring-manager contacts land each morning.</li>
+  </ol>
+</section>
 
-  <!-- Compact header row -->
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);">
-    <div>
-      <h1 style="font-size:1.5rem;font-weight:700;margin:0 0 .125rem;color:var(--accent);">Job Search Overview</h1>
-      <span class="eyebrow" style="color:var(--foreground);">Today</span>
-    </div>
-    <a href="{{ url_for('jobs') }}" class="btn btn-accent" style="flex-shrink:0;">
+{% else %}
+
+{# ─── Editorial hero greeting ─── #}
+<section class="dash-hero">
+  <span class="eyebrow">Today's overview</span>
+  <h1><span id="dash-greeting">Hello</span>{% if user_name %}, <em>{{ user_name }}</em>{% endif %}.</h1>
+  <p class="page-lede">
+    Your next brief lands at 7:00 AM. {{ jobs_today }} listing{{ '' if jobs_today == 1 else 's' }} scraped today across all portals{% if high_match_today %}, {{ high_match_today }} matched your CV at 80%+{% endif %}.
+  </p>
+  <div class="dash-hero-actions">
+    <a href="{{ url_for('jobs') }}" class="btn btn-accent">
       <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.375rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/></svg>
       Browse all jobs
     </a>
+    <a href="{{ url_for('hiring_managers') }}" class="btn btn-ghost">Find hiring managers</a>
   </div>
+</section>
 
-  <!-- Three stats -->
-  <div class="grid md:grid-cols-3 gap-4 stagger">
-    <div class="card stat-card" style="--i:0">
-      <div class="card-header">
-        <div class="card-header-row">
-          <span class="card-title">Jobs scraped today</span>
-          <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/></svg>
-        </div>
-      </div>
-      <div class="card-content pt-0">
-        <div class="stat-value tabular" data-count-to="{{ jobs_today }}">{{ jobs_today }}</div>
-        <p class="stat-change">new listings across all portals</p>
-      </div>
-    </div>
-
-    <div class="card stat-card" style="--i:1">
-      <div class="card-header">
-        <div class="card-header-row">
-          <span class="card-title">Jobs viewed today</span>
-          <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-        </div>
-      </div>
-      <div class="card-content pt-0">
-        <div class="stat-value tabular" data-count-to="{{ viewed_today }}">{{ viewed_today }}</div>
-        <p class="stat-change">job listings opened today</p>
-      </div>
-    </div>
-
-    <div class="card stat-card" style="--i:2">
-      <div class="card-header">
-        <div class="card-header-row">
-          <span class="card-title">Matches ≥ 80%</span>
-          <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
-        </div>
-      </div>
-      <div class="card-content pt-0">
-        <div class="stat-value tabular" data-count-to="{{ high_match_today }}">{{ high_match_today }}</div>
-        <p class="stat-change">of today's scrape, scored against your CV</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Top 10 best-matched jobs from the last 24 hours -->
-  <section class="card">
+{# ─── Three stats — each links to its view ─── #}
+<div class="grid md:grid-cols-3 gap-4 stagger" style="margin-bottom:2rem;">
+  <a href="{{ url_for('jobs') }}" class="card stat-card stat-card-link" style="--i:0">
     <div class="card-header">
+      <div class="card-header-row">
+        <span class="card-title">Jobs scraped today</span>
+        <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2"/></svg>
+      </div>
+    </div>
+    <div class="card-content pt-0">
+      <div class="stat-value tabular" data-count-to="{{ jobs_today }}">{{ jobs_today }}</div>
+      <p class="stat-change">new listings across all portals</p>
+    </div>
+  </a>
+
+  <a href="{{ url_for('jobs') }}" class="card stat-card stat-card-link" style="--i:1">
+    <div class="card-header">
+      <div class="card-header-row">
+        <span class="card-title">Jobs viewed today</span>
+        <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+      </div>
+    </div>
+    <div class="card-content pt-0">
+      <div class="stat-value tabular" data-count-to="{{ viewed_today }}">{{ viewed_today }}</div>
+      <p class="stat-change">job listings you opened today</p>
+    </div>
+  </a>
+
+  <a href="{{ url_for('jobs') }}" class="card stat-card stat-card-link stat-card-accent" style="--i:2">
+    <div class="card-header">
+      <div class="card-header-row">
+        <span class="card-title">Matches ≥ 80%</span>
+        <svg width="16" height="16" fill="none" stroke="currentColor" style="color:var(--accent)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+      </div>
+    </div>
+    <div class="card-content pt-0">
+      <div class="stat-value tabular" data-count-to="{{ high_match_today }}">{{ high_match_today }}</div>
+      <p class="stat-change">of today's scrape, scored against your CV</p>
+    </div>
+  </a>
+</div>
+
+{# ─── Top matches ─── #}
+<section class="card">
+  <div class="card-header card-header-row" style="align-items:flex-end;">
+    <div>
       <h3 class="card-title">Top matches · last 24 hours</h3>
       <p class="card-description">Ranked by your CV + preferences score.</p>
     </div>
-    <div class="card-content" style="padding:0;">
-      {% if top_jobs %}
-      <div class="top-jobs">
-        {% for job in top_jobs %}
-        <a href="{{ job.apply_url or '#' }}" target="_blank" rel="noopener noreferrer"
-           class="top-job"
-           onclick="navigator.sendBeacon('/api/jobs/{{ job.job_id }}/view', '')">
-          <div class="top-job-logo">{{ (job.company or '?')[0]|upper }}</div>
-          <div class="top-job-body">
-            <div class="top-job-role">{{ job.role or 'Untitled role' }}</div>
-            <div class="top-job-meta">
-              <span>{{ job.company or '—' }}</span>
-              {% if job.location %}<span class="top-job-dot">·</span><span>{{ job.location }}</span>{% endif %}
-              {% if job.remote_status %}<span class="top-job-dot">·</span><span>{{ job.remote_status|capitalize }}</span>{% endif %}
-              {% if job.salary %}<span class="top-job-dot">·</span><span>{{ job.salary }}</span>{% endif %}
-              {% if job.portal %}<span class="top-job-dot">·</span><span>{{ job.portal }}</span>{% endif %}
-            </div>
+    <a href="{{ url_for('jobs') }}" class="card-header-link">View all<svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-left:.25rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></a>
+  </div>
+  <div class="card-content" style="padding:0;">
+    {% if top_jobs %}
+    <div class="top-jobs">
+      {% for job in top_jobs %}
+      <a href="{{ job.apply_url or '#' }}" target="_blank" rel="noopener noreferrer"
+         class="top-job"
+         onclick="navigator.sendBeacon('/api/jobs/{{ job.job_id }}/view', '')">
+        <div class="top-job-logo">{{ (job.company or '?')[0]|upper }}</div>
+        <div class="top-job-body">
+          <div class="top-job-role">{{ job.role or 'Untitled role' }}</div>
+          <div class="top-job-meta">
+            <span>{{ job.company or '—' }}</span>
+            {% if job.location %}<span class="top-job-dot">·</span><span>{{ job.location }}</span>{% endif %}
+            {% if job.remote_status %}<span class="top-job-dot">·</span><span>{{ job.remote_status|capitalize }}</span>{% endif %}
+            {% if job.salary %}<span class="top-job-dot">·</span><span>{{ job.salary }}</span>{% endif %}
+            {% if job.portal %}<span class="top-job-dot">·</span><span>{{ job.portal }}</span>{% endif %}
           </div>
-          <div class="top-job-score-wrap">
-            {% if job.viewed_at %}
-            <span style="font-size:.7rem;color:var(--muted-foreground);border:1px solid var(--border);border-radius:.25rem;padding:.1rem .35rem;line-height:1;">Viewed</span>
-            {% else %}
-            <span style="font-size:.7rem;color:var(--accent);border:1px solid var(--accent);border-radius:.25rem;padding:.1rem .35rem;line-height:1;">New</span>
-            {% endif %}
-            <span class="top-job-score
-              {% if job.cv_score >= 80 %}top-job-score-high
-              {% elif job.cv_score >= 60 %}top-job-score-mid
-              {% else %}top-job-score-low{% endif %} tabular">{{ job.cv_score }}</span>
-            <svg class="top-job-arrow" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-          </div>
-        </a>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="empty-state">
-        <p>No matches above zero in the last 12&nbsp;hours for your profile yet.</p>
-        <p class="text-xs" style="margin-top:.5rem;max-width:42ch;margin-inline:auto;">
-          Most of today's scrape may be in domains far from yours.
-          Check <a href="{{ url_for('jobs') }}">all jobs</a> manually,
-          or refine your <a href="{{ url_for('preferences') }}">preferences</a> —
-          the next scrape (07:00 / 19:00 IST) will use them to fetch fresh listings.
-        </p>
-        <p class="text-xs" style="margin-top:.25rem;color:var(--muted-foreground);max-width:42ch;margin-inline:auto;">
-          Showing jobs from the last 24&nbsp;hours only.
-        </p>
-      </div>
-      {% endif %}
+        </div>
+        <div class="top-job-score-wrap">
+          {% if job.viewed_at %}
+          <span class="top-job-tag top-job-tag-seen">Viewed</span>
+          {% else %}
+          <span class="top-job-tag top-job-tag-new">New</span>
+          {% endif %}
+          <span class="top-job-score
+            {% if job.cv_score >= 80 %}top-job-score-high
+            {% elif job.cv_score >= 60 %}top-job-score-mid
+            {% else %}top-job-score-low{% endif %} tabular">{{ job.cv_score }}</span>
+          <svg class="top-job-arrow" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        </div>
+      </a>
+      {% endfor %}
     </div>
-  </section>
+    {% else %}
+    <div class="empty-state">
+      <p><strong>No matches above zero in the last 24&nbsp;hours yet.</strong></p>
+      <p style="margin-top:.5rem;max-width:46ch;margin-inline:auto;">
+        Most of today's scrape may be in domains far from yours.
+        Browse <a href="{{ url_for('jobs') }}">all jobs</a> directly,
+        or sharpen your <a href="{{ url_for('preferences') }}">preferences</a> —
+        the next scrape (07:00 / 19:00 IST) will use them to pull fresh listings.
+      </p>
+    </div>
+    {% endif %}
+  </div>
+</section>
 
-  {% endif %}
-
-</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Time-of-day greeting (uses the visitor's local clock).
+(function () {
+  var el = document.getElementById('dash-greeting');
+  if (!el) return;
+  var h = new Date().getHours();
+  el.textContent = h < 12 ? 'Good morning' : (h < 17 ? 'Good afternoon' : 'Good evening');
+})();
+
 // Convert static date strings to live "Xh ago" labels.
-// Appends 'Z' so bare UTC strings (no timezone suffix) are parsed correctly.
 (function() {
   function asUtcMs(s) {
     if (!s) return 0;

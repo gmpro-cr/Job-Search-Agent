@@ -1,0 +1,93 @@
+{% extends "public_base.html" %}
+{% block title %}Terms of Use — Job Search Agent{% endblock %}
+{% block meta_description %}The terms under which you can use Job Search Agent.{% endblock %}
+
+{% block content %}
+<article class="legal">
+  <div class="legal-shell">
+    <header class="legal-head">
+      <span class="ln-eyebrow">Terms</span>
+      <h1 class="legal-title">Terms of Use</h1>
+      <p class="legal-updated">Last updated: 30 May 2026</p>
+      <p class="legal-lede">
+        These terms cover your use of Job Search Agent. It's a personal tool offered as-is — please
+        read the short version below before you sign in.
+      </p>
+    </header>
+
+    <h2>1. What this service is</h2>
+    <p>
+      Job Search Agent ("the service") aggregates publicly posted job listings, scores them against
+      the CV and preferences you provide, and helps you organise your job search. It is an independent
+      project built and operated by <strong>Gaurav Mahale</strong> and is not affiliated with any of
+      the job portals it reads from.
+    </p>
+
+    <h2>2. Eligibility and account</h2>
+    <p>
+      You need a Google account to sign in. You're responsible for keeping access to that account
+      secure, and for the accuracy of the CV and preferences you provide.
+    </p>
+
+    <h2>3. Acceptable use</h2>
+    <ul>
+      <li>Use the service for your own personal job search.</li>
+      <li>Don't attempt to break, overload, scrape, or reverse-engineer the service.</li>
+      <li>Don't use it to send spam or to harass hiring managers or other people.</li>
+      <li>Don't misrepresent your identity or qualifications in outreach you send.</li>
+    </ul>
+
+    <h2>4. Job listings and third-party content</h2>
+    <p>
+      Listings are gathered from third-party portals and are shown for your convenience. We don't
+      control their accuracy, availability, or the hiring decisions of any employer. Always verify
+      details (salary, location, status) on the original posting before acting on them.
+    </p>
+
+    <h2>5. Outreach</h2>
+    <p>
+      The service may draft outreach messages for you. <strong>You</strong> are responsible for
+      reviewing, editing, and sending anything before it reaches another person. The service does not
+      send messages on your behalf without your action.
+    </p>
+
+    <h2>6. Availability</h2>
+    <p>
+      This is a personal project provided on a best-effort basis. Scrapes run on a schedule and may
+      occasionally miss, fail, or return incomplete results. The service may change or be unavailable
+      at any time without notice.
+    </p>
+
+    <h2>7. No warranty</h2>
+    <p>
+      The service is provided "as is" and "as available", without warranties of any kind. Match scores
+      are an aid to your judgement, not a guarantee of fit, response, or outcome. Your job-search
+      decisions remain your own.
+    </p>
+
+    <h2>8. Limitation of liability</h2>
+    <p>
+      To the extent permitted by law, the operator is not liable for any indirect or consequential
+      loss arising from your use of the service, including missed opportunities, inaccurate listings,
+      or actions taken based on its output.
+    </p>
+
+    <h2>9. Privacy</h2>
+    <p>
+      Your use of the service is also governed by our <a href="{{ url_for('privacy') }}">Privacy Policy</a>,
+      which explains what data we collect and how it's handled.
+    </p>
+
+    <h2>10. Changes</h2>
+    <p>
+      These terms may be updated; the "last updated" date will reflect any change. Continued use after
+      an update means you accept the revised terms.
+    </p>
+
+    <h2>11. Contact</h2>
+    <p>
+      Questions about these terms: <a href="mailto:mahalegauravk@gmail.com">mahalegauravk@gmail.com</a>.
+    </p>
+  </div>
+</article>
+{% endblock %}

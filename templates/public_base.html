@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Job Search Agent{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}A quiet daily brief of jobs scored against your CV. Six portals scraped twice a day, hiring-manager contacts, and AI-drafted outreach.{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}Job Search Agent{% endblock %}">
+  <meta property="og:description" content="A quiet daily brief of jobs scored against your CV. Six portals scraped twice a day, hiring-manager contacts, AI-drafted outreach.">
+  <meta property="og:type" content="website">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="{{ url_for('static', filename='fonts/InterVariable.woff2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="public-page">
+
+  <!-- ── Public header ── -->
+  <header class="pub-header" id="pub-header">
+    <div class="pub-shell pub-header-inner">
+      <a href="{{ url_for('index') }}" class="pub-wordmark" aria-label="Job Search Agent home">
+        <span class="pub-wordmark-dot">JS</span>
+        <span class="pub-wordmark-name">Job Search</span>
+        <span class="pub-wordmark-pill">Agent</span>
+      </a>
+      <nav class="pub-nav" aria-label="Primary">
+        <a href="{{ url_for('index') }}#how" class="pub-nav-link">How it works</a>
+        <a href="{{ url_for('index') }}#features" class="pub-nav-link">What you get</a>
+        <a href="{{ url_for('privacy') }}" class="pub-nav-link">Privacy</a>
+        <a href="{{ url_for('login') }}" class="pub-nav-cta">Sign in</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="pub-main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── Public footer ── -->
+  <footer class="pub-footer">
+    <div class="pub-shell pub-footer-inner">
+      <div class="pub-footer-brand">
+        <a href="{{ url_for('index') }}" class="pub-wordmark">
+          <span class="pub-wordmark-dot">JS</span>
+          <span class="pub-wordmark-name">Job Search</span>
+          <span class="pub-wordmark-pill">Agent</span>
+        </a>
+        <p class="pub-footer-note">
+          A personal job-search workspace. Built and maintained by
+          <a href="https://www.linkedin.com/in/mahalegauravk" target="_blank" rel="noopener">Gaurav Mahale</a>
+          in Pune, India.
+        </p>
+      </div>
+      <nav class="pub-footer-links" aria-label="Footer">
+        <a href="{{ url_for('index') }}#how">How it works</a>
+        <a href="{{ url_for('index') }}#features">What you get</a>
+        <a href="{{ url_for('privacy') }}">Privacy</a>
+        <a href="{{ url_for('terms') }}">Terms</a>
+        <a href="mailto:mahalegauravk@gmail.com">Contact</a>
+      </nav>
+    </div>
+    <div class="pub-shell pub-footer-base">
+      <span>© {{ current_year }} Job Search Agent</span>
+      <span class="pub-footer-made">Made in Pune · scrapes run 07:00 &amp; 19:00 IST</span>
+    </div>
+  </footer>
+
+  <script>
+    // Shadow the header once the page scrolls — keeps the hero clean at rest.
+    (function () {
+      var h = document.getElementById('pub-header');
+      if (!h) return;
+      var onScroll = function () {
+        h.classList.toggle('is-stuck', window.scrollY > 8);
+      };
+      onScroll();
+      window.addEventListener('scroll', onScroll, { passive: true });
+    })();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

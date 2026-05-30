@@ -1,0 +1,107 @@
+{% extends "public_base.html" %}
+{% block title %}Privacy Policy — Job Search Agent{% endblock %}
+{% block meta_description %}How Job Search Agent collects, uses, stores, and protects your data.{% endblock %}
+
+{% block content %}
+<article class="legal">
+  <div class="legal-shell">
+    <header class="legal-head">
+      <span class="ln-eyebrow">Privacy</span>
+      <h1 class="legal-title">Privacy Policy</h1>
+      <p class="legal-updated">Last updated: 30 May 2026</p>
+      <p class="legal-lede">
+        Job Search Agent is a personal job-search workspace, not an advertising business.
+        This page explains exactly what data it touches, why, and the control you have over it.
+        Plain language, no dark patterns.
+      </p>
+    </header>
+
+    <h2>Who runs this</h2>
+    <p>
+      Job Search Agent is built and operated by <strong>Gaurav Mahale</strong>, based in Pune, India.
+      For any privacy question or request, email
+      <a href="mailto:mahalegauravk@gmail.com">mahalegauravk@gmail.com</a>.
+    </p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li><strong>Google account basics.</strong> When you sign in with Google, we receive your name, email address, and profile picture. We use Google's standard sign-in scope and do not request access to your Gmail, Drive, or contacts.</li>
+      <li><strong>Your CV.</strong> The résumé file you upload, and the text extracted from it, so listings can be scored against your experience.</li>
+      <li><strong>Your preferences.</strong> The roles, locations, salary range, and filters you set.</li>
+      <li><strong>Activity within the app.</strong> Which listings you view, mark applied, hide, or save, and reminders you create — so the workspace stays useful to you.</li>
+    </ul>
+
+    <h2>What we do not collect or do</h2>
+    <ul>
+      <li>We do <strong>not</strong> sell, rent, or share your CV, contacts, or personal data with anyone.</li>
+      <li>We do <strong>not</strong> use your data to train machine-learning models, ours or anyone else's.</li>
+      <li>We do <strong>not</strong> run third-party advertising or behavioural ad trackers.</li>
+      <li>We do <strong>not</strong> send emails on your behalf. Outreach drafts are written for you to review and send yourself.</li>
+    </ul>
+
+    <h2>How job listings are gathered</h2>
+    <p>
+      The agent reads <strong>publicly posted job listings</strong> from LinkedIn, Naukri, Indeed,
+      HiringCafe, Hacker News, and Remotive on a fixed schedule (07:00 and 19:00 IST). These are
+      public postings; your private data is never attached to them and is never sent to those portals.
+    </p>
+
+    <h2>How your data is used</h2>
+    <ul>
+      <li>To score listings against your CV and preferences and produce your daily brief.</li>
+      <li>To surface likely hiring-manager contacts for high-match roles from public sources.</li>
+      <li>To generate draft outreach text that you edit and send yourself.</li>
+      <li>To send you a digest or reminders, if you've enabled them.</li>
+    </ul>
+
+    <h2>Where your data is stored</h2>
+    <p>
+      Your account data and CV are stored in a managed Postgres database and file store hosted on
+      Vercel and Neon. Access is scoped to your account. We rely on these providers' standard
+      security measures and access controls.
+    </p>
+
+    <h2>Third-party services</h2>
+    <p>We use a small set of providers strictly to run the service:</p>
+    <ul>
+      <li><strong>Google</strong> — sign-in / authentication.</li>
+      <li><strong>Vercel &amp; Neon</strong> — hosting, database, and file storage.</li>
+      <li><strong>An AI model provider</strong> — to score listings and draft outreach text. Content sent for processing is not used to train their models.</li>
+    </ul>
+
+    <h2>Your choices and rights</h2>
+    <div class="legal-callout">
+      <p>
+        You can delete your CV at any time from the <strong>Profile &amp; CV</strong> page, and you can
+        request deletion of your entire account and associated data by emailing
+        <a href="mailto:mahalegauravk@gmail.com">mahalegauravk@gmail.com</a>. We'll action it promptly.
+      </p>
+    </div>
+    <p>
+      You may also request a copy of the personal data held about you, or ask us to correct it. You can
+      revoke this app's access to your Google account at any time from your
+      <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google account permissions</a>.
+    </p>
+
+    <h2>Data retention</h2>
+    <p>
+      We keep your account data for as long as your account is active. If you delete your account, your
+      CV, preferences, and per-account activity are removed. Public job listings are retained in the
+      shared database independent of any individual account.
+    </p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+      If this policy changes in a meaningful way, the "last updated" date above will change. Continued
+      use after an update means you accept the revised policy.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions, corrections, or deletion requests:
+      <a href="mailto:mahalegauravk@gmail.com">mahalegauravk@gmail.com</a>.
+      See also the <a href="{{ url_for('terms') }}">Terms of Use</a>.
+    </p>
+  </div>
+</article>
+{% endblock %}

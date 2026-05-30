@@ -1,0 +1,224 @@
+{% extends "public_base.html" %}
+{% block title %}Job Search Agent — your morning job brief, scored against your CV{% endblock %}
+
+{% block content %}
+
+{# ─── Hero ─────────────────────────────────────────────────────── #}
+<section class="ln-hero">
+  <div class="pub-shell ln-hero-grid">
+    <div class="ln-hero-copy">
+      <span class="ln-eyebrow">Daily brief, on autopilot</span>
+      <h1 class="ln-hero-title">
+        The job search you run <em>without opening twelve tabs.</em>
+      </h1>
+      <p class="ln-hero-sub">
+        Every morning it scrapes six portals, scores each new role against your CV,
+        and surfaces the matches worth your time — along with the hiring managers behind them.
+      </p>
+      <div class="ln-hero-actions">
+        <a href="{{ url_for('login') }}" class="ln-btn ln-btn-primary">Sign in with Google</a>
+        <a href="#how" class="ln-btn ln-btn-ghost">See how it works</a>
+      </div>
+      <p class="ln-hero-fineprint">
+        Free to use · sign in with Google · your CV stays private
+      </p>
+    </div>
+
+    {# Real product slice — the morning brief #}
+    <article class="brief ln-hero-brief" aria-label="Sample morning brief">
+      <header class="brief-head">
+        <div class="brief-head-title">
+          <span class="brief-head-eyebrow">Today's brief · 6:58 AM</span>
+          <span class="brief-head-date">12 new matches scored</span>
+        </div>
+        <span class="brief-head-badge">CV match</span>
+      </header>
+
+      <div class="brief-job">
+        <div class="brief-logo" style="background:#635bff;">S</div>
+        <div class="brief-info">
+          <div class="brief-role">Senior Product Manager, Payments</div>
+          <div class="brief-meta">Stripe <span class="brief-meta-dot">·</span> Remote <span class="brief-meta-dot">·</span> ₹85L–1.2Cr</div>
+        </div>
+        <span class="brief-score brief-score-high">92</span>
+      </div>
+      <div class="brief-job">
+        <div class="brief-logo" style="background:#0a2540;">R</div>
+        <div class="brief-info">
+          <div class="brief-role">Director of Product, Growth</div>
+          <div class="brief-meta">Razorpay <span class="brief-meta-dot">·</span> Bangalore <span class="brief-meta-dot">·</span> ₹70L–95L</div>
+        </div>
+        <span class="brief-score brief-score-high">87</span>
+      </div>
+      <div class="brief-job">
+        <div class="brief-logo" style="background:#5e6ad2;">L</div>
+        <div class="brief-info">
+          <div class="brief-role">Founding PM, Platform</div>
+          <div class="brief-meta">Linear <span class="brief-meta-dot">·</span> Remote <span class="brief-meta-dot">·</span> $180k–220k</div>
+        </div>
+        <span class="brief-score brief-score-mid">81</span>
+      </div>
+
+      <footer class="brief-foot">
+        <span class="brief-foot-pulse">Scrape ran 2h ago · 6 portals · 1,247 listings scanned</span>
+        <span aria-hidden="true">→</span>
+      </footer>
+    </article>
+  </div>
+</section>
+
+{# ─── How it works ─────────────────────────────────────────────── #}
+<section class="ln-section" id="how">
+  <div class="pub-shell">
+    <div class="ln-section-head">
+      <span class="ln-eyebrow">How it works</span>
+      <h2 class="ln-section-title">Three things happen while you sleep.</h2>
+    </div>
+    <ol class="ln-steps">
+      <li class="ln-step">
+        <span class="ln-step-num">01</span>
+        <h3 class="ln-step-title">Scrape</h3>
+        <p class="ln-step-body">
+          LinkedIn, Naukri, HiringCafe, Indeed, Hacker News and Remotive — pulled twice a day
+          on a scheduled job at 07:00 and 19:00 IST. No browser tabs, no manual refreshing.
+        </p>
+      </li>
+      <li class="ln-step">
+        <span class="ln-step-num">02</span>
+        <h3 class="ln-step-title">Score</h3>
+        <p class="ln-step-body">
+          Each listing is read against your actual CV and preferences. You get a match score
+          out of 100 and the specific skills a role is asking for that your CV doesn't show yet.
+        </p>
+      </li>
+      <li class="ln-step">
+        <span class="ln-step-num">03</span>
+        <h3 class="ln-step-title">Reach out</h3>
+        <p class="ln-step-body">
+          For the roles worth pursuing, it finds the hiring manager, links their profile, and
+          drafts a cold email you can edit. You approve — nothing is sent on your behalf.
+        </p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+{# ─── What you get ─────────────────────────────────────────────── #}
+<section class="ln-section ln-section-tint" id="features">
+  <div class="pub-shell">
+    <div class="ln-section-head">
+      <span class="ln-eyebrow">What you get</span>
+      <h2 class="ln-section-title">A workspace, not another job board.</h2>
+    </div>
+
+    <div class="ln-features">
+      <article class="ln-feature">
+        <h3 class="ln-feature-title">CV-scored matches</h3>
+        <p class="ln-feature-body">
+          Every role is ranked against your CV out of 100, so the top of your list is genuinely
+          the top of your list. The matches that don't fit never reach you.
+        </p>
+      </article>
+      <article class="ln-feature">
+        <h3 class="ln-feature-title">Six portals, twice a day</h3>
+        <p class="ln-feature-body">
+          One place for LinkedIn, Naukri, Indeed, HiringCafe, Hacker News and Remotive — deduplicated,
+          so you read each role once instead of six times.
+        </p>
+      </article>
+      <article class="ln-feature">
+        <h3 class="ln-feature-title">Hiring-manager contacts</h3>
+        <p class="ln-feature-body">
+          For high-match roles it surfaces who's likely hiring and links their profile, so a referral
+          or a direct note is one step away instead of a research project.
+        </p>
+      </article>
+      <article class="ln-feature">
+        <h3 class="ln-feature-title">Outreach drafts you approve</h3>
+        <p class="ln-feature-body">
+          A first-draft cold email written from your CV and the role. You edit and send it yourself —
+          the agent never emails anyone without you.
+        </p>
+      </article>
+      <article class="ln-feature">
+        <h3 class="ln-feature-title">A daily digest</h3>
+        <p class="ln-feature-body">
+          The morning's best matches, summarised. Skim it over coffee; open the app only when something
+          is worth a closer look.
+        </p>
+      </article>
+      <article class="ln-feature">
+        <h3 class="ln-feature-title">Reminders that follow up</h3>
+        <p class="ln-feature-body">
+          Track what you've applied to and get nudged to follow up at the right time, so promising
+          threads don't go cold.
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+{# ─── Trust / data & privacy ───────────────────────────────────── #}
+<section class="ln-section" id="privacy-band">
+  <div class="pub-shell ln-trust">
+    <div class="ln-trust-head">
+      <span class="ln-eyebrow">Your data &amp; privacy</span>
+      <h2 class="ln-section-title">Built to be boring about your data.</h2>
+      <p class="ln-trust-lede">
+        This is a personal tool, not an ad business. Here's exactly what it touches and what it doesn't.
+      </p>
+    </div>
+    <ul class="ln-trust-list">
+      <li class="ln-trust-item">
+        <h3 class="ln-trust-title">What's collected</h3>
+        <p>Your name and email from Google sign-in, the CV you upload, and your search preferences. That's it.</p>
+      </li>
+      <li class="ln-trust-item">
+        <h3 class="ln-trust-title">What's never done</h3>
+        <p>Your CV and contacts are never sold, shared, or used to train anyone's models. There are no third-party ad trackers.</p>
+      </li>
+      <li class="ln-trust-item">
+        <h3 class="ln-trust-title">Where it lives</h3>
+        <p>Job listings are public postings scraped from portals. Your private data sits in your own account and stays scoped to you.</p>
+      </li>
+      <li class="ln-trust-item">
+        <h3 class="ln-trust-title">You stay in control</h3>
+        <p>Delete your CV or your whole account whenever you want. Read the full <a href="{{ url_for('privacy') }}">privacy policy</a>.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+{# ─── Maker ────────────────────────────────────────────────────── #}
+<section class="ln-section ln-section-tint" id="maker">
+  <div class="pub-shell ln-maker">
+    <div class="ln-maker-avatar" aria-hidden="true">GM</div>
+    <div class="ln-maker-copy">
+      <span class="ln-eyebrow">Who built this</span>
+      <h2 class="ln-section-title">Made by Gaurav Mahale.</h2>
+      <p class="ln-maker-body">
+        I'm an AI product builder with nine-plus years in banking, credit risk and portfolio
+        management. I built this for my own job search — scoring roles by hand across six portals
+        every morning didn't scale, so I taught an agent to do the reading and keep me focused on
+        the few roles actually worth pursuing.
+      </p>
+      <div class="ln-maker-links">
+        <a href="https://www.linkedin.com/in/mahalegauravk" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://github.com/gmpro-cr" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://x.com/mahalegauravk" target="_blank" rel="noopener">X / Twitter</a>
+        <a href="mailto:mahalegauravk@gmail.com">Email</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ─── Final CTA ────────────────────────────────────────────────── #}
+<section class="ln-cta">
+  <div class="pub-shell ln-cta-inner">
+    <h2 class="ln-cta-title">Wake up to a shortlist, not a search.</h2>
+    <p class="ln-cta-sub">Sign in, upload your CV, and your first brief is ready tomorrow morning.</p>
+    <a href="{{ url_for('login') }}" class="ln-btn ln-btn-primary ln-btn-lg">Sign in with Google</a>
+  </div>
+</section>
+
+{% endblock %}

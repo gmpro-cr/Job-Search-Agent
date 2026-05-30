@@ -154,6 +154,7 @@ google = oauth.register(
 _PUBLIC_ENDPOINTS = frozenset({
     'login', 'auth_google', 'auth_callback', 'static',
     'approve_outreach', 'skip_outreach', 'favicon',
+    'index', 'privacy', 'terms',
 } | ({'auth_dev_login'} if _ENABLE_DEV_LOGIN else set()))
 
 @app.before_request
@@ -1198,11 +1199,29 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+@app.context_processor
+def inject_globals():
+    """Make a few values available to every template (footer year, etc.)."""
+    return {'current_year': datetime.now().year}
+
+
 @app.route("/")
 def index():
+    # Authenticated users go straight to their workspace; everyone else sees
+    # the public landing page that explains what the product does.
     if session.get('user'):
         return redirect(url_for('dashboard'))
-    return redirect(url_for('login'))
+    return render_template('landing.html')
+
+
+@app.route("/privacy")
+def privacy():
+    return render_template('privacy.html')
+
+
+@app.route("/terms")
+def terms():
+    return render_template('terms.html')
 
 
 @app.route("/favicon.ico")
@@ -1221,7 +1240,11 @@ def dashboard():
     uid = current_user_id()
     cv_data = load_cv_data(uid) if uid else None
     cv_uploaded = cv_data is not None
-    user_email = dict(session).get('user', {}).get('email', '')
+    _sess_user = dict(session).get('user', {})
+    user_email = _sess_user.get('email', '')
+    # First name for the greeting — fall back to the email local-part.
+    _name = (_sess_user.get('name') or '').strip()
+    user_name = (_name.split()[0] if _name else (user_email.split('@')[0] if user_email else ''))
 
     # Score any new jobs before querying — raise limit so a fresh scrape batch
     # (typically 500–1000 jobs) gets covered in one dashboard hit.
@@ -1331,6 +1354,7 @@ def dashboard():
         top_jobs=top_jobs,
         cv_uploaded=cv_uploaded,
         user_email=user_email,
+        user_name=user_name,
     )
 
 

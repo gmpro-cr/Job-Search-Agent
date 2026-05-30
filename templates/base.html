@@ -42,7 +42,13 @@
       <span class="sidebar-logo-mark">Agent</span>
     </div>
 
-    <nav class="sidebar-nav">
+    <div class="sidebar-status" title="Scrapes run at 07:00 and 19:00 IST">
+      <span class="sidebar-status-pulse" aria-hidden="true"></span>
+      <span class="sidebar-status-text">Next brief · <strong>7:00 AM IST</strong></span>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="Main">
+      <p class="sidebar-section-label">Discover</p>
       <ul class="sidebar-menu">
         <li>
           <a href="{{ url_for('dashboard') }}" data-title="Dashboard"
@@ -72,6 +78,10 @@
             Daily Digest
           </a>
         </li>
+      </ul>
+
+      <p class="sidebar-section-label">Profile</p>
+      <ul class="sidebar-menu">
         <li>
           <a href="{{ url_for('cv_page') }}" data-title="Profile &amp; CV"
              class="sidebar-link {% if request.endpoint == 'cv_page' %}active{% endif %}">
