@@ -71,6 +71,14 @@ _IS_VERCEL = bool(os.environ.get("VERCEL"))
 # accidentally enabled on a hosted deployment.
 _ENABLE_DEV_LOGIN = os.environ.get("ENABLE_DEV_LOGIN") == "1" and not _IS_VERCEL
 
+# Demo login lets first-time visitors explore the product flow WITHOUT Google
+# sign-in. Unlike dev login it is allowed on hosted deployments — it's a
+# temporary, public "try it" door. Each demo login creates a fresh throwaway
+# user (demo-*@demo.local) so every session starts as a genuine first-timer.
+# ON by default; set ENABLE_DEMO_LOGIN=0 to switch it off without a redeploy.
+_ENABLE_DEMO_LOGIN = os.environ.get("ENABLE_DEMO_LOGIN", "1") != "0"
+_DEMO_EMAIL_DOMAIN = "demo.local"
+
 app = Flask(__name__)
 
 _secret = os.environ.get("FLASK_SECRET")
@@ -155,7 +163,8 @@ _PUBLIC_ENDPOINTS = frozenset({
     'login', 'auth_google', 'auth_callback', 'static',
     'approve_outreach', 'skip_outreach', 'favicon',
     'index', 'privacy', 'terms',
-} | ({'auth_dev_login'} if _ENABLE_DEV_LOGIN else set()))
+} | ({'auth_dev_login'} if _ENABLE_DEV_LOGIN else set())
+  | ({'auth_demo_login'} if _ENABLE_DEMO_LOGIN else set()))
 
 @app.before_request
 def require_login():
@@ -201,6 +210,14 @@ def require_user_id():
         from flask import abort
         abort(401)
     return uid
+
+
+def _is_demo_user():
+    """True when the current session is a throwaway demo user (no Google)."""
+    user = dict(session).get('user') or {}
+    if user.get('demo'):
+        return True
+    return (user.get('email') or '').endswith(f"@{_DEMO_EMAIL_DOMAIN}")
 
 
 def require_admin():
@@ -1098,7 +1115,8 @@ def login():
     if session.get('user'):
         return redirect(url_for('dashboard'))
     return render_template('login.html', is_vercel=_IS_VERCEL,
-                           enable_dev_login=_ENABLE_DEV_LOGIN)
+                           enable_dev_login=_ENABLE_DEV_LOGIN,
+                           enable_demo_login=_ENABLE_DEMO_LOGIN)
 
 @app.route('/auth/google')
 def auth_google():
@@ -1194,6 +1212,30 @@ def auth_dev_login():
     session['user'] = {'email': 'dev@localhost', 'name': 'Dev User', 'picture': '', 'id': uid}
     return redirect(url_for('dashboard'))
 
+
+@app.route('/auth/demo-login', methods=['POST'])
+@csrf.exempt
+def auth_demo_login():
+    """
+    Public, no-Google demo entry for first-time-flow testing. Temporary:
+    gated by ENABLE_DEMO_LOGIN (on by default; set to 0 to disable). Each call
+    mints a FRESH throwaway user so the visitor always experiences the
+    first-time flow (empty dashboard -> CV upload prompt). Demo users are never
+    admins and are blocked from costly actions (see _is_demo_user).
+    """
+    if not _ENABLE_DEMO_LOGIN:
+        from flask import abort
+        abort(403)
+    import secrets as _secrets
+    token = _secrets.token_hex(4)
+    email = f"demo-{token}@{_DEMO_EMAIL_DOMAIN}"
+    uid = get_or_create_user(email, 'Demo User')
+    # Deliberately NOT promoted to admin — demo users stay least-privileged.
+    session.permanent = True
+    session['user'] = {'email': email, 'name': 'Demo User', 'picture': '', 'id': uid, 'demo': True}
+    logger.info("Demo session started: %s", email)
+    return redirect(url_for('dashboard'))
+
 @app.route('/logout')
 def logout():
     session.clear()
@@ -1202,7 +1244,11 @@ def logout():
 @app.context_processor
 def inject_globals():
     """Make a few values available to every template (footer year, etc.)."""
-    return {'current_year': datetime.now().year}
+    return {
+        'current_year': datetime.now().year,
+        'enable_demo_login': _ENABLE_DEMO_LOGIN,
+        'is_demo_user': _is_demo_user(),
+    }
 
 
 @app.route("/")
@@ -4075,6 +4121,8 @@ def prd_detail(date_str):
 def prd_send_now():
     """Manually trigger today's PRD email."""
     require_user_id()
+    if _is_demo_user():
+        return jsonify({"ok": False, "error": "Email sending is disabled in the demo."}), 403
     try:
         threading.Thread(target=_send_prd_email_job, daemon=True).start()
         return jsonify({"ok": True, "message": "PRD email queued"})

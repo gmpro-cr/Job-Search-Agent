@@ -131,6 +131,11 @@
       </button>
       <span class="topbar-title" id="topbar-title">{% block topbar_title %}{% endblock %}</span>
       <span class="topbar-spacer"></span>
+      {% if is_demo_user %}
+      <a href="{{ url_for('auth_google') }}" class="demo-badge" title="Temporary demo session — sign in with Google to keep your data">
+        <span class="demo-badge-dot" aria-hidden="true"></span>Demo session
+      </a>
+      {% endif %}
       {% set _u = session.get('user') %}
       {% if _u and _u.get('email') %}
       <a href="{{ url_for('preferences') }}" class="user-chip" aria-label="Open preferences">

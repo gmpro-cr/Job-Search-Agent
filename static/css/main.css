@@ -2591,3 +2591,46 @@ body.public-page {
   margin: 0;
 }
 .sidebar-nav .sidebar-menu + .sidebar-section-label { margin-top: 0.875rem; }
+
+/* ── Demo login affordances ── */
+.ln-demo-form { margin: 0; display: inline-flex; }
+.ln-cta-demo { margin: 1rem 0 0; }
+.ln-cta-demo-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.72);
+  padding: 0.5rem 0.25rem;
+  border-bottom: 1px solid transparent;
+  transition: color var(--duration-snap) var(--ease-out-snappy),
+              border-color var(--duration-snap) var(--ease-out-snappy);
+}
+.ln-cta-demo-btn:hover { color: #fff; border-bottom-color: rgba(255,255,255,0.5); }
+.ln-cta-demo-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,255,255,0.4); border-radius: 4px; }
+
+/* Topbar "Demo session" pill */
+.demo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  padding: 0.3125rem 0.6875rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--duration-snap) var(--ease-out-snappy);
+}
+.demo-badge:hover { background: color-mix(in srgb, var(--warning) 18%, transparent); }
+.demo-badge-dot {
+  width: 0.4375rem; height: 0.4375rem; border-radius: 999px;
+  background: var(--warning); flex-shrink: 0;
+}
+@media (max-width: 480px) { .demo-badge { display: none; } }

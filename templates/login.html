@@ -595,7 +595,18 @@
         Continue with Google
       </a>
 
-      {% if not is_vercel %}
+      {% if enable_demo_login %}
+      <div class="divider">or</div>
+      <form action="{{ url_for('auth_demo_login') }}" method="POST" style="margin:0;">
+        <button type="submit" class="cta">Try the demo — no account needed</button>
+      </form>
+      <p class="auth-note">
+        The demo starts you as a fresh first-time user so you can walk the full flow.
+        It's temporary — demo data isn't permanent and may be cleared.
+      </p>
+      {% endif %}
+
+      {% if enable_dev_login %}
       <div class="divider">or</div>
       <form action="{{ url_for('auth_dev_login') }}" method="POST" style="margin:0;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

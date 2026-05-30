@@ -17,10 +17,16 @@
       </p>
       <div class="ln-hero-actions">
         <a href="{{ url_for('auth_google') }}" class="ln-btn ln-btn-primary">Sign in with Google</a>
+        {% if enable_demo_login %}
+        <form method="POST" action="{{ url_for('auth_demo_login') }}" class="ln-demo-form">
+          <button type="submit" class="ln-btn ln-btn-ghost">Try the live demo</button>
+        </form>
+        {% else %}
         <a href="#how" class="ln-btn ln-btn-ghost">See how it works</a>
+        {% endif %}
       </div>
       <p class="ln-hero-fineprint">
-        Free to use · sign in with Google · your CV stays private
+        {% if enable_demo_login %}No sign-up — the demo drops you in as a brand-new user. <a href="#how">See how it works</a>.{% else %}Free to use · sign in with Google · your CV stays private{% endif %}
       </p>
     </div>
 
@@ -218,6 +224,11 @@
     <h2 class="ln-cta-title">Wake up to a shortlist, not a search.</h2>
     <p class="ln-cta-sub">Sign in, upload your CV, and your first brief is ready tomorrow morning.</p>
     <a href="{{ url_for('auth_google') }}" class="ln-btn ln-btn-primary ln-btn-lg">Sign in with Google</a>
+    {% if enable_demo_login %}
+    <form method="POST" action="{{ url_for('auth_demo_login') }}" class="ln-cta-demo">
+      <button type="submit" class="ln-cta-demo-btn">or explore the demo without signing in →</button>
+    </form>
+    {% endif %}
   </div>
 </section>
 
