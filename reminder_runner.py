@@ -111,6 +111,37 @@ def load_all_reminders_global() -> list:
     return out
 
 
+def _owner_preferences(reminder: dict) -> dict:
+    """
+    Best-effort fetch of the reminder owner's saved preferences, used to apply
+    the same intent boosts (title / location / transferable skills) that the
+    website's per-user scoring uses. Without this, cv_score() runs with no
+    preferences and the title-match boost never fires, so genuinely relevant
+    jobs score well below the threshold and the email comes back empty.
+
+    Falls back to seeding the reminder's own keyword as a job title so the
+    title-match boost still applies even when the user has no saved prefs.
+    """
+    email = (reminder.get("owner_email") or reminder.get("email") or "").strip()
+    prefs = None
+    if email:
+        try:
+            from database import get_user_by_email, get_user_preferences
+            u = get_user_by_email(email)
+            if u:
+                prefs = get_user_preferences(u["id"])
+        except Exception as e:
+            logger.warning("Could not load prefs for reminder owner %s: %s", email, e)
+    prefs = dict(prefs or {})
+    keyword = (reminder.get("keyword") or "").strip()
+    if keyword:
+        titles = list(prefs.get("job_titles") or [])
+        if keyword not in titles:
+            titles.append(keyword)
+        prefs["job_titles"] = titles
+    return prefs
+
+
 def score_jobs_for_cv_reminder(reminder: dict) -> list:
     """
     Fetch and score jobs for a reminder that has cv_data.
@@ -141,8 +172,10 @@ def score_jobs_for_cv_reminder(reminder: dict) -> list:
     if not candidates:
         return []
 
-    # Score each job against this reminder's CV
-    scored = [(job, cv_score(job, cv_data)) for job in candidates]
+    # Score each job against this reminder's CV, applying the owner's preference
+    # boosts so email scoring matches what the website shows (see _owner_preferences).
+    prefs = _owner_preferences(reminder)
+    scored = [(job, cv_score(job, cv_data, prefs)) for job in candidates]
 
     # Filter by min_score, sort descending, cap at max_jobs
     filtered = sorted(
