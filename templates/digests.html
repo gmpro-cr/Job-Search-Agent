@@ -10,9 +10,9 @@
   <header class="page-header">
     <div class="page-header-row">
       <div style="flex:1;min-width:0;">
-        <span class="eyebrow">{{ files|length }} digest{{ 's' if files|length != 1 else '' }} archived</span>
+        <span class="eyebrow">Email delivery</span>
         <h1>Daily Digest</h1>
-        <p class="page-lede">Your top-matched jobs delivered by email. Configure what gets sent and browse the full archive.</p>
+        <p class="page-lede">Your top-matched jobs delivered by email after each scrape. Configure what gets sent below.</p>
       </div>
       <button onclick="sendNow()" id="send-now-btn" class="btn btn-accent" style="white-space:nowrap;flex-shrink:0;">
         <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.375rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
@@ -20,53 +20,6 @@
       </button>
     </div>
   </header>
-
-  <!-- Active status banner -->
-  {% set digest_email = prefs.get('email','') or user_email %}
-  {% set top_n = prefs.get('top_jobs_per_digest', 5) %}
-  {% set min_score = prefs.get('min_score', 50) %}
-  <div style="display:flex;align-items:flex-start;gap:1rem;padding:1rem 1.25rem;border-radius:.75rem;
-              background:{% if digest_email %}rgba(22,163,74,.07){% else %}var(--muted){% endif %};
-              border:1px solid {% if digest_email %}rgba(22,163,74,.2){% else %}var(--border){% endif %};">
-    <div style="width:2rem;height:2rem;border-radius:50%;background:{% if digest_email %}rgba(22,163,74,.15){% else %}rgba(10,10,12,.07){% endif %};
-                display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.05rem;">
-      {% if digest_email %}
-      <svg width="14" height="14" fill="none" stroke="{% if digest_email %}#16a34a{% else %}var(--muted-foreground){% endif %}" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-      {% else %}
-      <svg width="14" height="14" fill="none" stroke="var(--muted-foreground)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      {% endif %}
-    </div>
-    <div style="flex:1;min-width:0;">
-      {% if digest_email %}
-      <div style="font-weight:600;font-size:.9375rem;color:#15803d;">Digest active</div>
-      <div style="font-size:.8125rem;color:var(--muted-foreground);margin-top:.2rem;line-height:1.5;">
-        Sending <strong>top {{ top_n }} jobs</strong> with score <strong>{{ min_score }}+</strong>
-        to <strong>{{ digest_email }}</strong> after each scrape (07:00 &amp; 19:00 IST).
-        {% if files %}
-        Last generated: <strong>{{ files[0].date }}</strong>.
-        {% endif %}
-      </div>
-      <div style="display:flex;gap:.5rem;margin-top:.625rem;">
-        <button onclick="editDigest()" class="btn btn-default" style="font-size:.8125rem;padding:.3rem .75rem;height:auto;">
-          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.3rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-          Edit settings
-        </button>
-        <button onclick="deactivateDigest(this)" class="btn" style="font-size:.8125rem;padding:.3rem .75rem;height:auto;background:transparent;border:1px solid var(--destructive);color:var(--destructive);">
-          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.3rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-          Deactivate
-        </button>
-      </div>
-      {% else %}
-      <div style="font-weight:600;font-size:.9375rem;">Digest not configured</div>
-      <div style="font-size:.8125rem;color:var(--muted-foreground);margin-top:.2rem;">
-        Enter a recipient email below to activate daily delivery.
-      </div>
-      <div style="margin-top:.5rem;">
-        <button onclick="editDigest()" class="btn btn-default" style="font-size:.8125rem;padding:.3rem .75rem;height:auto;">Configure now</button>
-      </div>
-      {% endif %}
-    </div>
-  </div>
 
   <!-- Job alert emails (reminders) -->
   {% if job_alerts %}
@@ -189,65 +142,6 @@
           <span id="ae-status" style="font-size:.8125rem;color:var(--muted-foreground);display:none;margin-left:.25rem;"></span>
         </div>
       </form>
-    </div>
-  </div>
-
-  <!-- Digest archive -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Digest archive</div>
-      <div class="card-description">All digests generated so far — click any to view the full HTML.</div>
-    </div>
-    <div class="card-content" style="padding:0;">
-      {% if files %}
-      <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
-          <thead>
-            <tr style="background:var(--muted);text-align:left;">
-              <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Date</th>
-              <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Size</th>
-              <th style="padding:.625rem 1rem;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-foreground);">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for f in files %}
-            <tr style="border-top:1px solid var(--border);" onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''">
-              <td style="padding:.75rem 1rem;font-weight:500;">
-                <div style="display:flex;align-items:center;gap:.5rem;">
-                  <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                  {{ f.date }}
-                  {% if loop.first %}<span class="badge badge-default" style="font-size:.7rem;margin-left:.25rem;">Latest</span>{% endif %}
-                </div>
-              </td>
-              <td style="padding:.75rem 1rem;color:var(--muted-foreground);font-size:.875rem;">{{ f.size_kb }} KB</td>
-              <td style="padding:.75rem 1rem;">
-                <div style="display:flex;align-items:center;gap:.75rem;">
-                  <a href="{{ url_for('serve_digest', filename=f.filename) }}"
-                     target="_blank" rel="noopener"
-                     style="display:inline-flex;align-items:center;gap:.3rem;font-size:.8125rem;color:var(--primary);text-decoration:none;font-weight:500;">
-                    View
-                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                  </a>
-                  <button onclick="deleteArchive(this, '{{ f.filename }}')"
-                          style="display:inline-flex;align-items:center;gap:.25rem;font-size:.8125rem;color:var(--muted-foreground);background:none;border:none;cursor:pointer;padding:0;"
-                          onmouseenter="this.style.color='var(--destructive)'" onmouseleave="this.style.color='var(--muted-foreground)'">
-                    <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div style="padding:3rem 1.5rem;text-align:center;color:var(--muted-foreground);">
-        <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin:0 auto 1rem;display:block;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        <p>No digests generated yet.</p>
-        <p class="text-sm" style="margin-top:.25rem;">The scraper generates a digest automatically after each run. You can also trigger one manually using "Send now" above.</p>
-      </div>
-      {% endif %}
     </div>
   </div>
 
@@ -392,47 +286,6 @@ async function saveAlertEdit(e) {
 document.getElementById('alert-edit-modal').addEventListener('click', function(e) {
   if (e.target === this) closeAlertEdit();
 });
-
-function editDigest() {
-  const el = document.getElementById('ds-email');
-  if (el) {
-    el.scrollIntoView({behavior: 'smooth', block: 'center'});
-    setTimeout(() => el.focus(), 350);
-  }
-}
-
-async function deactivateDigest(btn) {
-  if (!confirm('Stop sending digests? The email address will be cleared. You can re-enter it anytime.')) return;
-  btn.disabled = true;
-  btn.textContent = 'Deactivating…';
-  try {
-    const r = await fetch('/api/digest/deactivate', {method: 'POST'});
-    const data = await r.json();
-    if (!data.ok) throw new Error(data.error || 'Failed');
-    location.reload();
-  } catch (err) {
-    alert('Could not deactivate: ' + err.message);
-    btn.disabled = false;
-    btn.innerHTML = '<svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.3rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>Deactivate';
-  }
-}
-
-async function deleteArchive(btn, filename) {
-  if (!confirm('Delete this digest archive? This cannot be undone.')) return;
-  btn.disabled = true;
-  btn.textContent = '…';
-  try {
-    const r = await fetch('/api/digest/archive/' + encodeURIComponent(filename), {method: 'DELETE'});
-    const data = await r.json();
-    if (!data.ok) throw new Error(data.error || 'Failed');
-    const row = btn.closest('tr');
-    if (row) row.remove();
-  } catch (err) {
-    alert('Could not delete: ' + err.message);
-    btn.disabled = false;
-    btn.textContent = 'Delete';
-  }
-}
 
 async function sendNow() {
   const btn = document.getElementById('send-now-btn');
