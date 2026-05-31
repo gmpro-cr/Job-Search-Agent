@@ -1349,6 +1349,10 @@ def dashboard():
     if uid and cv_uploaded:
         _batch_cutoff = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(hours=24)).isoformat()
         _wide_cutoff  = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(days=7)).isoformat()
+        # Only surface genuinely-relevant matches. Below this, a listing is
+        # cross-domain noise (e.g. a PM role shown to a sales CV) — better to
+        # show an honest "still searching your roles" state than a bad match.
+        _MIN_DASH_MATCH = 50
 
         cur.execute(
             """
@@ -1363,10 +1367,11 @@ def dashboard():
             WHERE COALESCE(j.date_first_seen, j.date_found) >= ?
               AND COALESCE(s.hidden, 0) = 0
               AND COALESCE(s.applied_status, 0) = 0
+              AND COALESCE(s.cv_score, 0) >= ?
             ORDER BY COALESCE(s.cv_score, 0) DESC, j.date_first_seen DESC
             LIMIT 10
             """,
-            (uid, _batch_cutoff),
+            (uid, _batch_cutoff, _MIN_DASH_MATCH),
         )
         top_jobs = [dict(r) for r in cur.fetchall()]
         # Widen to 7 days if the 24-hour window has fewer than 3 results
@@ -1384,10 +1389,11 @@ def dashboard():
                 WHERE COALESCE(j.date_first_seen, j.date_found) >= ?
                   AND COALESCE(s.hidden, 0) = 0
                   AND COALESCE(s.applied_status, 0) = 0
+                  AND COALESCE(s.cv_score, 0) >= ?
                 ORDER BY COALESCE(s.cv_score, 0) DESC, j.date_first_seen DESC
                 LIMIT 10
                 """,
-                (uid, _wide_cutoff),
+                (uid, _wide_cutoff, _MIN_DASH_MATCH),
             )
             top_jobs = [dict(r) for r in cur.fetchall()]
     conn.close()

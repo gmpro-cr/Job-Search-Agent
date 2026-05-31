@@ -1193,6 +1193,121 @@ _SKILL_PATTERNS = {
     r"Wealth\s+Management": "Wealth Management",
     r"Asset\s+Management": "Asset Management",
     r"Petroleum|Oil\s*&\s*Gas": "Oil & Gas",
+
+    # ─── Marketing ─────────────────────────────────────────────────
+    r"\bSEO\b": "SEO",
+    r"\bSEM\b": "SEM",
+    r"\bPPC\b": "PPC",
+    r"Google\s+Ads|AdWords": "Google Ads",
+    r"Google\s+Analytics|\bGA4\b": "Google Analytics",
+    r"Content\s+Marketing": "Content Marketing",
+    r"Email\s+Marketing": "Email Marketing",
+    r"Social\s+Media\s+Marketing|Social\s+Media": "Social Media",
+    r"HubSpot": "HubSpot",
+    r"Marketo": "Marketo",
+    r"Marketing\s+Automation": "Marketing Automation",
+    r"Brand\s+(?:Strategy|Management)|Branding": "Branding",
+    r"Copywriting": "Copywriting",
+    r"Campaign\s+Management": "Campaign Management",
+    r"Conversion\s+Rate\s+Optimi[sz]ation|\bCRO\b": "Conversion Optimization",
+    r"Demand\s+Gen(?:eration)?": "Demand Generation",
+    r"Performance\s+Marketing": "Performance Marketing",
+
+    # ─── Sales / Business Development ──────────────────────────────
+    r"Salesforce": "Salesforce",
+    r"\bCRM\b": "CRM",
+    r"Account\s+Management": "Account Management",
+    r"Enterprise\s+Sales": "Enterprise Sales",
+    r"Lead\s+Generation": "Lead Generation",
+    r"Negotiation": "Negotiation",
+    r"Pipeline\s+Management|Sales\s+Pipeline": "Pipeline Management",
+    r"Solution\s+Selling": "Solution Selling",
+    r"Business\s+Development": "Business Development",
+    r"Cold\s+(?:Calling|Outreach|Emailing)": "Cold Outreach",
+    r"Quota\s+(?:Attainment|Carrying)?|Sales\s+Quota": "Quota Attainment",
+    r"Key\s+Account": "Key Account Management",
+
+    # ─── HR / People ───────────────────────────────────────────────
+    r"Recruit(?:ing|ment)": "Recruiting",
+    r"Talent\s+Acquisition": "Talent Acquisition",
+    r"Talent\s+Management": "Talent Management",
+    r"Employee\s+Relations": "Employee Relations",
+    r"Performance\s+Management": "Performance Management",
+    r"\bHRIS\b": "HRIS",
+    r"\bHRBP\b": "HRBP",
+    r"Workday": "Workday",
+    r"Compensation\s*(?:&|and)?\s*Benefits|\bC&B\b": "Compensation & Benefits",
+    r"Onboarding": "Onboarding",
+    r"Learning\s*(?:&|and)\s*Development|\bL&D\b": "Learning & Development",
+    r"Payroll": "Payroll",
+    r"Succession\s+Planning": "Succession Planning",
+
+    # ─── Design / UX ───────────────────────────────────────────────
+    r"\bSketch\b": "Sketch",
+    r"Adobe\s+XD": "Adobe XD",
+    r"InVision": "InVision",
+    r"Design\s+System": "Design Systems",
+    r"Usability\s+Testing": "Usability Testing",
+    r"Interaction\s+Design": "Interaction Design",
+    r"Visual\s+Design": "Visual Design",
+    r"Accessibility|\bWCAG\b": "Accessibility",
+    r"Photoshop": "Photoshop",
+    r"Illustrator": "Illustrator",
+    r"User\s+Experience": "User Experience",
+    r"Information\s+Architecture": "Information Architecture",
+    r"Design\s+Thinking": "Design Thinking",
+
+    # ─── Data Science / ML tools ───────────────────────────────────
+    r"TensorFlow": "TensorFlow",
+    r"PyTorch": "PyTorch",
+    r"scikit[\s-]?learn|sklearn": "scikit-learn",
+    r"\bpandas\b": "pandas",
+    r"\bNumPy\b": "NumPy",
+    r"Statistic(?:s|al)": "Statistics",
+    r"Data\s+Visuali[sz]ation": "Data Visualization",
+    r"Predictive\s+Model(?:ing|ling)?": "Predictive Modeling",
+    r"Computer\s+Vision": "Computer Vision",
+    r"\bLLMs?\b": "LLMs",
+    r"Recommendation\s+System": "Recommendation Systems",
+    r"Time\s+Series": "Time Series",
+
+    # ─── DevOps / Infra tools ──────────────────────────────────────
+    r"Terraform": "Terraform",
+    r"Jenkins": "Jenkins",
+    r"Prometheus": "Prometheus",
+    r"Grafana": "Grafana",
+    r"Ansible": "Ansible",
+    r"\bLinux\b": "Linux",
+    r"Observability": "Observability",
+    r"\bSRE\b|Site\s+Reliability": "SRE",
+    r"Infrastructure\s+as\s+Code|\bIaC\b": "Infrastructure as Code",
+    r"\bHelm\b": "Helm",
+
+    # ─── Engineering / Manufacturing ───────────────────────────────
+    r"SolidWorks": "SolidWorks",
+    r"AutoCAD": "AutoCAD",
+    r"\bCAD\b": "CAD",
+    r"Lean\s+Manufacturing": "Lean Manufacturing",
+    r"Six\s+Sigma": "Six Sigma",
+    r"Supply\s+Chain": "Supply Chain",
+    r"Quality\s+(?:Control|Assurance)": "Quality Assurance",
+    r"Production\s+Planning": "Production Planning",
+    r"\bCNC\b": "CNC",
+    r"\bGD&T\b": "GD&T",
+    r"Process\s+Improvement": "Process Improvement",
+    r"Manufacturing": "Manufacturing",
+    r"\bMATLAB\b": "MATLAB",
+    r"\bANSYS\b": "ANSYS",
+
+    # ─── Operations / General ──────────────────────────────────────
+    r"Project\s+Management|\bPMP\b": "Project Management",
+    r"Operations\s+Management": "Operations Management",
+    r"Vendor\s+Management": "Vendor Management",
+    r"Customer\s+Success": "Customer Success",
+    r"Customer\s+(?:Support|Service)": "Customer Support",
+    r"Process\s+Optimi[sz]ation": "Process Optimization",
+    r"Communication\s+Skills": "Communication",
+    r"Problem[\s-]Solving": "Problem Solving",
 }
 
 # Backward-compatible alias used by parse_cv_text()
@@ -1249,6 +1364,45 @@ _ROLE_BASES = [
     # General leadership
     "Director", "VP", "Head", "Founder", "Founding Engineer",
     "Consultant", "Research Scientist",
+
+    # HR / People
+    "HR Manager", "HR Business Partner", "HRBP", "Human Resources Manager",
+    "Talent Acquisition", "Talent Acquisition Specialist", "Recruiter",
+    "Technical Recruiter", "HR Generalist", "HR Executive", "People Partner",
+    "Compensation Analyst", "Learning and Development Manager",
+
+    # Sales / Business Development
+    "Sales Manager", "Sales Executive", "Account Executive", "Account Manager",
+    "Key Account Manager", "Sales Development Representative", "SDR",
+    "Business Development Executive", "Inside Sales", "Sales Director",
+    "Regional Sales Manager", "Pre-Sales Consultant", "Solutions Consultant",
+
+    # Marketing (beyond the existing manager roles)
+    "Digital Marketing Manager", "Performance Marketing Manager",
+    "Content Marketing Manager", "Product Marketing Manager", "SEO Specialist",
+    "Social Media Manager", "Marketing Executive", "Content Writer",
+    "Marketing Analyst", "Demand Generation Manager",
+
+    # Design (beyond UX/UI)
+    "Graphic Designer", "Visual Designer", "Interaction Designer",
+    "Design Lead", "UX Researcher", "Motion Designer",
+
+    # Mechanical / Manufacturing / Civil / Electrical
+    "Mechanical Engineer", "Manufacturing Engineer", "Production Engineer",
+    "Design Engineer", "Quality Engineer", "Process Engineer",
+    "Maintenance Engineer", "Industrial Engineer", "Civil Engineer",
+    "Electrical Engineer", "Production Manager", "Plant Manager",
+    "Quality Manager", "Supply Chain Manager", "Procurement Manager",
+    "Logistics Manager", "Operations Executive",
+
+    # Healthcare / Life sciences
+    "Registered Nurse", "Staff Nurse", "Pharmacist", "Clinical Research Associate",
+    "Medical Officer", "Healthcare Administrator", "Lab Technician",
+
+    # Legal / Admin / Support / Content
+    "Legal Counsel", "Legal Associate", "Paralegal", "Company Secretary",
+    "Content Strategist", "Technical Writer", "Customer Support Executive",
+    "Customer Success Manager", "Administrative Manager", "Executive Assistant",
 ]
 _SENIORITIES = ["Senior", "Sr\\.?", "Staff", "Principal", "Lead", "Chief", "Junior", "Jr\\.?", "Associate"]
 _ROLE_REGEX = re.compile(
@@ -1319,6 +1473,41 @@ def _suggest_locations(text, limit=5):
     return out
 
 
+def _extract_skills_section(text):
+    """
+    Return the raw text of a CV's Skills / Competencies section, if present.
+    Handles both inline ("Skills: A, B, C") and block ("SKILLS\nA, B, C")
+    layouts, stopping at the next major section heading or blank line.
+    """
+    if not text:
+        return ""
+    header = re.compile(
+        r'^\s*(?:technical\s+|core\s+|key\s+)?'
+        r'(?:skills|competencies|areas of expertise|skill set)\s*[:\-]?\s*(.*)$',
+        re.IGNORECASE)
+    section_break = re.compile(
+        r'^\s*(experience|education|projects?|summary|profile|work\b|employment|'
+        r'certifications?|achievements?|awards?|languages?|interests?|references?)\b',
+        re.IGNORECASE)
+    out, capturing = [], False
+    for ln in text.splitlines():
+        if not capturing:
+            m = header.match(ln)
+            if m:
+                capturing = True
+                if m.group(1).strip():
+                    out.append(m.group(1))
+            continue
+        if not ln.strip():
+            if out:
+                break
+            continue
+        if section_break.match(ln):
+            break
+        out.append(ln)
+    return " ".join(out)
+
+
 def parse_cv_text(text):
     """
     Parse raw CV text and extract structured data.
@@ -1346,7 +1535,19 @@ def parse_cv_text(text):
             if display not in found_skills:
                 found_skills.append(display)
 
-    base["skills"] = found_skills
+    # Generic fallback: pull explicit skills from a "Skills" section so CVs
+    # whose terminology isn't in the dictionary still surface real skills.
+    # Critical for non-tech backgrounds (HR, sales, design, manufacturing…)
+    # where the pattern dictionary alone under-extracts.
+    _lower = {s.lower() for s in found_skills}
+    for phrase in re.split(r'[,•|/;\n]+', _extract_skills_section(text)):
+        p = phrase.strip(" .\t-•·")
+        if 2 <= len(p) <= 32 and not p.replace(" ", "").isdigit() and p.lower() not in _lower:
+            disp = p if (p.isupper() and len(p) <= 5) else p.title() if p.islower() else p
+            found_skills.append(disp)
+            _lower.add(p.lower())
+
+    base["skills"] = found_skills[:30]
     base["suggested_job_titles"] = _suggest_job_titles(text)
     base["suggested_locations"] = _suggest_locations(text)
     return base

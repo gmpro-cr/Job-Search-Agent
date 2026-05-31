@@ -168,12 +168,12 @@
     </div>
     {% else %}
     <div class="empty-state">
-      <p><strong>No matches above zero in the last 24&nbsp;hours yet.</strong></p>
-      <p style="margin-top:.5rem;max-width:46ch;margin-inline:auto;">
-        Most of today's scrape may be in domains far from yours.
-        Browse <a href="{{ url_for('jobs') }}">all jobs</a> directly,
-        or sharpen your <a href="{{ url_for('preferences') }}">preferences</a> —
-        the next scrape (07:00 / 19:00 IST) will use them to pull fresh listings.
+      <p><strong>No strong matches yet — we're still searching your roles.</strong></p>
+      <p style="margin-top:.5rem;max-width:50ch;margin-inline:auto;">
+        Your profile is set. The next scrape (07:00 &amp; 19:00 IST) searches the
+        portals for your target roles, so your first matches land shortly after.
+        In the meantime, browse <a href="{{ url_for('jobs') }}">all jobs</a> or
+        fine-tune your <a href="{{ url_for('preferences') }}">preferences</a>.
       </p>
     </div>
     {% endif %}
