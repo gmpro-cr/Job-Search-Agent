@@ -1547,6 +1547,133 @@ def _preference_boost(job, jd_text_lower, preferences):
     return boost
 
 
+# ── ATS readiness score ──────────────────────────────────────────────────
+# Heuristic, no external services. Scores how well an uploaded CV is structured
+# to pass automated screening and match the user's target roles.
+_ATS_ACTION_VERBS = {
+    "led", "built", "launched", "shipped", "drove", "managed", "owned", "created",
+    "designed", "developed", "implemented", "delivered", "improved", "increased",
+    "reduced", "optimized", "optimised", "scaled", "grew", "negotiated", "analyzed",
+    "analysed", "automated", "streamlined", "spearheaded", "established", "executed",
+    "coordinated", "mentored", "architected", "initiated", "accelerated", "generated",
+    "saved", "boosted", "achieved", "transformed", "directed", "founded",
+}
+
+_ATS_SECTION_HINTS = {
+    "experience": ("experience", "work history", "employment", "professional experience"),
+    "education":  ("education", "academic", "qualification"),
+    "skills":     ("skills", "technical skills", "competencies", "core competencies"),
+    "summary":    ("summary", "profile", "objective", "about me"),
+}
+
+
+def compute_ats_score(cv_data, preferences=None, market_skills=None):
+    """
+    Heuristic ATS-readiness score (0-100) for an uploaded CV.
+
+    Derived entirely from the parsed CV text + the user's skills, plus — when
+    available — the in-demand skills for the user's target roles (for the
+    keyword-coverage component). No external API; safe to run on Vercel.
+
+    Returns: {score, band, breakdown:[{label, points, max, status}], suggestions:[...]}.
+    """
+    preferences = preferences or {}
+    cv_data = cv_data or {}
+    raw = cv_data.get("raw_text") or ""
+    text = raw.lower()
+    skills = cv_data.get("skills") or []
+    breakdown = []
+    suggestions = []
+
+    def add(label, pts, mx, ok, tip=None):
+        breakdown.append({
+            "label": label, "points": int(pts), "max": mx,
+            "status": "pass" if ok else ("warn" if pts > 0 else "fail"),
+        })
+        if tip and not ok:
+            suggestions.append(tip)
+
+    # 1. Contact details (10)
+    has_email = bool(re.search(r'[\w.+-]+@[\w-]+\.[\w.-]+', raw))
+    has_phone = bool(re.search(r'(\+?\d[\d\s().-]{7,}\d)', raw))
+    c_pts = (5 if has_email else 0) + (5 if has_phone else 0)
+    add("Contact details (email + phone)", c_pts, 10, c_pts == 10,
+        "Add a clear email and phone number near the top — parsers look for them first.")
+
+    # 2. Standard sections (20)
+    sec_pts = 0
+    missing = []
+    for key, hints in _ATS_SECTION_HINTS.items():
+        if any(h in text for h in hints):
+            sec_pts += 5
+        else:
+            missing.append(key)
+    add("Standard sections present", sec_pts, 20, not missing,
+        ("Add clear headings for: " + ", ".join(missing) + ".") if missing else None)
+
+    # 3. Skills depth (15)
+    ns = len(skills)
+    sk_pts = 15 if ns >= 12 else 11 if ns >= 8 else 7 if ns >= 5 else max(0, ns)
+    add(f"Skills listed ({ns})", sk_pts, 15, ns >= 8,
+        "List 8–12 concrete, role-relevant skills in a dedicated Skills section.")
+
+    # 4. Quantified achievements (15)
+    lines_with_numbers = sum(
+        1 for ln in raw.splitlines()
+        if re.search(r'\d', ln) and len(ln.strip()) > 20
+    )
+    q_pts = 15 if lines_with_numbers >= 8 else 10 if lines_with_numbers >= 4 else 5 if lines_with_numbers >= 1 else 0
+    add(f"Quantified achievements ({lines_with_numbers} lines with metrics)", q_pts, 15, lines_with_numbers >= 4,
+        "Quantify impact in your bullets — %, revenue, time saved, users, scale.")
+
+    # 5. Strong action verbs (10)
+    found_verbs = {v for v in _ATS_ACTION_VERBS if re.search(r'\b' + re.escape(v) + r'\b', text)}
+    nv = len(found_verbs)
+    v_pts = 10 if nv >= 8 else 7 if nv >= 5 else 4 if nv >= 2 else 0
+    add(f"Strong action verbs ({nv})", v_pts, 10, nv >= 5,
+        "Start bullets with strong verbs (Led, Built, Launched, Reduced…).")
+
+    # 6. Length (10)
+    words = len(re.findall(r'\b\w+\b', raw))
+    if 350 <= words <= 1000:
+        l_pts, l_ok = 10, True
+    elif 250 <= words <= 1400:
+        l_pts, l_ok = 6, False
+    else:
+        l_pts, l_ok = 3, False
+    add(f"Length (~{words} words)", l_pts, 10, l_ok,
+        "Aim for ~1–2 pages (≈350–1000 words) — too short reads thin, too long won't be read.")
+
+    # 7. Keyword match to target roles (20)
+    market = market_skills or []
+    if market:
+        skl = {s.lower() for s in skills}
+        topn = market[:15]
+        present, missing_kw = 0, []
+        for m in topn:
+            name = (m.get("skill") if isinstance(m, dict) else m) or ""
+            if not name:
+                continue
+            if name.lower() in skl or name.lower() in text:
+                present += 1
+            else:
+                missing_kw.append(name)
+        frac = present / max(len(topn), 1)
+        cov_pts = round(frac * 20)
+        cov_ok = frac >= 0.5
+        tip = ("Add in-demand keywords for your target roles where you have real experience: "
+               + ", ".join(missing_kw[:6]) + ".") if (not cov_ok and missing_kw) else None
+        add(f"Keyword match to target roles ({present}/{len(topn)})", cov_pts, 20, cov_ok, tip)
+    else:
+        # No market data — give a neutral score rather than penalising.
+        add("Keyword match to target roles", 12, 20, True)
+
+    score = max(0, min(100, sum(b["points"] for b in breakdown)))
+    band = ("Strong" if score >= 80 else "Good" if score >= 60
+            else "Needs work" if score >= 40 else "Weak")
+    return {"score": score, "band": band, "breakdown": breakdown, "suggestions": suggestions[:6]}
+
+
 # Curated tips for common missing skills
 SKILL_TIPS = {
     "python": "Take a free Python for Data Analysis course on Kaggle (2-3 days). Focus on pandas.",

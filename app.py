@@ -2890,6 +2890,7 @@ def cv_page():
     return render_template("cv.html",
         cv_data=cv_data,
         cv_filename=cv_filename,
+        cv_uploaded=cv_data is not None,
         cv_uploaded_at=cv_uploaded_at,
         cv_skills_count=cv_skills_count,
         skill_demand=skill_demand,
@@ -3283,6 +3284,27 @@ def cv_keyword_heatmap():
     from database import get_keyword_frequency
     keywords = get_keyword_frequency(job_titles)
     return jsonify({"ok": True, "keywords": keywords})
+
+
+@app.route("/api/cv/ats-score")
+def cv_ats_score():
+    """ATS-readiness score for the user's CV (heuristic; see analyzer.compute_ats_score)."""
+    uid = require_user_id()
+    cv_data = load_cv_data(uid)
+    if not cv_data:
+        return jsonify({"ok": True, "score": 0, "band": "No CV", "breakdown": [],
+                        "suggestions": ["Upload your CV to get an ATS readiness score."]})
+    preferences = load_preferences(uid) or DEFAULT_PREFS.copy()
+    market_skills = []
+    try:
+        from database import get_skill_frequency
+        market_skills = get_skill_frequency(preferences.get("job_titles") or [], limit=20)
+    except Exception as e:
+        logger.warning("ATS market-skill lookup failed for user %s: %s", uid, e)
+    from analyzer import compute_ats_score
+    result = compute_ats_score(cv_data, preferences, market_skills)
+    result["ok"] = True
+    return jsonify(result)
 
 
 @app.route("/api/cv/profile-score")

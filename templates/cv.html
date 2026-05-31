@@ -334,6 +334,31 @@
   </div>
   {% endif %}
 
+  <!-- ATS readiness -->
+  <div class="card" id="ats-card">
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+      <div>
+        <div class="card-title">ATS Readiness</div>
+        <div class="card-description">How well your CV is structured to pass automated screening and match your target roles.</div>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:.4rem;">
+        <span id="ats-score" style="font-size:2rem;font-weight:700;line-height:1;color:var(--accent);">—</span>
+        <span style="font-size:.8rem;color:var(--muted-foreground);">/ 100</span>
+        <span id="ats-band" class="ats-band"></span>
+      </div>
+    </div>
+    <div class="card-content" style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.75rem;">
+      <div>
+        <p class="ats-subhead">Breakdown</p>
+        <div id="ats-breakdown"><span class="text-muted" style="font-size:.875rem;">Analysing your CV…</span></div>
+      </div>
+      <div>
+        <p class="ats-subhead">Suggested fixes</p>
+        <ul id="ats-suggestions" class="ats-tips"><li class="text-muted" style="font-size:.875rem;list-style:none;">Analysing your CV…</li></ul>
+      </div>
+    </div>
+  </div>
+
   {% endif %}<!-- end cv_filename -->
 </div>
 {% endblock %}
@@ -502,6 +527,36 @@
             <span style="width:2rem;text-align:right;color:var(--muted-foreground);font-size:.75rem;">${s.pct}%</span>
           </div>`).join('');
       }).catch(() => {});
+  })();
+
+  // ── ATS readiness ───────────────────────────────────────────────
+  (function () {
+    const scoreEl = document.getElementById('ats-score');
+    if (!scoreEl) return;
+    fetch('/api/cv/ats-score')
+      .then(r => r.json())
+      .then(d => {
+        if (!d || !d.ok) return;
+        const col = d.score >= 80 ? 'var(--success)' : d.score >= 60 ? 'var(--accent)'
+                  : d.score >= 40 ? 'var(--warning)' : 'var(--destructive)';
+        scoreEl.textContent = d.score;
+        scoreEl.style.color = col;
+        const band = document.getElementById('ats-band');
+        if (band) { band.textContent = d.band; band.style.color = col; band.style.borderColor = col; }
+        const bd = document.getElementById('ats-breakdown');
+        if (bd) bd.innerHTML = (d.breakdown || []).map(b => {
+          const pct = Math.max(4, Math.round(b.points / b.max * 100));
+          const c = b.status === 'pass' ? 'var(--success)' : b.status === 'warn' ? 'var(--warning)' : 'var(--destructive)';
+          return `<div class="ats-row"><div class="ats-row-top"><span>${b.label}</span>`
+               + `<span class="tabular" style="color:var(--muted-foreground);">${b.points}/${b.max}</span></div>`
+               + `<div class="ats-bar"><div class="ats-bar-fill" style="width:${pct}%;background:${c};"></div></div></div>`;
+        }).join('');
+        const sg = document.getElementById('ats-suggestions');
+        if (sg) sg.innerHTML = (d.suggestions && d.suggestions.length)
+          ? d.suggestions.map(s => `<li>${s}</li>`).join('')
+          : '<li class="ats-ok">Your CV covers the ATS basics — no major issues found.</li>';
+      })
+      .catch(() => {});
   })();
   {% endif %}
 </script>

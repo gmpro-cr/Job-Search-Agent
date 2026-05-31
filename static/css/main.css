@@ -2634,3 +2634,68 @@ body.public-page {
   background: var(--warning); flex-shrink: 0;
 }
 @media (max-width: 480px) { .demo-badge { display: none; } }
+
+/* ── ATS readiness card (Profile & CV page) ── */
+.ats-band {
+  margin-left: 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  color: var(--muted-foreground);
+}
+.ats-subhead {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground);
+  margin: 0 0 0.875rem;
+}
+.ats-row { margin-bottom: 0.875rem; }
+.ats-row:last-child { margin-bottom: 0; }
+.ats-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--foreground);
+  margin-bottom: 0.3125rem;
+}
+.ats-bar {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--muted);
+  overflow: hidden;
+}
+.ats-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s var(--ease-out-soft);
+}
+.ats-tips { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.625rem; }
+.ats-tips li {
+  position: relative;
+  padding-left: 1.125rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--muted-strong);
+}
+.ats-tips li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0.5rem;
+  width: 0.375rem; height: 0.375rem;
+  border-radius: 2px;
+  background: var(--warning);
+}
+.ats-tips li.ats-ok { padding-left: 0; color: var(--success); font-weight: 500; }
+.ats-tips li.ats-ok::before { display: none; }
+@media (max-width: 720px) {
+  #ats-card .card-content { grid-template-columns: 1fr !important; }
+}
