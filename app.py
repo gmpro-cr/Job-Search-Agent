@@ -1349,18 +1349,11 @@ def dashboard():
         )
         high_match_today = cur.fetchone()["n"]
 
-    # 4) Top 10 scored matches from the last 24 hours (date_first_seen window).
-    #    Falls back to 7 days if the 24-hour window has fewer than 3 results.
+    # 4) Top 10 best-matched jobs from the last 24 hours strictly.
+    #    24-hour window is the filter; cv_score is the sort. No fallback.
     top_jobs = []
-    top_jobs_window = "24h"
     if uid and cv_uploaded:
         _batch_cutoff = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(hours=24)).isoformat()
-        _wide_cutoff  = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(days=7)).isoformat()
-        # Only surface genuinely-relevant matches. Below this, a listing is
-        # cross-domain noise (e.g. a PM role shown to a sales CV) — better to
-        # show an honest "still searching your roles" state than a bad match.
-        _MIN_DASH_MATCH = 50
-
         cur.execute(
             """
             SELECT j.job_id, j.role, j.company, j.location,
@@ -1374,37 +1367,12 @@ def dashboard():
             WHERE COALESCE(j.date_first_seen, j.date_found) >= ?
               AND COALESCE(s.hidden, 0) = 0
               AND COALESCE(s.applied_status, 0) = 0
-              AND COALESCE(s.cv_score, 0) >= ?
-            ORDER BY COALESCE(s.cv_score, 0) DESC, j.date_first_seen DESC
+            ORDER BY COALESCE(s.cv_score, 0) DESC, j.date_found DESC
             LIMIT 10
             """,
-            (uid, _batch_cutoff, _MIN_DASH_MATCH),
+            (uid, _batch_cutoff),
         )
         top_jobs = [dict(r) for r in cur.fetchall()]
-        # Widen to 7 days if the 24-hour window has fewer than 3 results
-        if len(top_jobs) < 3:
-            cur.execute(
-                """
-                SELECT j.job_id, j.role, j.company, j.location,
-                       j.remote_status, j.salary, j.portal, j.apply_url,
-                       j.date_found, j.date_first_seen,
-                       COALESCE(s.cv_score, 0) AS cv_score,
-                       s.viewed_at
-                FROM job_listings j
-                LEFT JOIN user_job_state s
-                  ON s.job_id = j.job_id AND s.user_id = ?
-                WHERE COALESCE(j.date_first_seen, j.date_found) >= ?
-                  AND COALESCE(s.hidden, 0) = 0
-                  AND COALESCE(s.applied_status, 0) = 0
-                  AND COALESCE(s.cv_score, 0) >= ?
-                ORDER BY COALESCE(s.cv_score, 0) DESC, j.date_first_seen DESC
-                LIMIT 10
-                """,
-                (uid, _wide_cutoff, _MIN_DASH_MATCH),
-            )
-            top_jobs = [dict(r) for r in cur.fetchall()]
-            if top_jobs:
-                top_jobs_window = "7d"
     conn.close()
 
     return render_template(
@@ -1413,7 +1381,6 @@ def dashboard():
         viewed_today=viewed_today,
         high_match_today=high_match_today,
         top_jobs=top_jobs,
-        top_jobs_window=top_jobs_window,
         cv_uploaded=cv_uploaded,
         user_email=user_email,
         user_name=user_name,
