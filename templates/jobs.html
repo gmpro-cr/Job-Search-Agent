@@ -318,11 +318,16 @@
                    : 0;
     const now = Date.now();
 
+    // date_found is refreshed every scrape; date_first_seen is immutable.
+    // Use date_first_seen for age comparisons, fall back to date_found for
+    // old rows that predate the column.
+    const jobAge = j => asUtcMs(j.date_first_seen || j.date_found);
+
     let filtered = src.filter(j => {
       const score = j.cv_score || j.relevance_score || 0;
       if (minScore > 0 && score < minScore) return false;
       if (cutoffMs > 0) {
-        const ms = asUtcMs(j.date_found);
+        const ms = jobAge(j);
         if (!ms || (now - ms) > cutoffMs) return false;
       }
       return true;
@@ -332,7 +337,7 @@
     if (sortBy === 'score') {
       filtered.sort((a, b) => (b.cv_score || b.relevance_score || 0) - (a.cv_score || a.relevance_score || 0));
     } else {
-      filtered.sort((a, b) => asUtcMs(b.date_found) - asUtcMs(a.date_found));
+      filtered.sort((a, b) => jobAge(b) - jobAge(a));
     }
     updateDisplayFilterBar(minScore, recency);
     renderJobs(filtered);
@@ -430,7 +435,7 @@
       const initial = (job.company||'?')[0].toUpperCase();
       const remote = job.remote_status || '';
       const portal = job.portal || '';
-      const date = job.date_found ? timeAgo(job.date_found) : '';
+      const date = timeAgo(job.date_first_seen || job.date_found);
       const applyUrl = escHtml(job.apply_url || '#');
       const scoreClass = score >= 80 ? 'top-job-score-high' : score >= 60 ? 'top-job-score-mid' : 'top-job-score-low';
 

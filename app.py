@@ -1951,7 +1951,8 @@ def api_jobs_list():
             SELECT j.job_id, j.role, j.company, j.location, j.salary,
                    j.salary_currency, j.remote_status, j.portal, j.apply_url,
                    j.job_description, j.relevance_score, j.date_found,
-                   j.date_posted, j.experience_min, j.experience_max,
+                   j.date_first_seen, j.date_posted,
+                   j.experience_min, j.experience_max,
                    COALESCE(s.cv_score, 0)       AS cv_score,
                    COALESCE(s.applied_status, 0) AS applied_status,
                    s.applied_date                AS applied_date,
@@ -1963,7 +1964,7 @@ def api_jobs_list():
             WHERE COALESCE(j.relevance_score, 0) >= ?
               AND COALESCE(s.hidden, 0) = 0
               {loc_where}{mode_where}
-            ORDER BY j.date_found DESC
+            ORDER BY COALESCE(j.date_first_seen, j.date_found) DESC
             LIMIT ?
             """,
             [uid, min_score] + loc_params + mode_params + [limit],
@@ -1973,7 +1974,7 @@ def api_jobs_list():
             """
             SELECT job_id, role, company, location, salary, salary_currency,
                    remote_status, portal, apply_url, job_description,
-                   relevance_score, date_found, date_posted,
+                   relevance_score, date_found, date_first_seen, date_posted,
                    experience_min, experience_max,
                    COALESCE(cv_score, 0) AS cv_score,
                    COALESCE(applied_status, 0) AS applied_status,
@@ -1982,7 +1983,7 @@ def api_jobs_list():
             FROM job_listings
             WHERE COALESCE(relevance_score, 0) >= ?
               AND (hidden = 0 OR hidden IS NULL)
-            ORDER BY date_found DESC
+            ORDER BY COALESCE(date_first_seen, date_found) DESC
             LIMIT ?
             """,
             (min_score, limit),
