@@ -1352,6 +1352,7 @@ def dashboard():
     # 4) Top 10 scored matches from the last 24 hours (date_first_seen window).
     #    Falls back to 7 days if the 24-hour window has fewer than 3 results.
     top_jobs = []
+    top_jobs_window = "24h"
     if uid and cv_uploaded:
         _batch_cutoff = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(hours=24)).isoformat()
         _wide_cutoff  = (datetime.now(_tz.utc).replace(tzinfo=None) - timedelta(days=7)).isoformat()
@@ -1402,6 +1403,8 @@ def dashboard():
                 (uid, _wide_cutoff, _MIN_DASH_MATCH),
             )
             top_jobs = [dict(r) for r in cur.fetchall()]
+            if top_jobs:
+                top_jobs_window = "7d"
     conn.close()
 
     return render_template(
@@ -1410,6 +1413,7 @@ def dashboard():
         viewed_today=viewed_today,
         high_match_today=high_match_today,
         top_jobs=top_jobs,
+        top_jobs_window=top_jobs_window,
         cv_uploaded=cv_uploaded,
         user_email=user_email,
         user_name=user_name,
@@ -1937,12 +1941,13 @@ def api_jobs_list():
     loc_where = ""
     loc_params: list = []
     all_locations = request.args.get("all_locations", "0") not in ("", "0", "false")
+    user_prefs: dict = {}
     if uid and not all_locations:
         try:
-            user_prefs = load_preferences(uid)
-            pref_locs = [l.strip() for l in user_prefs.get("locations", []) if l.strip()]
+            user_prefs = load_preferences(uid) or {}
         except Exception:
-            pref_locs = []
+            user_prefs = {}
+        pref_locs = [l.strip() for l in user_prefs.get("locations", []) if l.strip()]
         if pref_locs:
             loc_conds = []
             for loc in pref_locs:
@@ -1988,7 +1993,7 @@ def api_jobs_list():
             FROM job_listings j
             LEFT JOIN user_job_state s
               ON s.job_id = j.job_id AND s.user_id = ?
-            WHERE j.relevance_score >= ?
+            WHERE COALESCE(j.relevance_score, 0) >= ?
               AND COALESCE(s.hidden, 0) = 0
               {loc_where}{mode_where}
             ORDER BY j.date_found DESC
@@ -2008,7 +2013,7 @@ def api_jobs_list():
                    applied_date, user_notes,
                    COALESCE(hidden, 0) AS hidden
             FROM job_listings
-            WHERE relevance_score >= ?
+            WHERE COALESCE(relevance_score, 0) >= ?
               AND (hidden = 0 OR hidden IS NULL)
             ORDER BY date_found DESC
             LIMIT ?

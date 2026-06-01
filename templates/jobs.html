@@ -49,11 +49,17 @@
     <span id="nlp-banner-text"></span>
     <button onclick="clearNlpSearch()" style="border:none;background:none;color:var(--primary);cursor:pointer;padding:0;font-size:.8125rem;text-decoration:underline;">Clear</button>
   </div>
-  <!-- Preference filter active indicator -->
+  <!-- Server-side preference filter indicator -->
   <div id="location-filter-bar" style="display:none;align-items:center;gap:.5rem;font-size:.8125rem;color:var(--muted-foreground);margin-bottom:.25rem;flex-wrap:wrap;">
     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
     <span id="location-filter-label"></span>
     <button onclick="toggleAllLocations()" id="location-toggle-btn" style="border:none;background:none;color:var(--primary);cursor:pointer;padding:0;font-size:.8125rem;text-decoration:underline;"></button>
+  </div>
+  <!-- Client-side display filter active indicator -->
+  <div id="display-filter-bar" style="display:none;align-items:center;gap:.5rem;font-size:.8125rem;color:var(--muted-foreground);margin-bottom:.25rem;flex-wrap:wrap;">
+    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+    <span id="display-filter-label"></span>
+    <button onclick="clearDisplayFilters()" style="border:none;background:none;color:var(--primary);cursor:pointer;padding:0;font-size:.8125rem;text-decoration:underline;">Clear</button>
   </div>
 
   <!-- Job list (full width now) -->
@@ -328,7 +334,36 @@
     } else {
       filtered.sort((a, b) => asUtcMs(b.date_found) - asUtcMs(a.date_found));
     }
+    updateDisplayFilterBar(minScore, recency);
     renderJobs(filtered);
+  }
+
+  function updateDisplayFilterBar(minScore, recency) {
+    const bar = document.getElementById('display-filter-bar');
+    const label = document.getElementById('display-filter-label');
+    if (!bar) return;
+    const parts = [];
+    if (minScore > 0) parts.push(`score ≥ ${minScore}`);
+    if (recency === '24h') parts.push('last 24 hours');
+    else if (recency === '3d') parts.push('last 3 days');
+    else if (recency === '1w') parts.push('last week');
+    if (parts.length) {
+      bar.style.display = 'flex';
+      label.textContent = `Showing only: ${parts.join(', ')}.`;
+    } else {
+      bar.style.display = 'none';
+    }
+  }
+
+  function clearDisplayFilters() {
+    saveDisplayFilters(0, '', 'date');
+    const ms = document.getElementById('p-min-score');
+    const rc = document.getElementById('p-recency');
+    const so = document.getElementById('p-sort');
+    if (ms) ms.value = '0';
+    if (rc) rc.value = '';
+    if (so) so.value = 'date';
+    applyDisplayFilters();
   }
 
   // ── NLP search ────────────────────────────────────────────────
@@ -451,7 +486,7 @@
     return d + 'd ago';
   }
 
-  // Restore display filter selects on page load (UI only — actual filtering in applyDisplayFilters)
+  // Restore display filter selects on page load and show active filter banner
   (function() {
     const { minScore, recency, sortBy } = getDisplayFilters();
     const ms = document.getElementById('p-min-score');
@@ -460,6 +495,7 @@
     if (ms) ms.value = String(minScore);
     if (rc) rc.value = recency;
     if (so) so.value = sortBy;
+    updateDisplayFilterBar(minScore, recency);
   })();
 
   loadJobs();
@@ -530,11 +566,12 @@
     btn.disabled = true;
     btn.textContent = 'Saving…';
 
-    // Save display filters to localStorage immediately
+    // Apply display filters immediately (client-side) before waiting for server
     const minScore = parseInt(document.getElementById('p-min-score').value || '0', 10);
     const recency  = document.getElementById('p-recency').value || '';
     const sortBy   = document.getElementById('p-sort')?.value || 'date';
     saveDisplayFilters(minScore, recency, sortBy);
+    applyDisplayFilters();
 
     const getTags = id => Array.from(document.querySelectorAll('#' + id + ' .tag-pill')).map(pPillText).filter(Boolean);
     const modes = Array.from(document.querySelectorAll('input[name="p_work_modes"]:checked')).map(cb => cb.value);
@@ -556,7 +593,7 @@
       if (!data.ok) throw new Error('Save failed');
       document.getElementById('prefs-modal').style.display = 'none';
       document.body.style.overflow = '';
-      // Reload jobs with new preferences
+      // Reload jobs to apply the new server-side preference filters
       nlpResults = null;
       document.getElementById('nlp-input').value = '';
       document.getElementById('nlp-clear-btn').style.display = 'none';
@@ -565,10 +602,14 @@
       document.getElementById('jobs-list').innerHTML = '';
       loadJobs();
     } catch (e) {
-      alert('Could not save preferences. Please try again.');
+      // Server-side prefs (location, work mode) couldn't be saved; display
+      // filters were already applied above. Close modal and warn.
+      document.getElementById('prefs-modal').style.display = 'none';
+      document.body.style.overflow = '';
+      alert('Display filters applied. Could not save location/work-mode preferences — please try again.');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Save & refresh';
+      btn.textContent = 'Save & apply';
     }
   }
 </script>
