@@ -2304,29 +2304,41 @@ def get_all_users_with_cv_data() -> list:
     return result
 
 
-def get_all_user_targets() -> tuple:
-    """Union of all users' job_titles and locations from user_preferences.
+def get_all_user_targets(max_titles: int = 20, max_locations: int = 6) -> tuple:
+    """Most-requested job_titles and locations across all users.
 
-    Used by the scraper to build search queries that cover every user.
-    Returns (titles: list[str], locations: list[str]).
+    The scraper's runtime is ~ portals x titles x locations x pages, so an
+    unbounded union of every user's preferences blows past the GitHub Actions
+    timeout as the user base grows (which is exactly what cancelled the scrape
+    from 2026-05-29). We therefore rank titles/locations by how many users want
+    them and keep only the most common, bounding scrape time regardless of how
+    many users register. Returns (titles, locations) ordered most-common first.
     """
     import json as _json
+    from collections import Counter
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT prefs_json FROM user_preferences WHERE prefs_json IS NOT NULL")
     rows = cursor.fetchall()
     conn.close()
-    titles:    set = set()
-    locations: set = set()
+    title_counts: Counter = Counter()
+    loc_counts:   Counter = Counter()
     for row in rows:
         try:
             prefs = _json.loads(row["prefs_json"])
+            seen_t, seen_l = set(), set()
             for t in (prefs.get("job_titles") or []):
-                if t.strip():
-                    titles.add(t.strip())
+                t = (t or "").strip()
+                if t and t.lower() not in seen_t:
+                    seen_t.add(t.lower())
+                    title_counts[t] += 1
             for l in (prefs.get("locations") or []):
-                if l.strip():
-                    locations.add(l.strip())
+                l = (l or "").strip()
+                if l and l.lower() not in seen_l:
+                    seen_l.add(l.lower())
+                    loc_counts[l] += 1
         except Exception:
             pass
-    return list(titles), list(locations)
+    titles = [t for t, _ in title_counts.most_common(max_titles)]
+    locations = [l for l, _ in loc_counts.most_common(max_locations)]
+    return titles, locations

@@ -12,7 +12,10 @@ env:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    # Repo is public -> Actions minutes are free. Capped targets keep the real
+    # runtime well under this; the headroom just prevents a borderline run from
+    # being cancelled (which is what silently stopped scraping on 2026-05-29).
+    timeout-minutes: 90
 
     permissions:
       contents: read
