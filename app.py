@@ -469,7 +469,11 @@ def _reschedule_hr_jobs():
 
 
 def _send_prd_email_job():
-    """Scheduled job: generate today's PRD and send it via email."""
+    """
+    Generate today's PRD and send it via email. Returns (ok, message) so a
+    request handler can report the real outcome — important on Vercel where a
+    fire-and-forget thread is killed before the SMTP send completes.
+    """
     try:
         from prd_generator import generate_daily_prd, build_prd_email_html
         import smtplib
@@ -483,10 +487,10 @@ def _send_prd_email_job():
 
         if not gmail_address or not gmail_app_password:
             logger.warning("PRD email skipped — Gmail credentials not configured in Settings")
-            return
+            return False, "Gmail credentials are not configured in Settings."
         if not recipient:
             logger.warning("PRD email skipped — no recipient email in Settings")
-            return
+            return False, "No recipient email is set in Settings."
 
         prd = generate_daily_prd()
         html_body = build_prd_email_html(prd)
@@ -506,8 +510,10 @@ def _send_prd_email_job():
             server.sendmail(gmail_address, [recipient], msg.as_string())
 
         logger.info("PRD email sent to %s: %s", recipient, prd["product"]["name"])
+        return True, recipient
     except Exception as e:
         logger.error("PRD email job failed: %s", e)
+        return False, str(e)
 
 
 def _startup_catchup():
@@ -4151,11 +4157,18 @@ def prd_send_now():
     require_user_id()
     if _is_demo_user():
         return jsonify({"ok": False, "error": "Email sending is disabled in the demo."}), 403
+    # Send synchronously: on Vercel a background thread is terminated when the
+    # response returns, so the email would never actually go out. This blocks
+    # until the SMTP send completes (well within the function timeout) and
+    # reports the real result.
     try:
-        threading.Thread(target=_send_prd_email_job, daemon=True).start()
-        return jsonify({"ok": True, "message": "PRD email queued"})
+        ok, detail = _send_prd_email_job()
+        if ok:
+            return jsonify({"ok": True, "message": f"Sent to {detail}"})
+        return jsonify({"ok": False, "error": detail}), 400
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+        logger.error("PRD send-now failed: %s", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.route("/api/prd/<date_str>")

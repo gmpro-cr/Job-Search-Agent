@@ -178,8 +178,11 @@ def main():
         logger.warning("Per-user scoring failed: %s", e)
 
     # --- Phase 7c: Reminders ---
-    from reminder_runner import run_reminders
-    run_reminders(preferences)
+    try:
+        from reminder_runner import run_reminders
+        run_reminders(preferences)
+    except Exception as e:
+        logger.error("Reminder run failed (continuing): %s", e)
 
     # --- Phase 8: Auto-discover hiring managers ---
     try:
