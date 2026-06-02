@@ -84,8 +84,26 @@ def main():
     logger.info("Total raw jobs scraped: %d", len(all_jobs))
 
     # --- Phase 2: Analyze ---
+    # In multi-user mode the CV lives in the DB, not the JSON file that
+    # load_cv_data() reads in CLI/Actions context. Pull the owner user's CV +
+    # prefs so scoring uses the real profile instead of falling back to
+    # keyword-only (which scores everything < 65 → "0 jobs" digest).
+    owner_cv: dict = {}
+    owner_prefs = preferences
+    try:
+        all_cv_users = get_all_users_with_cv_data()
+        if all_cv_users:
+            owner_cv = all_cv_users[0]["cv_data"] or {}
+            if all_cv_users[0].get("prefs"):
+                owner_prefs = all_cv_users[0]["prefs"]
+            logger.info("Loaded CV + prefs from DB for user %d (digest scoring)", all_cv_users[0]["user_id"])
+        else:
+            logger.warning("No users with CV found in DB — digest will use keyword-only scoring")
+    except Exception as e:
+        logger.warning("Could not load owner CV from DB: %s", e)
+
     logger.info("Analyzing and scoring jobs...")
-    qualified_jobs, all_analyzed = analyze_jobs(all_jobs, preferences, config)
+    qualified_jobs, all_analyzed = analyze_jobs(all_jobs, owner_prefs, config, cv_data=owner_cv)
     logger.info("Analyzed %d jobs, %d qualified", len(all_analyzed), len(qualified_jobs))
 
     # --- Phase 3: Generate IDs ---

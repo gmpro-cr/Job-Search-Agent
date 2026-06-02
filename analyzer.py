@@ -636,17 +636,22 @@ Respond with ONLY a JSON array of strings, like: ["point 1", "point 2", ...]"""
     return points[:5]
 
 
-def analyze_jobs(jobs, preferences, config, progress_callback=None):
+def analyze_jobs(jobs, preferences, config, progress_callback=None, cv_data=None):
     """
     Analyze and score all jobs using LLM (Ollama → OpenRouter fallback) with
     keyword scoring as emergency fallback. CV data drives scoring for accuracy.
     Returns list of jobs enriched with relevance_score, remote_status,
     company_type, skills, and application_email.
+
+    cv_data: optional pre-loaded CV dict. When None, falls back to load_cv_data()
+             (JSON file / session user). Pass explicitly from the scraper so the
+             multi-user DB CV is used instead of the empty JSON-file path.
     """
     min_score = config.get("scoring", {}).get("min_relevance_score", 65)
 
-    # Load CV once for the whole batch
-    cv_data = load_cv_data() or {}
+    # Load CV once for the whole batch (caller may supply it directly)
+    if cv_data is None:
+        cv_data = load_cv_data() or {}
     llm_available = bool(cv_data.get("skills"))
     if not llm_available:
         logger.warning("No CV uploaded — falling back to keyword scoring. Upload CV at /cv for better accuracy.")
