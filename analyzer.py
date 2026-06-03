@@ -492,7 +492,7 @@ def llm_score(job: dict, cv_data: dict) -> dict | None:
     template = _load_scoring_prompt()
     role = job.get("role", "")
     company = job.get("company", "")
-    jd = (job.get("job_description") or "")[:600]
+    jd = (job.get("job_description") or "")[:2000]
 
     prompt = template
     for key, val in [("role", role), ("company", company), ("jd", jd),
