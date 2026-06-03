@@ -584,6 +584,8 @@ def setup_background_scheduler():
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.cron import CronTrigger
         _scheduler = BackgroundScheduler(daemon=True)
+        # Display-only job stubs — real execution is in _start_simple_scheduler().
+        # Callbacks are no-ops; these entries exist solely for the /api/scheduler/jobs UI.
         _scheduler.add_job(lambda: None, trigger=CronTrigger(hour=7, minute=0),
                            id="morning_pipeline",
                            name="Morning job scraper pipeline at 07:00",
