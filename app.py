@@ -529,16 +529,18 @@ def _startup_catchup():
         now = _dt.now()
         today_str = _date.today().isoformat()
 
-        # ── PRD email: scheduled at 08:00, send if past 08:00 and no cache yet sent ──
-        prd_cache = os.path.join(BASE_DIR, "data", "prds", f"prd_{today_str}.json")
-        prd_sent_flag = os.path.join(BASE_DIR, "data", "prds", f"prd_{today_str}.sent")
-        if now.hour >= 8 and not os.path.exists(prd_sent_flag):
+        # ── PRD email: scheduled at 08:00, send if past 08:00 and not already sent ──
+        import json as _json
+        _sched_state_file = os.path.join(BASE_DIR, "data", "scheduler_state.json")
+        try:
+            with open(_sched_state_file) as _f:
+                _sched_state = _json.load(_f)
+        except Exception:
+            _sched_state = {}
+        if now.hour >= 8 and _sched_state.get("prd") != today_str:
             logger.info("Startup catch-up: PRD email not sent today — sending now")
             try:
                 _send_prd_email_job()
-                # Mark as sent
-                from pathlib import Path as _Path
-                _Path(prd_sent_flag).touch()
             except Exception as e:
                 logger.error("Startup PRD catch-up failed: %s", e)
         else:
@@ -666,17 +668,9 @@ def _start_simple_scheduler():
 
                 # PRD email at 08:00
                 if h >= PRD_HOUR and not _already_ran("prd", today):
-                    prd_sent_flag = os.path.join(BASE_DIR, "data", "prds", f"prd_{today}.sent")
-                    if not os.path.exists(prd_sent_flag):
-                        logger.info("Simple scheduler: firing PRD email")
-                        _mark_ran("prd", today)
-                        def _prd_job(flag=prd_sent_flag):
-                            _send_prd_email_job()
-                            from pathlib import Path as _Path
-                            _Path(flag).touch()
-                        _fire("prd_email", _prd_job)
-                    else:
-                        _mark_ran("prd", today)  # already sent, mark to skip
+                    logger.info("Simple scheduler: firing PRD email")
+                    _mark_ran("prd", today)
+                    _fire("prd_email", _send_prd_email_job)
 
                 # HR emails at 11:00
                 if h >= HR_HOUR and not _already_ran("hr", today):
