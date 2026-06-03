@@ -21,6 +21,11 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_MODEL = "anthropic/claude-haiku-4.5"
 OPENROUTER_TIMEOUT = 60  # seconds
 
+import time as _time
+
+_last_gemini_call: float = 0.0  # epoch seconds of last successful Gemini call
+_GEMINI_MIN_INTERVAL: float = 4.1  # seconds; 15 RPM = 4s + 0.1s buffer
+
 
 def call_llm(prompt: str, system: str = "") -> str:
     """
@@ -60,11 +65,17 @@ def _call_ollama(prompt: str, system: str) -> str:
 
 
 def _call_gemini(prompt: str, system: str) -> str:
-    """Call Gemini Flash via Google AI API (free tier)."""
-    import time
+    """Call Gemini Flash via Google AI API (free tier, 15 RPM)."""
+    global _last_gemini_call
     api_key = os.getenv("GEMINI_API_KEY", "")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set")
+
+    # Respect 15 RPM: sleep only the remaining gap since the last call
+    elapsed = _time.time() - _last_gemini_call
+    wait = _GEMINI_MIN_INTERVAL - elapsed
+    if wait > 0:
+        _time.sleep(wait)
 
     full_prompt = f"{system}\n\n{prompt}" if system else prompt
     resp = requests.post(
@@ -77,7 +88,7 @@ def _call_gemini(prompt: str, system: str) -> str:
     data = resp.json()
     try:
         result = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        time.sleep(4.5)  # respect 15 RPM free tier — only after a successful call
+        _last_gemini_call = _time.time()  # record AFTER successful response
         return result
     except (KeyError, IndexError) as e:
         raise ValueError(f"Unexpected Gemini response: {data}") from e
