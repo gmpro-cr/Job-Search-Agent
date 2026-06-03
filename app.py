@@ -774,7 +774,7 @@ def _run_scraper_pipeline():
             scraper_status["phase"] = "stopped"
             scraper_status["finished_at"] = datetime.now().isoformat()
             scraper_status["running"] = False
-        _is_scheduled_run = False
+            _is_scheduled_run = False
         logger.info("Scraper stopped")
 
     try:
