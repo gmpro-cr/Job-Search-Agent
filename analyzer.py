@@ -121,13 +121,17 @@ _WRONG_LEVEL_PATTERNS = [
 ]
 _WRONG_LEVEL_RE = re.compile('|'.join(_WRONG_LEVEL_PATTERNS), re.IGNORECASE)
 
-# Seniority-overreach penalty: roles requiring 10-12 yr experience or VP/Director titles.
-# 15+/18+/20+ yr and plain VP/Director-as-role cases are caught by quality_gate() first;
-# these patterns handle the grey zone that quality_gate allows through.
-_SENIORITY_PENALTY_RE = re.compile(
+# Seniority-overreach penalty split into two targeted regexes:
+# 1. Title patterns — must only be matched against the role/title string, NOT the JD body,
+#    to avoid false penalties when the JD mentions "reports to VP" or "works with Director".
+_SENIORITY_TITLE_ONLY_RE = re.compile(
+    r'\b(?:vp|vice\s+president|chief\s+\w+\s+officer|cxo|director|managing\s+director)\b',
+    re.IGNORECASE,
+)
+# 2. Years-of-experience patterns — context-anchored, safe to match against full text.
+_SENIORITY_EXP_RE = re.compile(
     r'(?:(?:minimum|required?|must\s+have|at\s+least|needs?\s+)\s*(?:10|12)\s*\+?\s*(?:years?|yrs?)'
-    r'|\b(?:10|12)\s*\+\s*(?:years?|yrs?)\b'
-    r'|\b(?:vp|vice\s+president|chief\s+\w+\s+officer|cxo|director|managing\s+director)\b)',
+    r'|\b(?:10|12)\s*\+\s*(?:years?|yrs?)\b)',
     re.IGNORECASE,
 )
 
@@ -422,8 +426,11 @@ def keyword_score(job, preferences, cv_data=None, breakdown=False):
                 ts_score += 4
         score += min(ts_score, 30)
 
-    # Seniority penalty (-15)
-    seniority_penalty = -15 if _SENIORITY_PENALTY_RE.search(text) else 0
+    # Seniority penalty (-15): title patterns checked against role only (not full JD body),
+    # experience-year patterns checked against full text (they are context-anchored).
+    seniority_penalty = -15 if (
+        _SENIORITY_TITLE_ONLY_RE.search(role_lower) or _SENIORITY_EXP_RE.search(text)
+    ) else 0
     score = max(0, score + seniority_penalty)
 
     if breakdown:
