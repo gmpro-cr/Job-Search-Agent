@@ -1044,7 +1044,7 @@ def _openrouter_parse_nlp_query(text):
 
         prompt = _NLP_EXTRACTION_PROMPT.format(text=text)
         response = client.chat.completions.create(
-            model="google/gemma-3-27b-it:free",
+            model="meta-llama/llama-3.1-8b-instruct:free",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
         )
