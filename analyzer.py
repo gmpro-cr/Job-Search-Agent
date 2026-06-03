@@ -471,7 +471,78 @@ def _load_scoring_prompt() -> str:
     return _scoring_prompt_cache
 
 
-def llm_score(job: dict, cv_data: dict) -> dict | None:
+def _build_scoring_rubric(cv_data: dict, preferences: dict) -> dict:
+    """
+    Build dynamic rubric sections from the user's CV data and preferences.
+    Returns dict with keys: target_roles_rubric, domain_rubric.
+    """
+    # Role rubric from user's preferred job titles
+    titles = [t.strip() for t in (preferences.get("job_titles") or []) if t.strip()]
+    if titles:
+        primary = titles[0]
+        variants = ", ".join(titles[1:4]) if len(titles) > 1 else f"Senior/Lead {primary}"
+        role_rubric = (
+            f"   35 — Exact match: {primary}\n"
+            f"   25 — Close variant: {variants}\n"
+            f"   12 — Adjacent: related function with strong skill overlap\n"
+            f"    4 — Wrong function but partial skill overlap\n"
+            f"    0 — Unrelated function"
+        )
+    else:
+        role_rubric = (
+            "   35 — Exact title match to candidate's target role\n"
+            "   25 — Close adjacent role with same core function\n"
+            "   12 — Related role with meaningful skill overlap\n"
+            "    4 — Wrong function but some transferable skills\n"
+            "    0 — Completely unrelated function"
+        )
+
+    # Domain rubric: detect user's primary domain from skills + raw CV text
+    skills_lower = [s.lower() for s in (cv_data.get("skills") or [])]
+    raw_lower = (cv_data.get("raw_text") or "").lower()
+
+    _DOMAIN_SIGNALS = [
+        ("Fintech / Banking / Payments / Lending / NBFC / Credit / Insurance",
+         ["fintech", "banking", "payments", "lending", "nbfc", "credit", "upi",
+          "insurance", "wealth", "neobank", "treasury"]),
+        ("B2B SaaS / AI / ML / Data platform",
+         ["saas", "machine learning", "llm", "genai", "data platform", "b2b",
+          "api", "microservices"]),
+        ("E-commerce / Edtech / Healthtech / Consumer tech",
+         ["e-commerce", "ecommerce", "edtech", "healthtech", "consumer", "marketplace"]),
+        ("Manufacturing / FMCG / Logistics / Operations",
+         ["manufacturing", "fmcg", "logistics", "supply chain", "operations", "procurement"]),
+    ]
+
+    domain_scores = []
+    for domain, keywords in _DOMAIN_SIGNALS:
+        count = sum(1 for kw in keywords if kw in skills_lower or kw in raw_lower)
+        domain_scores.append((count, domain))
+    domain_scores.sort(reverse=True)
+
+    top_count, top_domain = domain_scores[0]
+    if top_count >= 2:
+        others = [d for _, d in domain_scores[1:]]
+        domain_rubric = (
+            f"   25 — {top_domain}\n"
+            f"   18 — {others[0]}\n"
+            f"   10 — {others[1]}\n"
+            f"    4 — {others[2]}\n"
+            f"    0 — Completely unrelated domain"
+        )
+    else:
+        domain_rubric = (
+            "   25 — Domain matches candidate's primary background closely\n"
+            "   18 — Related domain with transferable knowledge\n"
+            "   10 — Adjacent domain, some overlap\n"
+            "    4 — Distant domain, minimal overlap\n"
+            "    0 — Completely unrelated domain"
+        )
+
+    return {"target_roles_rubric": role_rubric, "domain_rubric": domain_rubric}
+
+
+def llm_score(job: dict, cv_data: dict, preferences: dict = None) -> dict | None:
     """
     Score a job using the shared scoring_prompt.md via call_llm_json.
     Tries Ollama first, falls back to OpenRouter automatically.
@@ -494,9 +565,15 @@ def llm_score(job: dict, cv_data: dict) -> dict | None:
     company = job.get("company", "")
     jd = (job.get("job_description") or "")[:2000]
 
+    rubric = _build_scoring_rubric(cv_data, preferences or {})
+    substitutions = [
+        ("role", role), ("company", company), ("jd", jd),
+        ("cv_skills", cv_skills), ("cv_summary", cv_summary),
+        ("target_roles_rubric", rubric["target_roles_rubric"]),
+        ("domain_rubric", rubric["domain_rubric"]),
+    ]
     prompt = template
-    for key, val in [("role", role), ("company", company), ("jd", jd),
-                     ("cv_skills", cv_skills), ("cv_summary", cv_summary)]:
+    for key, val in substitutions:
         prompt = prompt.replace("{" + key + "}", str(val))
 
     try:
@@ -690,7 +767,7 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None, cv_data=None
         kw = kw_breakdown["total"]
         scored = False
         if llm_available and kw >= 35 and llm_consecutive_failures < LLM_CIRCUIT_BREAKER:
-            result = llm_score(job, cv_data)
+            result = llm_score(job, cv_data, preferences)
             if result:
                 job["relevance_score"] = result["score"]
                 job["llm_reason"] = result.get("reason", "")
