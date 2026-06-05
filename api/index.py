@@ -15,3 +15,9 @@ if ROOT_DIR not in sys.path:
 os.environ.setdefault("VERCEL", "1")
 
 from app import app  # noqa: E402
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+# Vercel terminates TLS and forwards requests over HTTP internally.
+# Without this, url_for(..., _external=True) generates http:// URLs,
+# causing Google OAuth redirect_uri_mismatch errors.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
