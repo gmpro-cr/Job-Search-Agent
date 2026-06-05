@@ -254,18 +254,17 @@ def run_reminders(preferences: dict) -> None:
             try:
                 from prd_generator import generate_daily_prd, build_prd_email_html
                 import smtplib
-                from email.mime.multipart import MIMEMultipart
-                from email.mime.text import MIMEText
+                from email.message import EmailMessage
 
                 prd = generate_daily_prd()
                 html_body = build_prd_email_html(prd)
-                subject = f"📋 Daily PRD: {prd['product']['name']} ({prd['date']})"
+                subject = f"Daily PRD: {prd['product']['name']} ({prd['date']})"
 
-                msg = MIMEMultipart("alternative")
+                msg = EmailMessage()
                 msg["Subject"] = subject
                 msg["From"] = gmail_address
                 msg["To"] = recipient
-                msg.attach(MIMEText(html_body, "html", "utf-8"))
+                msg.set_content(html_body, subtype="html", charset="utf-8")
 
                 with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
                     server.ehlo(); server.starttls(); server.ehlo()

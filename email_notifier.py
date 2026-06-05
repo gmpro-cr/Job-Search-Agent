@@ -9,8 +9,7 @@ Generate an App Password at: https://myaccount.google.com/apppasswords
 
 import logging
 import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+from email.message import EmailMessage
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -139,7 +138,7 @@ def send_job_email(recipient, jobs, preferences):
         logger.info("No recipient email configured - skipping email notification")
         return False
 
-    msg = MIMEMultipart("alternative")
+    msg = EmailMessage()
     msg["Subject"] = f"Job Digest - {datetime.now().strftime('%b %d, %Y')} ({len(jobs)} jobs)"
     msg["From"] = gmail_address
     msg["To"] = recipient
@@ -147,8 +146,10 @@ def send_job_email(recipient, jobs, preferences):
     plain_body = _build_plain_body(jobs, preferences)
     html_body = _build_html_body(jobs, preferences)
 
-    msg.attach(MIMEText(plain_body, "plain", "utf-8"))
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    # set_content + add_alternative handles UTF-8 encoding natively —
+    # no ascii codec errors from non-breaking spaces in scraped job data.
+    msg.set_content(plain_body, charset="utf-8")
+    msg.add_alternative(html_body, subtype="html", charset="utf-8")
 
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
