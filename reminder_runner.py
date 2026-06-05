@@ -314,7 +314,7 @@ def run_reminders(preferences: dict) -> None:
             alert_prefs = dict(preferences)
             alert_prefs["job_titles"] = [keyword]
 
-            success = send_job_email(recipient, new_jobs, alert_prefs)
+            success, send_err = send_job_email(recipient, new_jobs, alert_prefs)
             if success:
                 reminder["last_sent"] = datetime.now().isoformat()
                 # Track sent job IDs and content fingerprints; cap at 500 each.
@@ -325,7 +325,7 @@ def run_reminders(preferences: dict) -> None:
                 updated = True
                 logger.info("Reminder '%s': sent %d new jobs to %s", name, len(new_jobs), recipient)
             else:
-                logger.error("Reminder '%s': email send failed to %s", name, recipient)
+                logger.error("Reminder '%s': email send failed to %s: %s", name, recipient, send_err)
         except Exception as e:
             logger.error("Reminder '%s': processing failed, skipping: %s", name, e)
             continue

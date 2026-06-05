@@ -159,15 +159,19 @@ def send_job_email(recipient, jobs, preferences):
             server.sendmail(gmail_address, [recipient], msg.as_string())
 
         logger.info("Job digest email sent to %s (%d jobs)", recipient, len(jobs))
-        return True
+        return True, None
 
     except smtplib.SMTPAuthenticationError:
-        logger.error(
-            "Gmail authentication failed. Make sure you are using an App Password, "
-            "not your regular Google password. "
-            "Generate one at: https://myaccount.google.com/apppasswords"
-        )
-        return False
+        msg = ("Gmail authentication failed — use an App Password, not your account password. "
+               "Generate one at https://myaccount.google.com/apppasswords")
+        logger.error(msg)
+        return False, msg
+    except OSError as e:
+        # Covers ConnectionRefusedError, TimeoutError, and platform SMTP blocks.
+        msg = f"Cannot reach Gmail SMTP ({e}). If running on Vercel, SMTP is blocked — use Resend instead."
+        logger.error(msg)
+        return False, msg
     except Exception as e:
+        msg = f"Send failed: {e}"
         logger.error("Failed to send email to %s: %s", recipient, e)
-        return False
+        return False, msg

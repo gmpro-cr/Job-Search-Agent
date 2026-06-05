@@ -889,8 +889,11 @@ def _run_scraper_pipeline():
                 scraper_status["phase"] = "sending_email"
             try:
                 email_jobs = digest_jobs if digest_jobs else []
-                send_job_email(recipient, email_jobs, preferences)
-                logger.info("Email digest sent to %s", recipient)
+                ok, _err = send_job_email(recipient, email_jobs, preferences)
+                if ok:
+                    logger.info("Email digest sent to %s", recipient)
+                else:
+                    logger.error("Email digest failed: %s", _err)
             except Exception as e:
                 logger.error("Failed to send email: %s", e)
 
@@ -2694,10 +2697,10 @@ def api_digest_send_now():
         return jsonify({"ok": False, "error": "No matching jobs found to send."}), 400
 
     from email_notifier import send_job_email
-    ok = send_job_email(recipient, jobs, prefs)
+    ok, err = send_job_email(recipient, jobs, prefs)
     if ok:
         return jsonify({"ok": True, "message": f"Sent {len(jobs)} jobs to {recipient}"})
-    return jsonify({"ok": False, "error": "Email send failed. Check Gmail credentials in Settings."}), 500
+    return jsonify({"ok": False, "error": err or "Email send failed. Check Gmail credentials in Settings."}), 500
 
 
 @app.route("/api/digest/settings", methods=["POST"])
@@ -3856,7 +3859,7 @@ def reminders_send(reminder_id):
 
     alert_prefs = dict(preferences)
     alert_prefs["job_titles"] = [keyword]
-    success = send_job_email(recipient, jobs, alert_prefs)
+    success, _send_err = send_job_email(recipient, jobs, alert_prefs)
     if success:
         reminder["last_sent"] = datetime.now().isoformat()
         # Update dedup tracking so the same jobs don't repeat in the next automated run
@@ -3868,7 +3871,7 @@ def reminders_send(reminder_id):
         save_reminders(all_reminders)
         flash(f"Sent {len(jobs)} jobs for '{name}' to {recipient}.", "success")
     else:
-        flash(f"Failed to send email to {recipient}. Check Gmail credentials in Settings.", "error")
+        flash(f"Failed to send email to {recipient}: {_send_err or 'unknown error'}", "error")
 
     return redirect(url_for("reminders"))
 

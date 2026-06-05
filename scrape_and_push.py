@@ -156,8 +156,11 @@ def main():
     if recipient and gmail_addr and gmail_pass:
         digest_jobs = qualified_jobs[:top_n]
         try:
-            send_job_email(recipient, digest_jobs, preferences)
-            logger.info("Email digest sent to %s (%d jobs)", recipient, len(digest_jobs))
+            ok, err = send_job_email(recipient, digest_jobs, preferences)
+            if ok:
+                logger.info("Email digest sent to %s (%d jobs)", recipient, len(digest_jobs))
+            else:
+                logger.error("Email digest failed: %s", err)
         except Exception as e:
             logger.error("Failed to send email: %s", e)
     else:
