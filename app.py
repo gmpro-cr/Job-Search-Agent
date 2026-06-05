@@ -2100,9 +2100,12 @@ def api_save_email_settings():
     data = request.get_json(silent=True) or {}
     existing = load_preferences(uid) or DEFAULT_PREFS.copy()
     updated = dict(existing)
+    import re as _re
     for key in ("gmail_address", "gmail_app_password", "email"):
         if key in data:
-            updated[key] = (data[key] or "").strip()
+            val = (data[key] or "").strip()
+            # Strip non-ASCII copy-paste artifacts (e.g. \xa0) — smtplib requires ASCII
+            updated[key] = _re.sub(r'[^\x00-\x7F]', '', val).strip()
     try:
         save_preferences(updated, user_id=uid)
     except Exception as e:

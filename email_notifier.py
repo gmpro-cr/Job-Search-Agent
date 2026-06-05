@@ -8,6 +8,7 @@ Generate an App Password at: https://myaccount.google.com/apppasswords
 """
 
 import logging
+import re
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime
@@ -16,6 +17,12 @@ logger = logging.getLogger(__name__)
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
+
+
+def _ascii_only(s: str) -> str:
+    """Strip non-ASCII characters that can sneak in via copy-paste (e.g. \xa0).
+    Email addresses and Gmail App Passwords must be pure ASCII for smtplib.login()."""
+    return re.sub(r'[^\x00-\x7F]', '', str(s or '')).strip()
 
 
 def _build_html_body(jobs, preferences):
@@ -127,8 +134,9 @@ def send_job_email(recipient, jobs, preferences):
     Returns:
         True on success, False on failure
     """
-    gmail_address = preferences.get("gmail_address", "").strip()
-    gmail_app_password = preferences.get("gmail_app_password", "").strip()
+    gmail_address = _ascii_only(preferences.get("gmail_address", ""))
+    gmail_app_password = _ascii_only(preferences.get("gmail_app_password", ""))
+    recipient = _ascii_only(recipient)
 
     if not gmail_address or not gmail_app_password:
         logger.info("Gmail credentials not configured - skipping email notification")
