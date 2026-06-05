@@ -55,6 +55,54 @@
     </div>
   </div>
 
+  {# ── Email notifications ──────────────────────────────────── #}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Email notifications</div>
+      <div class="card-description">Gmail credentials used to send digest and reminder emails. Use a <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:var(--primary);">Gmail App Password</a>, not your main account password.</div>
+    </div>
+    <div class="card-content">
+      <form id="email-settings-form" onsubmit="saveEmailSettings(event)" style="display:flex;flex-direction:column;gap:.875rem;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.875rem;">
+          <div>
+            <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Digest recipient email</label>
+            <input id="es-recipient" type="email" class="input" style="width:100%;font-size:.875rem;"
+              value="{{ prefs.get('email','') }}" placeholder="where digests get sent">
+          </div>
+          <div>
+            <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Gmail send address</label>
+            <input id="es-gmail" type="email" class="input" style="width:100%;font-size:.875rem;"
+              value="{{ prefs.get('gmail_address','') }}" placeholder="yourname@gmail.com">
+          </div>
+        </div>
+        <div>
+          <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Gmail App Password</label>
+          <div style="position:relative;max-width:26rem;">
+            <input id="es-password" type="password" class="input" style="width:100%;font-size:.875rem;padding-right:2.5rem;"
+              value="{{ prefs.get('gmail_app_password','') }}" placeholder="xxxx xxxx xxxx xxxx"
+              autocomplete="new-password">
+            <button type="button" onclick="togglePw()" title="Show/hide"
+              style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);
+                     background:none;border:none;cursor:pointer;color:var(--muted-foreground);padding:.25rem;">
+              <svg id="pw-eye" width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.75rem;padding-top:.25rem;flex-wrap:wrap;">
+          <button type="submit" id="es-save-btn" class="btn btn-default">Save</button>
+          <button type="button" onclick="sendTestEmail()" id="es-test-btn"
+            class="btn" style="background:transparent;border:1px solid var(--border);">Send test email</button>
+          <span id="es-status" style="font-size:.8125rem;color:var(--muted-foreground);display:none;"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
 </div>
 {% endblock %}
 
@@ -65,4 +113,70 @@
   .account-name { font-size:.9375rem; font-weight:600; color:var(--foreground); }
   .account-email { font-family:var(--font-mono); font-size:.8125rem; color:var(--muted-foreground); }
 </style>
+<script>
+function togglePw() {
+  const inp = document.getElementById('es-password');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+async function saveEmailSettings(e) {
+  e.preventDefault();
+  const btn = document.getElementById('es-save-btn');
+  const status = document.getElementById('es-status');
+  btn.disabled = true; btn.textContent = 'Saving…'; status.style.display = 'none';
+  try {
+    const r = await fetch('/api/account/email-settings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        email:              document.getElementById('es-recipient').value.trim(),
+        gmail_address:      document.getElementById('es-gmail').value.trim(),
+        gmail_app_password: document.getElementById('es-password').value,
+      }),
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'Save failed');
+    status.textContent = 'Saved.';
+    status.style.color = 'var(--primary)';
+    status.style.display = '';
+    setTimeout(() => { status.style.display = 'none'; }, 2500);
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+    status.style.color = 'var(--destructive)';
+    status.style.display = '';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+}
+
+async function sendTestEmail() {
+  const btn = document.getElementById('es-test-btn');
+  const status = document.getElementById('es-status');
+  btn.disabled = true; btn.textContent = 'Sending…'; status.style.display = 'none';
+  // Save first so the test uses the current form values
+  await fetch('/api/account/email-settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      email:              document.getElementById('es-recipient').value.trim(),
+      gmail_address:      document.getElementById('es-gmail').value.trim(),
+      gmail_app_password: document.getElementById('es-password').value,
+    }),
+  });
+  try {
+    const r = await fetch('/api/digest/send-now', {method: 'POST'});
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'Send failed');
+    status.textContent = d.message || 'Test email sent.';
+    status.style.color = 'var(--primary)';
+    status.style.display = '';
+  } catch (err) {
+    status.textContent = 'Failed: ' + err.message;
+    status.style.color = 'var(--destructive)';
+    status.style.display = '';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Send test email';
+  }
+}
+</script>
 {% endblock %}

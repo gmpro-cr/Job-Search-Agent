@@ -2081,10 +2081,31 @@ def preferences():
         flash("Job preferences saved.", "success")
         return redirect(url_for("preferences"))
 
-    prefs = load_preferences() or DEFAULT_PREFS.copy()
+    uid = current_user_id()
+    prefs = load_preferences(uid) or DEFAULT_PREFS.copy()
     if not prefs.get("transferable_skills"):
         prefs["transferable_skills"] = DEFAULT_PREFS["transferable_skills"]
+    # Apply env overrides so the form reflects what will actually be used
+    prefs = apply_env_overrides(dict(prefs))
     return render_template("preferences.html", prefs=prefs)
+
+
+@app.route("/api/account/email-settings", methods=["POST"])
+def api_save_email_settings():
+    """Save Gmail send credentials + digest recipient email."""
+    uid = require_user_id()
+    data = request.get_json(silent=True) or {}
+    existing = load_preferences(uid) or DEFAULT_PREFS.copy()
+    updated = dict(existing)
+    for key in ("gmail_address", "gmail_app_password", "email"):
+        if key in data:
+            updated[key] = (data[key] or "").strip()
+    try:
+        save_preferences(updated, user_id=uid)
+    except Exception as e:
+        logger.error("Failed to save email settings for user %s: %s", uid, e)
+        return jsonify({"ok": False, "error": "Failed to save"}), 500
+    return jsonify({"ok": True})
 
 
 @app.route("/api/preferences", methods=["POST"])

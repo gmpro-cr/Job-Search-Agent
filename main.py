@@ -140,7 +140,11 @@ DEFAULT_PREFS = {
 }
 
 # Keys that should be stored in .env, not in user_preferences.json
-_CREDENTIAL_KEYS = {"gmail_app_password", "telegram_bot_token", "apollo_api_key", "linkedin_password"}
+# gmail_app_password is intentionally excluded: users configure their own via
+# the Settings UI and we store it per-user in Neon Postgres (protected by
+# SSL + access controls). Telegram/Apollo/LinkedIn tokens remain stripped
+# because they're platform-wide secrets, not per-user credentials.
+_CREDENTIAL_KEYS = {"telegram_bot_token", "apollo_api_key", "linkedin_password"}
 
 
 def _current_session_user_id():
