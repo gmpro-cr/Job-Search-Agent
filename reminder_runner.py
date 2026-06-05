@@ -265,12 +265,12 @@ def run_reminders(preferences: dict) -> None:
                 msg["Subject"] = subject
                 msg["From"] = gmail_address
                 msg["To"] = recipient
-                msg.attach(MIMEText(html_body, "html"))
+                msg.attach(MIMEText(html_body, "html", "utf-8"))
 
                 with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
                     server.ehlo(); server.starttls(); server.ehlo()
                     server.login(gmail_address, gmail_app_password)
-                    server.sendmail(gmail_address, [recipient], msg.as_string())
+                    server.send_message(msg)
 
                 reminder["last_sent"] = datetime.now().isoformat()
                 updated = True

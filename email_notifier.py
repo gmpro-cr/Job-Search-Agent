@@ -147,8 +147,8 @@ def send_job_email(recipient, jobs, preferences):
     plain_body = _build_plain_body(jobs, preferences)
     html_body = _build_html_body(jobs, preferences)
 
-    msg.attach(MIMEText(plain_body, "plain"))
-    msg.attach(MIMEText(html_body, "html"))
+    msg.attach(MIMEText(plain_body, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
@@ -156,7 +156,7 @@ def send_job_email(recipient, jobs, preferences):
             server.starttls()
             server.ehlo()
             server.login(gmail_address, gmail_app_password)
-            server.sendmail(gmail_address, [recipient], msg.as_string())
+            server.send_message(msg)
 
         logger.info("Job digest email sent to %s (%d jobs)", recipient, len(jobs))
         return True, None
