@@ -17,7 +17,7 @@ working without Vercel credentials.
 Notes on the Vercel API (as of 2026-02):
     PUT  https://blob.vercel-storage.com/<pathname>?addRandomSuffix=0
     GET  <public URL returned by PUT or url(pathname)>
-    DELETE  https://api.vercel.com/v9/blob/delete-blob  (body: {urls:[...]})
+    DELETE  https://blob.vercel-storage.com/delete  (POST, body: {urls:[...]})
     LIST   https://api.vercel.com/v9/blob/list?prefix=...
 
 We disable addRandomSuffix so that overwriting the same pathname is
@@ -259,6 +259,7 @@ def _blob_delete(pathnames: Iterable[str]) -> None:
         "Content-Type": "application/json",
     }
     urls = [url(p) for p in pathnames]
+    # Vercel Blob REST API: POST /delete  body: {urls:[...]}
     r = requests.post(
         f"{_BLOB_API_BASE}/delete",
         headers=headers,

@@ -2631,6 +2631,54 @@ def digests():
                            user_email=user_email, job_alerts=all_alerts)
 
 
+@app.route("/api/digest/send-now", methods=["POST"])
+def api_digest_send_now():
+    """Send the user's top matched jobs by email right now."""
+    uid = require_user_id()
+    if _is_demo_user():
+        return jsonify({"ok": False, "error": "Email sending is disabled in demo mode."}), 403
+    prefs = apply_env_overrides(load_preferences(uid) or DEFAULT_PREFS.copy())
+    recipient = (prefs.get("email") or "").strip()
+    gmail_address = prefs.get("gmail_address", "").strip()
+    gmail_app_password = prefs.get("gmail_app_password", "").strip()
+    if not recipient:
+        return jsonify({"ok": False, "error": "No recipient email configured. Set it in Settings."}), 400
+    if not gmail_address or not gmail_app_password:
+        return jsonify({"ok": False, "error": "Gmail credentials not configured. Set them in Settings."}), 400
+
+    top_n = max(1, min(50, int(prefs.get("top_jobs_per_digest", 5))))
+    min_score = max(0, int(prefs.get("min_score", 50)))
+    conn = get_connection()
+    cursor = conn.cursor()
+    if uid:
+        cursor.execute(
+            """
+            SELECT j.*, s.cv_score AS user_cv_score
+            FROM job_listings j
+            JOIN user_job_state s ON s.job_id = j.job_id AND s.user_id = ?
+            WHERE s.cv_score >= ? AND (COALESCE(s.hidden, 0) = 0)
+            ORDER BY s.cv_score DESC
+            LIMIT ?
+            """,
+            (uid, min_score, top_n),
+        )
+    else:
+        cursor.execute(
+            "SELECT * FROM job_listings WHERE cv_score >= ? AND (hidden = 0 OR hidden IS NULL) ORDER BY cv_score DESC LIMIT ?",
+            (min_score, top_n),
+        )
+    jobs = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    if not jobs:
+        return jsonify({"ok": False, "error": "No matching jobs found to send."}), 400
+
+    from email_notifier import send_job_email
+    ok = send_job_email(recipient, jobs, prefs)
+    if ok:
+        return jsonify({"ok": True, "message": f"Sent {len(jobs)} jobs to {recipient}"})
+    return jsonify({"ok": False, "error": "Email send failed. Check Gmail credentials in Settings."}), 500
+
+
 @app.route("/api/digest/settings", methods=["POST"])
 def api_digest_settings():
     """Save digest-specific preferences (email, top_n, min_score)."""
@@ -3790,6 +3838,12 @@ def reminders_send(reminder_id):
     success = send_job_email(recipient, jobs, alert_prefs)
     if success:
         reminder["last_sent"] = datetime.now().isoformat()
+        # Update dedup tracking so the same jobs don't repeat in the next automated run
+        from reminder_runner import _job_fingerprint as _fp
+        all_sent = reminder.get("sent_job_ids", []) + [j["job_id"] for j in jobs if j.get("job_id")]
+        reminder["sent_job_ids"] = all_sent[-500:]
+        all_fps = reminder.get("sent_fingerprints", []) + [_fp(j) for j in jobs]
+        reminder["sent_fingerprints"] = all_fps[-500:]
         save_reminders(all_reminders)
         flash(f"Sent {len(jobs)} jobs for '{name}' to {recipient}.", "success")
     else:

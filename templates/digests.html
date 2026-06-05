@@ -14,7 +14,7 @@
         <h1>Daily Digest</h1>
         <p class="page-lede">Your top-matched jobs delivered by email after each scrape. Configure what gets sent below.</p>
       </div>
-      <button onclick="sendNow()" id="send-now-btn" class="btn btn-accent" style="white-space:nowrap;flex-shrink:0;">
+      <button onclick="sendDigestNow()" id="send-now-btn" class="btn btn-accent" style="white-space:nowrap;flex-shrink:0;">
         <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.375rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
         Send now
       </button>
@@ -148,7 +148,7 @@
   <!-- Digest configuration -->
   <div class="card">
     <div class="card-header">
-      <div class="card-title">Create a new digest</div>
+      <div class="card-title">Digest settings</div>
       <div class="card-description">Configure what gets included and where it gets sent.</div>
     </div>
     <div class="card-content">
@@ -186,6 +186,66 @@
       </form>
     </div>
   </div>
+
+  <!-- Archive -->
+  {% if files %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Digest archive</div>
+      <div class="card-description">Past digest files. Click to view; delete when no longer needed.</div>
+    </div>
+    <div class="card-content" style="padding:0 1.5rem 1.5rem;">
+      <!-- Header row -->
+      <div style="display:grid;grid-template-columns:1fr 7rem 5rem 4rem;gap:.75rem;
+                  padding:.5rem .75rem;border-bottom:1px solid var(--border);
+                  font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);">
+        <span>File</span>
+        <span>Date</span>
+        <span style="text-align:right;">Size</span>
+        <span></span>
+      </div>
+
+      {% for f in files %}
+      <div style="display:grid;grid-template-columns:1fr 7rem 5rem 4rem;gap:.75rem;
+                  align-items:center;padding:.625rem .75rem;border-bottom:1px solid var(--border);
+                  transition:background .12s;"
+           onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''"
+           id="archive-row-{{ loop.index }}">
+
+        <!-- Filename / link -->
+        <div style="min-width:0;overflow:hidden;">
+          <a href="/digests/{{ f.filename }}" target="_blank"
+             style="font-size:.8125rem;font-weight:500;color:var(--primary);text-decoration:none;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;"
+             title="{{ f.filename }}">{{ f.filename }}</a>
+        </div>
+
+        <!-- Date -->
+        <div style="font-size:.8rem;color:var(--muted-foreground);white-space:nowrap;">{{ f.date }}</div>
+
+        <!-- Size -->
+        <div style="font-size:.8rem;color:var(--muted-foreground);text-align:right;white-space:nowrap;">{{ f.size_kb }} KB</div>
+
+        <!-- Delete -->
+        <div style="text-align:right;">
+          <button onclick="deleteDigest('{{ f.filename }}', {{ loop.index }})"
+                  style="background:none;border:none;cursor:pointer;color:var(--muted-foreground);
+                         padding:.25rem;border-radius:4px;transition:color .12s,background .12s;"
+                  title="Delete"
+                  onmouseenter="this.style.color='var(--destructive)';this.style.background='rgba(212,24,61,.06)'"
+                  onmouseleave="this.style.color='var(--muted-foreground)';this.style.background=''">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </button>
+        </div>
+
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}
@@ -287,12 +347,12 @@ document.getElementById('alert-edit-modal').addEventListener('click', function(e
   if (e.target === this) closeAlertEdit();
 });
 
-async function sendNow() {
+async function sendDigestNow() {
   const btn = document.getElementById('send-now-btn');
   btn.disabled = true;
   btn.textContent = 'Sending…';
   try {
-    const r = await fetch('/api/prd/send-now', {method: 'POST'});
+    const r = await fetch('/api/digest/send-now', {method: 'POST'});
     const data = await r.json();
     if (data.ok) {
       btn.textContent = 'Sent!';
@@ -301,9 +361,26 @@ async function sendNow() {
       throw new Error(data.error || 'Failed');
     }
   } catch (err) {
-    alert('Could not send: ' + err.message + '\n\nMake sure GMAIL credentials are configured in Settings.');
+    alert('Could not send: ' + err.message + '\n\nMake sure your email and Gmail credentials are configured in Settings.');
     btn.textContent = 'Send now';
     btn.disabled = false;
+  }
+}
+
+async function deleteDigest(filename, rowIndex) {
+  if (!confirm('Delete this digest archive?\n' + filename)) return;
+  try {
+    const r = await fetch('/api/digest/archive/' + encodeURIComponent(filename), {method: 'DELETE'});
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Delete failed');
+    const row = document.getElementById('archive-row-' + rowIndex);
+    if (row) {
+      row.style.transition = 'opacity .2s';
+      row.style.opacity = '0';
+      setTimeout(() => row.remove(), 220);
+    }
+  } catch (err) {
+    alert('Could not delete: ' + err.message);
   }
 }
 </script>

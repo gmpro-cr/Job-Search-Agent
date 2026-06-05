@@ -142,6 +142,15 @@ def _owner_preferences(reminder: dict) -> dict:
     return prefs
 
 
+def _job_fingerprint(job: dict) -> str:
+    """Content-based fingerprint: company + role (first 60 chars).
+    Used as a secondary dedup key so the same listing doesn't get emailed
+    again if its job_id changes between scrapes (company/role text drifts)."""
+    company = (job.get("company") or "").lower().strip()
+    role = (job.get("role") or "").lower().strip()[:60]
+    return f"{company}|{role}"
+
+
 def score_jobs_for_cv_reminder(reminder: dict) -> list:
     """
     Fetch and score jobs for a reminder that has cv_data.
@@ -286,9 +295,17 @@ def run_reminders(preferences: dict) -> None:
                 logger.info("Reminder '%s': no jobs found (keyword=%s, min_score=%d)", name, keyword, min_score)
                 continue
 
-            # Filter out jobs already sent to this reminder
+            # Filter out jobs already sent to this reminder.
+            # Use both job_id AND a content fingerprint (company+role) so that
+            # if the same listing is re-scraped with a slightly different name
+            # (generating a new job_id), it's still suppressed.
             sent_ids = set(reminder.get("sent_job_ids", []))
-            new_jobs = [j for j in jobs if j.get("job_id") not in sent_ids]
+            sent_fps = set(reminder.get("sent_fingerprints", []))
+            new_jobs = [
+                j for j in jobs
+                if j.get("job_id") not in sent_ids
+                and _job_fingerprint(j) not in sent_fps
+            ]
             if not new_jobs:
                 logger.info("Reminder '%s': all %d jobs already sent previously", name, len(jobs))
                 continue
@@ -300,9 +317,11 @@ def run_reminders(preferences: dict) -> None:
             success = send_job_email(recipient, new_jobs, alert_prefs)
             if success:
                 reminder["last_sent"] = datetime.now().isoformat()
-                # Track sent job IDs; keep only the last 500 to prevent unbounded growth
+                # Track sent job IDs and content fingerprints; cap at 500 each.
                 all_sent = reminder.get("sent_job_ids", []) + [j["job_id"] for j in new_jobs if j.get("job_id")]
                 reminder["sent_job_ids"] = all_sent[-500:]
+                all_fps = reminder.get("sent_fingerprints", []) + [_job_fingerprint(j) for j in new_jobs]
+                reminder["sent_fingerprints"] = all_fps[-500:]
                 updated = True
                 logger.info("Reminder '%s': sent %d new jobs to %s", name, len(new_jobs), recipient)
             else:
