@@ -9,12 +9,8 @@
       <div style="flex:1;min-width:0;">
         <span class="eyebrow">Daily product practice</span>
         <h1>PRD Library</h1>
-        <p class="page-lede">One new Product Requirements Document, delivered to your inbox every morning at 8 AM.</p>
+        <p class="page-lede">AI-generated Product Requirements Documents. One new PRD is created every morning.</p>
       </div>
-      <button onclick="sendNow()" id="sendBtn" class="btn btn-accent">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-        Send Today's PRD Now
-      </button>
     </div>
   </header>
 
@@ -232,7 +228,7 @@
       <p class="text-muted" style="max-width:40ch;margin:.5rem auto 1.5rem;">
         Daily PRDs are sent every morning at 8 AM. Generate today's now and add it to the library.
       </p>
-      <button onclick="sendNow()" class="btn btn-accent">Generate &amp; Send Today's PRD</button>
+      <p class="text-muted" style="font-size:.875rem;">Daily PRDs are generated every morning at 8 AM.</p>
     </div>
   </div>
   {% endif %}
@@ -241,46 +237,4 @@
 
 </div>
 
-<!-- Toast notification -->
-<div id="toast" class="toast hidden" role="status" aria-live="polite">
-  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-  <span id="toastMsg">Done</span>
-</div>
-
-<script>
-async function sendNow() {
-  const btn = document.getElementById('sendBtn');
-  if (!btn) return _sendInner();
-  const orig = btn.innerHTML;
-  btn.disabled = true;
-  btn.textContent = 'Sending…';
-  try {
-    await _sendInner();
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = orig;
-  }
-}
-async function _sendInner() {
-  try {
-    const res = await fetch('/api/prd/send-now', { method: 'POST' });
-    const data = await res.json();
-    if (data.ok) {
-      showToast('PRD queued. Check your inbox in a moment.');
-      setTimeout(() => location.reload(), 2500);
-    } else {
-      showToast('Error: ' + (data.error || 'Unknown error'));
-    }
-  } catch (e) {
-    showToast('Network error — is the server running?');
-  }
-}
-function showToast(msg) {
-  const toast = document.getElementById('toast');
-  const msgEl = document.getElementById('toastMsg');
-  msgEl.textContent = msg;
-  toast.classList.remove('hidden');
-  setTimeout(() => toast.classList.add('hidden'), 3500);
-}
-</script>
 {% endblock %}

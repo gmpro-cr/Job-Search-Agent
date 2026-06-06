@@ -230,7 +230,6 @@ def run_reminders(preferences: dict) -> None:
         if not reminder.get("enabled", True):
             continue
 
-        rem_type = (reminder.get("type") or "jobs").lower()
         recipient = (reminder.get("email") or "").strip()
         name = reminder.get("name", "Reminder")
 
@@ -238,47 +237,7 @@ def run_reminders(preferences: dict) -> None:
             logger.warning("Reminder '%s' has no email, skipping", name)
             continue
 
-        # ── PRD reminder ──────────────────────────────────────────────────
-        if rem_type == "prd":
-            prd_hour = int(reminder.get("prd_hour") or 8)
-            now_hour = datetime.now().hour
-            # Only fire within the same scheduled hour window
-            if now_hour != prd_hour:
-                logger.info("Reminder '%s' (PRD): not the scheduled hour (%d != %d)", name, now_hour, prd_hour)
-                continue
-            # Guard: skip if already sent today
-            last_sent = reminder.get("last_sent") or ""
-            if last_sent.startswith(datetime.now().strftime("%Y-%m-%d")):
-                logger.info("Reminder '%s' (PRD): already sent today", name)
-                continue
-            try:
-                from prd_generator import generate_daily_prd, build_prd_email_html
-                import smtplib
-                from email.message import EmailMessage
-
-                prd = generate_daily_prd()
-                html_body = build_prd_email_html(prd)
-                subject = f"Daily PRD: {prd['product']['name']} ({prd['date']})"
-
-                msg = EmailMessage()
-                msg["Subject"] = subject
-                msg["From"] = gmail_address
-                msg["To"] = recipient
-                msg.set_content(html_body, subtype="html", charset="utf-8")
-
-                with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
-                    server.ehlo(); server.starttls(); server.ehlo()
-                    server.login(gmail_address, gmail_app_password)
-                    server.send_message(msg)
-
-                reminder["last_sent"] = datetime.now().isoformat()
-                updated = True
-                logger.info("Reminder '%s' (PRD): sent '%s' to %s", name, prd["product"]["name"], recipient)
-            except Exception as e:
-                logger.error("Reminder '%s' (PRD): send failed: %s", name, e)
-            continue
-
-        # ── Job-alert reminder (default) ──────────────────────────────────
+        # ── Job-alert reminder ────────────────────────────────────────────
         # Wrapped so a single reminder's failure (scoring, DB, SMTP) can't
         # abort the whole batch and silently stop everyone's daily mail.
         try:

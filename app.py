@@ -468,53 +468,6 @@ def _reschedule_hr_jobs():
             logger.error("Failed to schedule HR email for reminder %s: %s", rid, e)
 
 
-def _send_prd_email_job():
-    """
-    Generate today's PRD and send it via email. Returns (ok, message) so a
-    request handler can report the real outcome — important on Vercel where a
-    fire-and-forget thread is killed before the SMTP send completes.
-    """
-    try:
-        from prd_generator import generate_daily_prd, build_prd_email_html
-        import smtplib
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.text import MIMEText
-
-        prefs = load_preferences()
-        gmail_address = prefs.get("gmail_address", "").strip()
-        gmail_app_password = prefs.get("gmail_app_password", "").strip()
-        recipient = prefs.get("email", "").strip()
-
-        if not gmail_address or not gmail_app_password:
-            logger.warning("PRD email skipped — Gmail credentials not configured in Settings")
-            return False, "Gmail credentials are not configured in Settings."
-        if not recipient:
-            logger.warning("PRD email skipped — no recipient email in Settings")
-            return False, "No recipient email is set in Settings."
-
-        prd = generate_daily_prd()
-        html_body = build_prd_email_html(prd)
-        subject = f"📋 Daily PRD: {prd['product']['name']} ({prd['date']})"
-
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = gmail_address
-        msg["To"] = recipient
-        msg.attach(MIMEText(html_body, "html"))
-
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(gmail_address, gmail_app_password)
-            server.sendmail(gmail_address, [recipient], msg.as_string())
-
-        logger.info("PRD email sent to %s: %s", recipient, prd["product"]["name"])
-        return True, recipient
-    except Exception as e:
-        logger.error("PRD email job failed: %s", e)
-        return False, str(e)
-
 
 def _startup_catchup():
     """
@@ -528,23 +481,6 @@ def _startup_catchup():
         _time.sleep(5)  # wait for scheduler to settle
         now = _dt.now()
         today_str = _date.today().isoformat()
-
-        # ── PRD email: scheduled at 08:00, send if past 08:00 and not already sent ──
-        import json as _json
-        _sched_state_file = os.path.join(BASE_DIR, "data", "scheduler_state.json")
-        try:
-            with open(_sched_state_file) as _f:
-                _sched_state = _json.load(_f)
-        except Exception:
-            _sched_state = {}
-        if now.hour >= 8 and _sched_state.get("prd") != today_str:
-            logger.info("Startup catch-up: PRD email not sent today — sending now")
-            try:
-                _send_prd_email_job()
-            except Exception as e:
-                logger.error("Startup PRD catch-up failed: %s", e)
-        else:
-            logger.info("Startup catch-up: PRD already sent today or before 08:00 — skipping")
 
         # ── HR emails: scheduled at 11:00 ──
         if now.hour >= 11:
@@ -594,10 +530,6 @@ def setup_background_scheduler():
                            id="evening_pipeline",
                            name="Evening job scraper pipeline at 19:00",
                            replace_existing=True)
-        _scheduler.add_job(lambda: None, trigger=CronTrigger(hour=8, minute=0),
-                           id="daily_prd_email",
-                           name="Daily PRD email at 08:00",
-                           replace_existing=True)
         _scheduler.start()
     except Exception:
         pass  # API compatibility only — actual scheduling is done below
@@ -614,7 +546,6 @@ def _start_simple_scheduler():
     import time as _time
     from datetime import datetime as _dt, date as _date
 
-    PRD_HOUR = 8
     HR_HOUR  = 11
     MORNING_PIPELINE_HOUR = 7
     EVENING_PIPELINE_HOUR = 19
@@ -657,7 +588,7 @@ def _start_simple_scheduler():
         t.start()
 
     def _loop():
-        logger.info("Simple scheduler started — PRD@08:00, HR@11:00, pipeline@07:00/19:00")
+        logger.info("Simple scheduler started — HR@11:00, pipeline@07:00/19:00")
         # Run startup catch-up first
         _startup_catchup()
 
@@ -667,12 +598,6 @@ def _start_simple_scheduler():
                 now   = _dt.now()
                 today = _date.today().isoformat()
                 h     = now.hour
-
-                # PRD email at 08:00
-                if h >= PRD_HOUR and not _already_ran("prd", today):
-                    logger.info("Simple scheduler: firing PRD email")
-                    _mark_ran("prd", today)
-                    _fire("prd_email", _send_prd_email_job)
 
                 # HR emails at 11:00
                 if h >= HR_HOUR and not _already_ran("hr", today):
@@ -2630,25 +2555,7 @@ def digests():
         if r.get("hr_email_enabled") and r.get("email")
     ]
 
-    # 3. PRD email (from preferences)
-    prd_sent_files = sorted(_glob.glob(
-        os.path.join(BASE_DIR, "data", "prds", "prd_*.sent")
-    ))
-    prd_last_sent = os.path.basename(prd_sent_files[-1]).replace("prd_", "").replace(".sent", "") if prd_sent_files else "Never"
-    prd_recipient = (prefs or {}).get("email", "") or user_email
-    prd_alerts = [{
-        "id": "__prd__",
-        "alert_type": "prd",
-        "name": "Daily PRD",
-        "email": prd_recipient,
-        "keyword": "AI-generated product brief for your top role",
-        "last_sent": prd_last_sent,
-        "schedule": "Daily at 08:00",
-        "min_score": None,
-        "max_jobs": None,
-    }] if prd_recipient else []
-
-    all_alerts = job_alerts + hr_alerts + prd_alerts
+    all_alerts = job_alerts + hr_alerts
 
     return render_template("digests.html", files=files, stats=stats, prefs=prefs,
                            user_email=user_email, job_alerts=all_alerts)
@@ -3678,11 +3585,8 @@ def reminders():
 
 @app.route("/reminders/create", methods=["POST"])
 def reminders_create():
-    """Create a new reminder. Supports type='jobs' (default) or type='prd'."""
+    """Create a new job-alert reminder."""
     from reminder_runner import load_reminders, save_reminders
-    rem_type = (request.form.get("type") or "jobs").strip().lower()
-    if rem_type not in ("jobs", "prd"):
-        rem_type = "jobs"
 
     name = request.form.get("name", "").strip()
     email_addr = request.form.get("email", "").strip()
@@ -3693,34 +3597,6 @@ def reminders_create():
         flash("Please enter a valid email address.", "error")
         return redirect(url_for("reminders"))
 
-    if rem_type == "prd":
-        try:
-            prd_hour = max(0, min(23, int(request.form.get("prd_hour", 8))))
-        except (ValueError, TypeError):
-            prd_hour = 8
-        prd_domain = (request.form.get("prd_domain") or "").strip()
-        user_email = dict(session).get('user', {}).get('email')
-        all_reminders = load_reminders()
-        all_reminders.append({
-            "id": uuid.uuid4().hex,
-            "owner_email": user_email,
-            "type": "prd",
-            "name": name,
-            "email": email_addr,
-            "enabled": True,
-            "last_sent": None,
-            "prd_hour": prd_hour,
-            "prd_domain": prd_domain,
-        })
-        try:
-            save_reminders(all_reminders)
-        except OSError as e:
-            flash(f"Failed to save reminder: {e}", "error")
-            return redirect(url_for("reminders"))
-        flash(f"PRD reminder '{name}' created — daily PRD will be emailed at {prd_hour:02d}:00.", "success")
-        return redirect(url_for("reminders"))
-
-    # type == 'jobs' (legacy path)
     keyword = request.form.get("keyword", "").strip()
     if not keyword:
         flash("Keyword is required for job alerts.", "error")
@@ -3824,40 +3700,6 @@ def reminders_send(reminder_id):
 
     recipient = (reminder.get("email") or "").strip()
     name = reminder.get("name", "Reminder")
-
-    # PRD branch: generate today's PRD and email it via SMTP.
-    if (reminder.get("type") or "jobs").lower() == "prd":
-        try:
-            from prd_generator import generate_daily_prd, build_prd_email_html
-            import smtplib
-            from email.mime.multipart import MIMEMultipart
-            from email.mime.text import MIMEText
-
-            prd = generate_daily_prd()
-            html_body = build_prd_email_html(prd)
-            subject = f"📋 Daily PRD: {prd['product']['name']} ({prd['date']})"
-
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = gmail_address
-            msg["To"] = recipient
-            msg.attach(MIMEText(html_body, "html"))
-
-            with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-                server.login(gmail_address, gmail_app_password)
-                server.sendmail(gmail_address, [recipient], msg.as_string())
-
-            reminder["last_sent"] = datetime.now().isoformat()
-            save_reminders(all_reminders)
-            flash(f"Sent PRD '{prd['product']['name']}' to {recipient}.", "success")
-        except Exception as e:
-            logger.exception("PRD reminder send failed: %s", e)
-            flash(f"PRD send failed: {e}", "error")
-        return redirect(url_for("reminders"))
-
     keyword = (reminder.get("keyword") or "").strip()
     min_score = max(0, min(100, int(reminder.get("min_score", 65))))
     max_jobs = max(1, min(50, int(reminder.get("max_jobs", 20))))
@@ -4208,25 +4050,6 @@ def prd_detail(date_str):
         prd = json.load(f)
     return render_template("prd_library.html", prds=[], today_prd=prd, detail=prd)
 
-
-@app.route("/api/prd/send-now", methods=["POST"])
-def prd_send_now():
-    """Manually trigger today's PRD email."""
-    require_user_id()
-    if _is_demo_user():
-        return jsonify({"ok": False, "error": "Email sending is disabled in the demo."}), 403
-    # Send synchronously: on Vercel a background thread is terminated when the
-    # response returns, so the email would never actually go out. This blocks
-    # until the SMTP send completes (well within the function timeout) and
-    # reports the real result.
-    try:
-        ok, detail = _send_prd_email_job()
-        if ok:
-            return jsonify({"ok": True, "message": f"Sent to {detail}"})
-        return jsonify({"ok": False, "error": detail}), 400
-    except Exception as e:
-        logger.error("PRD send-now failed: %s", e)
-        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.route("/api/prd/<date_str>")
