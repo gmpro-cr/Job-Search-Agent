@@ -2095,17 +2095,13 @@ def preferences():
 
 @app.route("/api/account/email-settings", methods=["POST"])
 def api_save_email_settings():
-    """Save Gmail send credentials + digest recipient email."""
+    """Save optional digest recipient override (Google login email is the default)."""
     uid = require_user_id()
     data = request.get_json(silent=True) or {}
     existing = load_preferences(uid) or DEFAULT_PREFS.copy()
     updated = dict(existing)
-    import re as _re
-    for key in ("gmail_address", "gmail_app_password", "email"):
-        if key in data:
-            val = (data[key] or "").strip()
-            # Strip non-ASCII copy-paste artifacts (e.g. \xa0) — smtplib requires ASCII
-            updated[key] = _re.sub(r'[^\x00-\x7F]', '', val).strip()
+    if "email" in data:
+        updated["email"] = (data["email"] or "").strip()
     try:
         save_preferences(updated, user_id=uid)
     except Exception as e:
@@ -2664,14 +2660,23 @@ def api_digest_send_now():
     uid = require_user_id()
     if _is_demo_user():
         return jsonify({"ok": False, "error": "Email sending is disabled in demo mode."}), 403
-    prefs = apply_env_overrides(load_preferences(uid) or DEFAULT_PREFS.copy())
-    recipient = (prefs.get("email") or "").strip()
-    gmail_address = prefs.get("gmail_address", "").strip()
-    gmail_app_password = prefs.get("gmail_app_password", "").strip()
-    if not recipient:
-        return jsonify({"ok": False, "error": "No recipient email configured. Set it in Settings."}), 400
+
+    # Sender credentials come from env vars only (app-level, not per-user).
+    app_prefs = apply_env_overrides({})
+    gmail_address = app_prefs.get("gmail_address", "").strip()
+    gmail_app_password = app_prefs.get("gmail_app_password", "").strip()
     if not gmail_address or not gmail_app_password:
-        return jsonify({"ok": False, "error": "Gmail credentials not configured. Set them in Settings."}), 400
+        return jsonify({"ok": False, "error": "Email sending is not configured on this server. Contact the administrator."}), 503
+
+    # Recipient: user's optional override, else their Google login email.
+    user_prefs = load_preferences(uid) or {}
+    google_email = (session.get("user") or {}).get("email", "")
+    recipient = (user_prefs.get("email") or google_email or "").strip()
+    if not recipient:
+        return jsonify({"ok": False, "error": "Could not determine your email address. Please sign out and sign in again."}), 400
+
+    # Merge for scoring/digest content — but sender creds come from app_prefs only.
+    prefs = apply_env_overrides(load_preferences(uid) or DEFAULT_PREFS.copy())
 
     top_n = max(1, min(50, int(prefs.get("top_jobs_per_digest", 5))))
     min_score = max(0, int(prefs.get("min_score", 50)))
@@ -2700,10 +2705,13 @@ def api_digest_send_now():
         return jsonify({"ok": False, "error": "No matching jobs found to send."}), 400
 
     from email_notifier import send_job_email
-    ok, err = send_job_email(recipient, jobs, prefs)
+    send_prefs = dict(prefs)
+    send_prefs["gmail_address"] = gmail_address
+    send_prefs["gmail_app_password"] = gmail_app_password
+    ok, err = send_job_email(recipient, jobs, send_prefs)
     if ok:
         return jsonify({"ok": True, "message": f"Sent {len(jobs)} jobs to {recipient}"})
-    return jsonify({"ok": False, "error": err or "Email send failed. Check Gmail credentials in Settings."}), 500
+    return jsonify({"ok": False, "error": err or "Email send failed."}), 500
 
 
 @app.route("/api/digest/settings", methods=["POST"])
