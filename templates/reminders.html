@@ -235,12 +235,14 @@
           <div class="flex gap-2 items-center flex-wrap">
             <button type="submit" class="btn-teal" style="padding:0.45rem 1rem;">Save</button>
             <button type="button" onclick="document.getElementById('edit-{{ r.id }}').classList.add('hidden')" class="gloss-btn-secondary">Cancel</button>
-            <button type="button" onclick="document.getElementById('del-{{ r.id }}').submit()" style="margin-left:auto;color:var(--destructive);background:none;border:1px solid var(--destructive);border-radius:8px;padding:0.45rem 1rem;font-size:0.8125rem;cursor:pointer;">Delete</button>
           </div>
         </form>
-        <form id="del-{{ r.id }}" method="POST" action="{{ url_for('reminders_delete', reminder_id=r.id) }}" onsubmit="return confirm('Delete this reminder?')" style="display:none;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        </form>
+        <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(0,0,0,0.06);">
+          <form method="POST" action="{{ url_for('reminders_delete', reminder_id=r.id) }}" onsubmit="return confirm('Delete this reminder?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" style="color:#d4183d;background:rgba(212,24,61,0.06);border:1px solid rgba(212,24,61,0.35);border-radius:8px;padding:0.4rem 1rem;font-size:0.8125rem;font-weight:500;cursor:pointer;width:100%;text-align:left;">Delete reminder</button>
+          </form>
+        </div>
       </div>
 
       <!-- HR Email panel -->
