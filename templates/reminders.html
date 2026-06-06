@@ -235,11 +235,11 @@
           <div class="flex gap-2 items-center flex-wrap">
             <button type="submit" class="btn-teal" style="padding:0.45rem 1rem;">Save</button>
             <button type="button" onclick="document.getElementById('edit-{{ r.id }}').classList.add('hidden')" class="gloss-btn-secondary">Cancel</button>
-            <form method="POST" action="{{ url_for('reminders_delete', reminder_id=r.id) }}" onsubmit="return confirm('Delete this reminder?')" style="margin-left:auto;">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" style="color:var(--destructive);background:none;border:1px solid var(--destructive);border-radius:8px;padding:0.45rem 1rem;font-size:0.8125rem;cursor:pointer;">Delete</button>
-            </form>
+            <button type="button" onclick="document.getElementById('del-{{ r.id }}').submit()" style="margin-left:auto;color:var(--destructive);background:none;border:1px solid var(--destructive);border-radius:8px;padding:0.45rem 1rem;font-size:0.8125rem;cursor:pointer;">Delete</button>
           </div>
+        </form>
+        <form id="del-{{ r.id }}" method="POST" action="{{ url_for('reminders_delete', reminder_id=r.id) }}" onsubmit="return confirm('Delete this reminder?')" style="display:none;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         </form>
       </div>
 
