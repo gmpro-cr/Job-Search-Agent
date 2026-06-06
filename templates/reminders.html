@@ -171,6 +171,10 @@
             class="gloss-btn-secondary">
             {% if r.hr_email_enabled %}HR Email ✓{% else %}HR Email{% endif %}
           </button>
+          <form method="POST" action="{{ url_for('reminders_delete', reminder_id=r.id) }}" onsubmit="return confirm('Delete this reminder?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="gloss-btn-secondary" style="color:#d4183d;border-color:rgba(212,24,61,0.35);">Delete</button>
+          </form>
           <div class="relative">
             <button type="button" onclick="document.getElementById('dropdown-{{ r.id }}').classList.toggle('hidden')" class="gloss-btn-ghost" aria-label="More">
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
