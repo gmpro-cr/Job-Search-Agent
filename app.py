@@ -3007,6 +3007,22 @@ def cv_profile_score():
 
 # ── Outreach agent routes ────────────────────────────────────────────────────
 
+@app.route("/api/outreach/<token>/save", methods=["POST"])
+@csrf.exempt
+def save_outreach_draft(token):
+    """Save edited email/LinkedIn draft text for an outreach item."""
+    from database import update_outreach_draft, get_outreach_by_token
+    if get_outreach_by_token(token) is None:
+        return jsonify({"ok": False, "error": "Not found"}), 404
+    data = request.get_json(silent=True) or {}
+    email_draft = data.get("email_draft")
+    linkedin_draft = data.get("linkedin_draft")
+    if email_draft is None and linkedin_draft is None:
+        return jsonify({"ok": False, "error": "No draft field provided"}), 400
+    updated = update_outreach_draft(token, email_draft=email_draft, linkedin_draft=linkedin_draft)
+    return jsonify({"ok": updated})
+
+
 @app.route("/api/approve/<token>", methods=["GET", "POST"])
 @csrf.exempt
 def approve_outreach(token):
