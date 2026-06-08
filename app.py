@@ -2254,10 +2254,10 @@ def digests():
             "size_kb": entry["size_kb"],
         })
     # Top jobs for the latest digest display
-    prefs = load_preferences()
+    uid = current_user_id()
+    prefs = load_preferences(uid)
     top_n = prefs.get("top_jobs_per_digest", 5) if prefs else 5
     min_score = prefs.get("min_score", 65) if prefs else 65
-    uid = current_user_id()
     conn = get_connection()
     cursor = conn.cursor()
     if uid:
@@ -2319,15 +2319,12 @@ def api_digest_send_now():
     if not gmail_address or not gmail_app_password:
         return jsonify({"ok": False, "error": "Email sending is not configured on this server. Contact the administrator."}), 503
 
-    # Recipient: user's optional override, else their Google login email.
-    user_prefs = load_preferences(uid) or {}
+    # Load once; apply_env_overrides injects sender creds from env, not user storage.
+    prefs = apply_env_overrides(load_preferences(uid) or DEFAULT_PREFS.copy())
     google_email = (session.get("user") or {}).get("email", "")
-    recipient = (user_prefs.get("email") or google_email or "").strip()
+    recipient = (prefs.get("email") or google_email or "").strip()
     if not recipient:
         return jsonify({"ok": False, "error": "Could not determine your email address. Please sign out and sign in again."}), 400
-
-    # Merge for scoring/digest content — but sender creds come from app_prefs only.
-    prefs = apply_env_overrides(load_preferences(uid) or DEFAULT_PREFS.copy())
 
     top_n = max(1, min(50, int(prefs.get("top_jobs_per_digest", 5))))
     min_score = max(0, int(prefs.get("min_score", 50)))
