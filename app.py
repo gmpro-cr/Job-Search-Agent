@@ -2257,7 +2257,7 @@ def digests():
     uid = current_user_id()
     prefs = load_preferences(uid)
     top_n = prefs.get("top_jobs_per_digest", 5) if prefs else 5
-    min_score = prefs.get("min_score", 65) if prefs else 65
+    min_score = prefs.get("min_score", 50) if prefs else 50
     conn = get_connection()
     cursor = conn.cursor()
     if uid:
