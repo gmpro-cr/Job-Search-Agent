@@ -280,12 +280,13 @@ def queue_for_approval(state: AgentState) -> dict:
     Save each drafted job to outreach_queue with status=pending.
     Generates a unique approval_token per job.
     """
-    import uuid
+    import secrets
     from database import insert_outreach_draft
 
+    owner_user_id = state.get("owner_user_id")
     count = 0
     for job in state["drafted"]:
-        token = uuid.uuid4().hex
+        token = secrets.token_urlsafe(24)
         insert_outreach_draft(
             job_id=job["job_id"],
             company=job.get("company", ""),
@@ -299,11 +300,12 @@ def queue_for_approval(state: AgentState) -> dict:
             llm_score=job.get("llm_score", 0),
             llm_reason=job.get("llm_reason", ""),
             apply_url=job.get("apply_url", ""),
+            user_id=owner_user_id,
         )
         job["approval_token"] = token
         count += 1
 
-    logger.info("queue_for_approval: queued %d drafts", count)
+    logger.info("queue_for_approval: queued %d drafts (owner=%s)", count, owner_user_id)
     return {"queued_count": count, "drafted": state["drafted"]}
 
 

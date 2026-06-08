@@ -53,7 +53,6 @@ from scrapers import scrape_all_portals
 from analyzer import analyze_jobs, generate_tailored_points, parse_nlp_query, parse_cv_text, cv_score, compute_gap_analysis, load_cv_data, save_cv_data, CV_DATA_PATH
 from digest_generator import generate_digest, get_latest_digest, DIGEST_DIR
 from email_notifier import send_job_email
-from reminder_runner import run_reminders
 from database import delete_old_jobs
 from contact_scraper import enrich_jobs_with_contacts
 from database import update_job_description
@@ -360,150 +359,6 @@ def _load_gmail():
     return mod
 
 
-def _run_hr_email(reminder_id: str):
-    """Send daily HR email for a specific reminder (called by scheduler or on-demand)."""
-    from datetime import date as _date
-    from reminder_runner import load_reminders, save_reminders
-
-    all_reminders = load_reminders()
-    reminder = next((r for r in all_reminders if r.get("id") == reminder_id), None)
-    if not reminder:
-        logger.error("HR email: reminder %s not found", reminder_id)
-        return
-
-    try:
-        hm    = _load_hm()
-        gmail = _load_gmail()
-
-        cv_data       = reminder.get("cv_data") or {}
-        skills        = cv_data.get("skills") or []
-        raw_text      = (cv_data.get("raw_text") or "")[:500]
-        role_keywords = [k.strip() for k in reminder.get("keyword", "").split(",") if k.strip()]
-        location      = reminder.get("hr_location") or "India"
-        recipient     = reminder.get("email", "")
-        user_name     = reminder.get("name", "")
-
-        sent     = hm.load_hr_sent(reminder_id)
-        contacts = hm.get_new_hiring_managers(
-            sent, role_keywords=role_keywords, skills=skills,
-            location=location, target=5
-        )
-
-        today_str = _date.today().strftime("%A, %d %B %Y")
-        body = (
-            f"Hi! 👋\n\nHere is your daily hiring manager digest for {today_str}.\n\n"
-            "Below are recruiters actively hiring for your target roles —\n"
-            "none of these have been sent to you before.\n\n"
-            "Reach out via LinkedIn today and track your responses.\n"
-        ) + hm.format_hiring_section(contacts, user_name=user_name,
-                                      user_summary=raw_text,
-                                      role_keywords=role_keywords)
-
-        subject = f"🎯 Daily Hiring Managers — {_date.today().strftime('%d %b %Y')} ({len(contacts)} new contacts)"
-        gmail.send_email(to=recipient, subject=subject, body=body)
-        if contacts:
-            hm.update_hr_sent(reminder_id, contacts)
-            # Mirror to Blob so the /hiring-managers page stays current on Vercel
-            from datetime import date as _date2
-            existing = _hm_load_json()
-            existing.setdefault(reminder_id, [])
-            for c in contacts:
-                existing[reminder_id].append({
-                    "name": c["name"], "company": c["company"],
-                    "their_role": c.get("their_role", ""),
-                    "linkedin_url": c.get("linkedin_url", ""),
-                    "date_sent": _date2.today().isoformat(),
-                })
-            _hm_save_json(existing)
-
-        # Update last_hr_sent timestamp
-        for r in all_reminders:
-            if r.get("id") == reminder_id:
-                r["last_hr_sent"] = _date.today().isoformat()
-                break
-        save_reminders(all_reminders)
-        logger.info("HR email sent for reminder %s (%d contacts) to %s", reminder_id, len(contacts), recipient)
-    except Exception as e:
-        logger.error("HR email failed for reminder %s: %s", reminder_id, e)
-
-
-def _reschedule_hr_jobs():
-    """
-    Register UI-only placeholder jobs in APScheduler for the /api/scheduler/jobs
-    display. Actual HR email execution is handled by the simple scheduler loop.
-    """
-    if not _scheduler:
-        return
-    from apscheduler.triggers.cron import CronTrigger
-    from reminder_runner import load_reminders
-
-    try:
-        reminders = load_reminders()
-    except Exception:
-        return
-
-    for r in reminders:
-        rid    = r.get("id", "")
-        job_id = f"hr_email_{rid}"
-        try:
-            enabled = r.get("hr_email_enabled", False)
-            hour   = int(r.get("hr_email_hour") or 11)
-            minute = int(r.get("hr_email_minute") or 0)
-
-            if enabled:
-                _scheduler.add_job(
-                    lambda: None,   # UI display only — simple scheduler fires the real job
-                    trigger=CronTrigger(hour=hour, minute=minute),
-                    id=job_id,
-                    name=f"HR email — {r.get('name', rid)} at {hour:02d}:{minute:02d}",
-                    replace_existing=True,
-                )
-                logger.info("HR email scheduled for %s at %02d:%02d", r.get("name", rid), hour, minute)
-            else:
-                try:
-                    _scheduler.remove_job(job_id)
-                except Exception:
-                    pass
-        except Exception as e:
-            logger.error("Failed to schedule HR email for reminder %s: %s", rid, e)
-
-
-
-def _startup_catchup():
-    """
-    On startup, fire any missed daily emails if we're past their scheduled time
-    and the mail hasn't been sent yet today. Runs in a background thread.
-    """
-    import threading, time as _time
-    from datetime import datetime as _dt, date as _date
-
-    def _run():
-        _time.sleep(5)  # wait for scheduler to settle
-        now = _dt.now()
-        today_str = _date.today().isoformat()
-
-        # ── HR emails: scheduled at 11:00 ──
-        if now.hour >= 11:
-            from reminder_runner import load_reminders
-            reminders = load_reminders()  # returns a list of dicts, each with "id" key
-            for r in reminders:
-                if not r.get("hr_email_enabled"):
-                    continue
-                rid = r.get("id", "")
-                last_hr_sent = r.get("last_hr_sent", "")
-                if last_hr_sent and last_hr_sent[:10] == today_str:
-                    continue  # already sent today
-                logger.info("Startup catch-up: HR email for '%s' not sent today — sending now", r.get("name", rid))
-                try:
-                    _run_hr_email(rid)
-                except Exception as e:
-                    logger.error("Startup HR catch-up failed for %s: %s", rid, e)
-        else:
-            logger.info("Startup catch-up: before 11:00 — HR emails will fire on schedule")
-
-    threading.Thread(target=_run, daemon=True).start()
-
-
 def setup_background_scheduler():
     """
     Start a simple time-checker scheduler. Replaces APScheduler to avoid
@@ -546,7 +401,6 @@ def _start_simple_scheduler():
     import time as _time
     from datetime import datetime as _dt, date as _date
 
-    HR_HOUR  = 11
     MORNING_PIPELINE_HOUR = 7
     EVENING_PIPELINE_HOUR = 19
 
@@ -588,9 +442,7 @@ def _start_simple_scheduler():
         t.start()
 
     def _loop():
-        logger.info("Simple scheduler started — HR@11:00, pipeline@07:00/19:00")
-        # Run startup catch-up first
-        _startup_catchup()
+        logger.info("Simple scheduler started — pipeline@07:00/19:00")
 
         while True:
             _time.sleep(60)
@@ -598,25 +450,6 @@ def _start_simple_scheduler():
                 now   = _dt.now()
                 today = _date.today().isoformat()
                 h     = now.hour
-
-                # HR emails at 11:00
-                if h >= HR_HOUR and not _already_ran("hr", today):
-                    _mark_ran("hr", today)
-                    logger.info("Simple scheduler: firing HR emails")
-                    def _hr_jobs(t=today):
-                        from reminder_runner import load_reminders
-                        for r in load_reminders():
-                            if not r.get("hr_email_enabled"):
-                                continue
-                            rid = r.get("id", "")
-                            last = r.get("last_hr_sent", "")
-                            if last and last[:10] == t:
-                                continue
-                            try:
-                                _run_hr_email(rid)
-                            except Exception as e:
-                                logger.error("HR email failed for %s: %s", rid, e)
-                    _fire("hr_emails", _hr_jobs)
 
                 # Morning pipeline at 07:00
                 if h >= MORNING_PIPELINE_HOUR and h < EVENING_PIPELINE_HOUR and not _already_ran("morning_pipeline", today):
@@ -830,14 +663,6 @@ def _run_scraper_pipeline():
             logger.info("Cleanup: removed %d jobs older than 30 days", removed)
         except Exception as e:
             logger.error("Cleanup error: %s", e)
-
-        # Phase 5.6: Custom reminders
-        with scraper_lock:
-            scraper_status["phase"] = "reminders"
-        try:
-            run_reminders(preferences)
-        except Exception as e:
-            logger.error("Reminders error: %s", e)
 
         with scraper_lock:
             scraper_status["phase"] = "done"
@@ -1362,44 +1187,6 @@ def dashboard_top_jobs():
     jobs = [dict(r) for r in c.fetchall()]
     conn.close()
     return jsonify({"jobs": jobs, "cv_uploaded": cv_data is not None})
-
-
-@app.route("/api/dashboard/reminder", methods=["POST"])
-def dashboard_create_reminder():
-    """Quick-create a job alert reminder from the dashboard widget."""
-    from reminder_runner import load_reminders, save_reminders
-    data = request.get_json(silent=True) or {}
-    email = (data.get("email") or "").strip()
-    keyword = (data.get("keyword") or "").strip()
-    if not email or not keyword:
-        return jsonify({"ok": False, "error": "Email and keyword are required"}), 400
-
-    uid = require_user_id()
-    cv_data = load_cv_data(uid)
-    all_reminders = load_reminders()
-    # Update existing reminder for this email+keyword if present, otherwise create
-    existing = next((r for r in all_reminders
-                     if r.get("email") == email and r.get("type", "jobs") == "jobs"), None)
-    if existing:
-        existing["keyword"] = keyword
-        existing["enabled"] = True
-        if cv_data:
-            existing["cv_data"] = cv_data
-    else:
-        import uuid
-        all_reminders.append({
-            "id": uuid.uuid4().hex,
-            "name": f"Dashboard Alert — {email.split('@')[0]}",
-            "keyword": keyword,
-            "email": email,
-            "min_score": 60,
-            "max_jobs": 20,
-            "enabled": True,
-            "last_sent": None,
-            "cv_data": cv_data or {},
-        })
-    save_reminders(all_reminders)
-    return jsonify({"ok": True})
 
 
 def _build_jobs_query(filters, user_id: int = None):
@@ -2418,27 +2205,24 @@ def hiring_managers():
 @app.route("/api/hiring-managers/search", methods=["POST"])
 def api_hiring_managers_search():
     """Run a fresh hiring manager search and store results (does not send email)."""
-    from reminder_runner import load_reminders as _load_rem
-    reminders = _load_rem() or []
-    # Use the first hr_email_enabled reminder's config as search parameters
-    reminder = next((r for r in reminders if r.get("hr_email_enabled") and r.get("email")), None)
-    if not reminder:
-        return jsonify({"ok": False, "error": "No active hiring manager reminder configured"}), 400
+    uid = require_user_id()
+    prefs = apply_env_overrides(load_preferences(uid) or DEFAULT_PREFS.copy())
+    cv_data_r = load_cv_data(uid) or {}
+    role_keywords = [t.strip() for t in (prefs.get("job_titles") or []) if t.strip()]
+    if not role_keywords:
+        return jsonify({"ok": False, "error": "No job titles configured in preferences"}), 400
+    skills = cv_data_r.get("skills") or []
+    location = prefs.get("preferred_location") or "India"
+    rid = f"user_{uid}"
     try:
         hm = _load_hm()
-        role_keywords = [k.strip() for k in reminder.get("keyword", "").split(",") if k.strip()]
-        location = reminder.get("hr_location") or "India"
-        cv_data_r = reminder.get("cv_data") or {}
-        skills = cv_data_r.get("skills") or []
-        sent = hm.load_hr_sent(reminder["id"])
+        sent = hm.load_hr_sent(rid)
         new_contacts = hm.get_new_hiring_managers(
             sent, role_keywords=role_keywords, skills=skills,
             location=location, target=10,
         )
         if new_contacts:
-            # Write to Blob (persists on Vercel) + local file (dev fallback)
             existing = _hm_load_json()
-            rid = reminder["id"]
             existing.setdefault(rid, [])
             for c in new_contacts:
                 existing[rid].append({
@@ -2517,48 +2301,8 @@ def digests():
     stats = {"total": total, "qualified": qualified, "avg_score": avg_score}
     user_email = dict(session).get('user', {}).get('email', '')
 
-    from reminder_runner import load_reminders as _load_rem
-    import glob as _glob
-    all_reminders = _load_rem() or []
-
-    # 1. Job alert emails (reminder sends matched job listings)
-    job_alerts = [
-        {
-            "id": r.get("id"),
-            "alert_type": "job_alert",
-            "name": r.get("name") or r.get("keyword", ""),
-            "email": r.get("email", ""),
-            "keyword": r.get("keyword", ""),
-            "last_sent": (r.get("last_sent") or "Never")[:10],
-            "schedule": "Daily after each scrape",
-            "min_score": r.get("min_score", 30),
-            "max_jobs": r.get("max_jobs", 20),
-        }
-        for r in all_reminders
-        if r.get("enabled") and r.get("email")
-    ]
-
-    # 2. Hiring manager emails (hr_email_enabled reminders)
-    hr_alerts = [
-        {
-            "id": r.get("id"),
-            "alert_type": "hiring_manager",
-            "name": r.get("name") or r.get("keyword", ""),
-            "email": r.get("email", ""),
-            "keyword": r.get("keyword", ""),
-            "last_sent": (r.get("last_hr_sent") or "Never")[:10],
-            "schedule": f"Daily at {r.get('hr_email_hour', 11):02d}:00",
-            "min_score": r.get("min_score", 30),
-            "max_jobs": r.get("max_jobs", 20),
-        }
-        for r in all_reminders
-        if r.get("hr_email_enabled") and r.get("email")
-    ]
-
-    all_alerts = job_alerts + hr_alerts
-
     return render_template("digests.html", files=files, stats=stats, prefs=prefs,
-                           user_email=user_email, job_alerts=all_alerts)
+                           user_email=user_email, job_alerts=[])
 
 
 @app.route("/api/digest/send-now", methods=["POST"])
@@ -3143,70 +2887,6 @@ def api_top_jobs():
     conn.close()
     return jsonify({"ok": True, "jobs": rows})
 
-@app.route("/api/reminder/set", methods=["POST"])
-def api_set_reminder():
-    """Create a reminder to email CV and top jobs at a specified datetime (ISO format)."""
-    uid = require_user_id()
-    data = request.get_json() or {}
-    email = data.get("email", "").strip()
-    remind_at = data.get("remind_at", "")
-    if not email or not remind_at:
-        return jsonify({"ok": False, "error": "Missing email or remind_at"}), 400
-    cv_data = load_cv_data(uid)
-    if not cv_data:
-        return jsonify({"ok": False, "error": "CV not uploaded yet"}), 400
-    # Load existing reminders
-    from reminder_runner import load_reminders, save_reminders
-    reminders = load_reminders()
-    new_reminder = {
-        "id": str(uuid.uuid4()),
-        "type": "jobs",
-        "email": email,
-        "remind_at": remind_at,
-        "cv_data": cv_data,
-        "enabled": True,
-        "keyword": "",
-        "min_score": 65,
-        "max_jobs": 20,
-        "sent_job_ids": []
-    }
-    reminders.append(new_reminder)
-    save_reminders(reminders)
-    return jsonify({"ok": True, "reminder_id": new_reminder["id"]})
-
-@app.route("/api/reminder/<reminder_id>", methods=["PATCH"])
-def api_update_reminder(reminder_id):
-    """Update editable fields on an existing reminder."""
-    from reminder_runner import load_reminders, save_reminders
-    data = request.get_json(silent=True) or {}
-    reminders = load_reminders() or []
-    target = next((r for r in reminders if r.get("id") == reminder_id), None)
-    if not target:
-        return jsonify({"ok": False, "error": "Reminder not found"}), 404
-    if "email" in data:
-        target["email"] = (data["email"] or "").strip()
-    if "keyword" in data:
-        target["keyword"] = (data["keyword"] or "").strip()
-    if "name" in data:
-        target["name"] = (data["name"] or "").strip()
-    if "min_score" in data:
-        try:
-            target["min_score"] = max(0, min(100, int(data["min_score"])))
-        except (ValueError, TypeError):
-            pass
-    if "max_jobs" in data:
-        try:
-            target["max_jobs"] = max(1, min(100, int(data["max_jobs"])))
-        except (ValueError, TypeError):
-            pass
-    try:
-        save_reminders(reminders)
-    except Exception as e:
-        logger.error("Failed to update reminder %s: %s", reminder_id, e)
-        return jsonify({"ok": False, "error": "Save failed"}), 500
-    return jsonify({"ok": True})
-
-
 @app.route("/api/cv/rescore", methods=["POST"])
 def rescore_jobs():
     """Re-score all jobs in the DB against the uploaded CV."""
@@ -3571,289 +3251,6 @@ def _extract_cv_text(file_storage) -> str:
 # ---------------------------------------------------------------------------
 # Reminders
 # ---------------------------------------------------------------------------
-
-@app.route("/reminders")
-def reminders():
-    """List all reminders and show create form."""
-    from reminder_runner import load_reminders
-    all_reminders = load_reminders()
-    user_email = dict(session).get('user', {}).get('email')
-    if user_email:
-        all_reminders = [r for r in all_reminders if not r.get('owner_email') or r.get('owner_email') == user_email]
-    return render_template("reminders.html", reminders=all_reminders)
-
-
-@app.route("/reminders/create", methods=["POST"])
-def reminders_create():
-    """Create a new job-alert reminder."""
-    from reminder_runner import load_reminders, save_reminders
-
-    name = request.form.get("name", "").strip()
-    email_addr = request.form.get("email", "").strip()
-    if not name or not email_addr:
-        flash("Name and email are required.", "error")
-        return redirect(url_for("reminders"))
-    if "@" not in email_addr or "." not in email_addr.split("@")[-1]:
-        flash("Please enter a valid email address.", "error")
-        return redirect(url_for("reminders"))
-
-    keyword = request.form.get("keyword", "").strip()
-    if not keyword:
-        flash("Keyword is required for job alerts.", "error")
-        return redirect(url_for("reminders"))
-    try:
-        min_score = max(0, min(100, int(request.form.get("min_score", 65))))
-        max_jobs = max(1, min(50, int(request.form.get("max_jobs", 20))))
-    except (ValueError, TypeError):
-        flash("Score and max jobs must be numbers.", "error")
-        return redirect(url_for("reminders"))
-
-    cv_file = request.files.get("cv_file")
-    if not cv_file or not cv_file.filename:
-        flash("A CV/resume file is required to create a job-alert reminder.", "error")
-        return redirect(url_for("reminders"))
-    try:
-        cv_text = _extract_cv_text(cv_file)
-    except ValueError as e:
-        flash(str(e), "error")
-        return redirect(url_for("reminders"))
-    cv_data = parse_cv_text(cv_text)
-    user_email = dict(session).get('user', {}).get('email')
-
-    all_reminders = load_reminders()
-    all_reminders.append({
-        "id": uuid.uuid4().hex,
-        "owner_email": user_email,
-        "type": "jobs",
-        "name": name,
-        "keyword": keyword,
-        "min_score": min_score,
-        "max_jobs": max_jobs,
-        "email": email_addr,
-        "enabled": True,
-        "last_sent": None,
-        "cv_data": cv_data,
-        "hr_email_enabled": False,
-        "hr_email_hour": 11,
-        "hr_email_minute": 0,
-        "hr_location": "",
-        "last_hr_sent": None,
-    })
-    try:
-        save_reminders(all_reminders)
-    except OSError as e:
-        flash(f"Failed to save reminder: {e}", "error")
-        return redirect(url_for("reminders"))
-    flash(f"Reminder '{name}' created with {len(cv_data['skills'])} CV skills detected.", "success")
-    return redirect(url_for("reminders"))
-
-
-@app.route("/reminders/<reminder_id>/delete", methods=["POST"])
-def reminders_delete(reminder_id):
-    """Delete a reminder by id."""
-    from reminder_runner import load_reminders, save_reminders
-    all_reminders = load_reminders()
-    all_reminders = [r for r in all_reminders if r.get("id") != reminder_id]
-    try:
-        save_reminders(all_reminders)
-    except OSError as e:
-        flash(f"Failed to save: {e}", "error")
-        return redirect(url_for("reminders"))
-    flash("Reminder deleted.", "success")
-    return redirect(url_for("reminders"))
-
-
-@app.route("/reminders/<reminder_id>/toggle", methods=["POST"])
-def reminders_toggle(reminder_id):
-    """Enable or disable a reminder without deleting it."""
-    from reminder_runner import load_reminders, save_reminders
-    all_reminders = load_reminders()
-    for r in all_reminders:
-        if r.get("id") == reminder_id:
-            r["enabled"] = not r.get("enabled", True)
-            break
-    try:
-        save_reminders(all_reminders)
-    except OSError as e:
-        flash(f"Failed to save: {e}", "error")
-    return redirect(url_for("reminders"))
-
-
-@app.route("/reminders/<reminder_id>/send", methods=["POST"])
-def reminders_send(reminder_id):
-    """Manually trigger a single reminder right now."""
-    from reminder_runner import load_reminders, save_reminders
-    from email_notifier import send_job_email
-
-    preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
-    gmail_address = preferences.get("gmail_address", "").strip()
-    gmail_app_password = preferences.get("gmail_app_password", "").strip()
-    if not gmail_address or not gmail_app_password:
-        flash("Gmail credentials not configured. Add them in Settings first.", "error")
-        return redirect(url_for("reminders"))
-
-    all_reminders = load_reminders()
-    reminder = next((r for r in all_reminders if r.get("id") == reminder_id), None)
-    if not reminder:
-        flash("Reminder not found.", "error")
-        return redirect(url_for("reminders"))
-
-    recipient = (reminder.get("email") or "").strip()
-    name = reminder.get("name", "Reminder")
-    keyword = (reminder.get("keyword") or "").strip()
-    min_score = max(0, min(100, int(reminder.get("min_score", 65))))
-    max_jobs = max(1, min(50, int(reminder.get("max_jobs", 20))))
-
-    from reminder_runner import score_jobs_for_cv_reminder
-    jobs = score_jobs_for_cv_reminder(reminder)
-    if not jobs:
-        flash(f"No jobs found matching '{keyword}' with score ≥ {min_score}.", "error")
-        return redirect(url_for("reminders"))
-
-    alert_prefs = dict(preferences)
-    alert_prefs["job_titles"] = [keyword]
-    success, _send_err = send_job_email(recipient, jobs, alert_prefs)
-    if success:
-        reminder["last_sent"] = datetime.now().isoformat()
-        # Update dedup tracking so the same jobs don't repeat in the next automated run
-        from reminder_runner import _job_fingerprint as _fp
-        all_sent = reminder.get("sent_job_ids", []) + [j["job_id"] for j in jobs if j.get("job_id")]
-        reminder["sent_job_ids"] = all_sent[-500:]
-        all_fps = reminder.get("sent_fingerprints", []) + [_fp(j) for j in jobs]
-        reminder["sent_fingerprints"] = all_fps[-500:]
-        save_reminders(all_reminders)
-        flash(f"Sent {len(jobs)} jobs for '{name}' to {recipient}.", "success")
-    else:
-        flash(f"Failed to send email to {recipient}: {_send_err or 'unknown error'}", "error")
-
-    return redirect(url_for("reminders"))
-
-
-@app.route("/reminders/<reminder_id>/update-cv", methods=["POST"])
-def reminders_update_cv(reminder_id):
-    """Replace the CV for an existing reminder."""
-    from reminder_runner import load_reminders, save_reminders
-    cv_file = request.files.get("cv_file")
-    if not cv_file or not cv_file.filename:
-        flash("Please select a CV file to upload.", "error")
-        return redirect(url_for("reminders"))
-    try:
-        cv_text = _extract_cv_text(cv_file)
-    except ValueError as e:
-        flash(str(e), "error")
-        return redirect(url_for("reminders"))
-    cv_data = parse_cv_text(cv_text)
-
-    all_reminders = load_reminders()
-    updated = False
-    for r in all_reminders:
-        if r.get("id") == reminder_id:
-            r["cv_data"] = cv_data
-            updated = True
-            break
-    if updated:
-        try:
-            save_reminders(all_reminders)
-        except OSError as e:
-            flash(f"Failed to save reminder: {e}", "error")
-            return redirect(url_for("reminders"))
-        flash(f"CV updated — {len(cv_data['skills'])} skills detected.", "success")
-    else:
-        flash("Reminder not found.", "error")
-    return redirect(url_for("reminders"))
-
-
-@app.route("/reminders/<reminder_id>/hr-toggle", methods=["POST"])
-def reminders_hr_toggle(reminder_id):
-    """Enable or disable HR email for a reminder."""
-    from reminder_runner import load_reminders, save_reminders
-    all_reminders = load_reminders()
-    for r in all_reminders:
-        if r.get("id") == reminder_id:
-            r["hr_email_enabled"] = not r.get("hr_email_enabled", False)
-            break
-    save_reminders(all_reminders)
-    _reschedule_hr_jobs()
-    return redirect(url_for("reminders"))
-
-
-@app.route("/reminders/<reminder_id>/hr-schedule", methods=["POST"])
-def reminders_hr_schedule(reminder_id):
-    """Update HR email send time for a reminder."""
-    from reminder_runner import load_reminders, save_reminders
-    try:
-        hour   = max(0, min(23, int(request.form.get("hr_hour", 11))))
-        minute = max(0, min(59, int(request.form.get("hr_minute", 0))))
-        location = request.form.get("hr_location", "").strip()
-    except (ValueError, TypeError):
-        flash("Invalid time values.", "error")
-        return redirect(url_for("reminders"))
-    all_reminders = load_reminders()
-    for r in all_reminders:
-        if r.get("id") == reminder_id:
-            r["hr_email_hour"]   = hour
-            r["hr_email_minute"] = minute
-            if location:
-                r["hr_location"] = location
-            break
-    save_reminders(all_reminders)
-    _reschedule_hr_jobs()
-    flash("HR email schedule updated.", "success")
-    return redirect(url_for("reminders"))
-
-
-@app.route("/reminders/<reminder_id>/hr-send", methods=["POST"])
-def reminders_hr_send(reminder_id):
-    """Send HR email right now for a reminder."""
-    import threading
-    threading.Thread(target=_run_hr_email, args=[reminder_id], daemon=True).start()
-    flash("Sending HR email in background — check your inbox in ~1 minute.", "success")
-    return redirect(url_for("reminders"))
-
-
-@app.route("/reminders/<reminder_id>/edit", methods=["POST"])
-def reminders_edit(reminder_id):
-    """Update editable fields of an existing reminder."""
-    from reminder_runner import load_reminders, save_reminders
-    name = request.form.get("name", "").strip()
-    keyword = request.form.get("keyword", "").strip()
-    email_addr = request.form.get("email", "").strip()
-    if not name or not keyword or not email_addr:
-        flash("Name, keyword, and email are required.", "error")
-        return redirect(url_for("reminders"))
-    if "@" not in email_addr or "." not in email_addr.split("@")[-1]:
-        flash("Please enter a valid email address.", "error")
-        return redirect(url_for("reminders"))
-    try:
-        min_score = max(0, min(100, int(request.form.get("min_score", 65))))
-        max_jobs = max(1, min(50, int(request.form.get("max_jobs", 20))))
-    except (ValueError, TypeError):
-        flash("Score and max jobs must be numbers.", "error")
-        return redirect(url_for("reminders"))
-
-    all_reminders = load_reminders()
-    updated = False
-    for r in all_reminders:
-        if r.get("id") == reminder_id:
-            r["name"] = name
-            r["keyword"] = keyword
-            r["email"] = email_addr
-            r["min_score"] = min_score
-            r["max_jobs"] = max_jobs
-            updated = True
-            break
-    if updated:
-        try:
-            save_reminders(all_reminders)
-        except OSError as e:
-            flash(f"Failed to save reminder: {e}", "error")
-            return redirect(url_for("reminders"))
-        flash(f"Reminder '{name}' updated.", "success")
-    else:
-        flash("Reminder not found.", "error")
-    return redirect(url_for("reminders"))
-
-
 
 @app.route("/api/scheduler/jobs")
 def scheduler_jobs():

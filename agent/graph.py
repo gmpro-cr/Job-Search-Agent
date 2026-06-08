@@ -47,12 +47,27 @@ def _build_graph() -> StateGraph:
 _agent = _build_graph()
 
 
-def run_agent_pipeline(preferences: dict, config: dict) -> dict:
+def run_agent_pipeline(preferences: dict, config: dict, owner_user_id: int = None) -> dict:
     """
     Run the full AI agent pipeline.
+
+    owner_user_id identifies which user owns the resulting outreach
+    drafts (used by per-user ownership checks). Resolved from
+    OWNER_EMAIL env var when omitted.
+
     Returns final AgentState dict.
     """
     logger.info("AI agent pipeline starting")
+    if owner_user_id is None:
+        import os
+        try:
+            from database import get_user_by_email as _gube
+            owner = (os.environ.get("OWNER_EMAIL", "") or "").strip().lower()
+            row = _gube(owner) if owner else None
+            owner_user_id = row["id"] if row else None
+        except Exception as e:
+            logger.warning("Could not resolve owner_user_id: %s", e)
+            owner_user_id = None
     initial_state: AgentState = {
         "jobs": [],
         "scored_jobs": [],
@@ -63,6 +78,7 @@ def run_agent_pipeline(preferences: dict, config: dict) -> dict:
         "preferences": preferences,
         "config": config,
         "errors": [],
+        "owner_user_id": owner_user_id,
     }
     try:
         result = _agent.invoke(initial_state)

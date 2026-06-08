@@ -1,253 +1,215 @@
 {% extends "base.html" %}
 {% block title %}Daily Digest - Job Search Agent{% endblock %}
+{% block topbar_title %}Daily Digest{% endblock %}
+{% block page_body_class %}is-airy digest-page-body{% endblock %}
 
 {% block content %}
 {# prefs can be None for a user who hasn't configured preferences yet —
    normalise to an empty dict so the .get() calls below never crash. #}
 {% set prefs = prefs or {} %}
-<div class="space-y-6">
-
-  <header class="page-header">
-    <div class="page-header-row">
-      <div style="flex:1;min-width:0;">
-        <span class="eyebrow">Email delivery</span>
-        <h1>Daily Digest</h1>
-        <p class="page-lede">Your top-matched jobs delivered by email after each scrape. Configure what gets sent below.</p>
+<main class="digest-shell">
+  <header class="digest-hero">
+    <div class="digest-hero-copy">
+      <span class="eyebrow">Email delivery</span>
+      <h1>Your best matches, without the daily search.</h1>
+      <p class="page-lede">Control the emails the agent sends after each scrape, preview the current shortlist, and review past digests.</p>
+    </div>
+    <div class="digest-hero-actions">
+      <div class="digest-delivery-status">
+        <span class="digest-status-dot" aria-hidden="true"></span>
+        <span><strong>{{ job_alerts|length }} active routine{{ '' if job_alerts|length == 1 else 's' }}</strong><small>Runs after the 7 AM and 7 PM scrapes</small></span>
       </div>
-      <button onclick="sendDigestNow()" id="send-now-btn" class="btn btn-accent" style="white-space:nowrap;flex-shrink:0;">
-        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:.375rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-        Send now
+      <button onclick="sendDigestNow()" id="send-now-btn" class="btn btn-accent digest-send-btn">
+        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        <span>Send digest now</span>
       </button>
+      <p id="send-now-status" class="digest-action-status" role="status" aria-live="polite"></p>
     </div>
   </header>
 
-  <!-- Job alert emails (reminders) -->
-  {% if job_alerts %}
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Job alert emails</div>
-      <div class="card-description">Active reminders sending job matches by email daily.</div>
-    </div>
-    <div class="card-content" style="padding:0 1.5rem 1.5rem;">
-
-      <!-- Column headers -->
-      <div style="display:grid;grid-template-columns:9rem 1fr 4rem;gap:.75rem;
-                  padding:.5rem .75rem;border-bottom:1px solid var(--border);
-                  font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);">
-        <span>Type</span>
-        <span>Alert name</span>
-        <span></span>
+  <section class="digest-section" aria-labelledby="delivery-routines-title">
+    <div class="digest-section-heading">
+      <div>
+        <h2 id="delivery-routines-title">Email delivery</h2>
+        <p>Send your top matched jobs to your inbox on demand.</p>
       </div>
-
-      {% for alert in job_alerts %}
-      <div style="display:grid;grid-template-columns:9rem 1fr 4rem;gap:.75rem;
-                  align-items:center;padding:.75rem;border-bottom:1px solid var(--border);
-                  transition:background .12s;"
-           onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''">
-
-        <!-- Type badge -->
-        <div>
-          {% if alert.alert_type == 'job_alert' %}
-          <span class="badge badge-default" style="font-size:.7rem;white-space:nowrap;">Job alerts</span>
-          {% elif alert.alert_type == 'hiring_manager' %}
-          <span class="badge badge-default" style="font-size:.7rem;white-space:nowrap;">Hiring managers</span>
-          {% elif alert.alert_type == 'prd' %}
-          <span class="badge badge-default" style="font-size:.7rem;white-space:nowrap;">Daily PRD</span>
-          {% endif %}
-        </div>
-
-        <!-- Alert name (primary) + email (secondary) -->
-        <div style="min-width:0;">
-          <div style="font-weight:600;font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-            {{ alert.name or alert.email }}
-          </div>
-          {% if alert.name %}
-          <div style="font-size:.75rem;color:var(--muted-foreground);margin-top:.125rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-            {{ alert.email }}
-          </div>
-          {% endif %}
-        </div>
-
-        <!-- Action -->
-        <div>
-          {% if alert.alert_type != 'prd' %}
-          <button onclick="openAlertEdit('{{ alert.id }}', {{ alert | tojson | forceescape }})"
-                  style="display:inline-flex;align-items:center;gap:.3rem;font-size:.8125rem;
-                         color:var(--primary);background:none;border:none;cursor:pointer;font-weight:500;padding:0;">
-            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-            </svg>
-            Edit
-          </button>
-          {% else %}
-          <a href="{{ url_for('preferences') }}"
-             style="display:inline-flex;align-items:center;gap:.3rem;font-size:.8125rem;
-                    color:var(--muted-foreground);text-decoration:none;">
-            Settings
-          </a>
-          {% endif %}
-        </div>
-
-      </div>
-      {% endfor %}
-
     </div>
-  </div>
-  {% endif %}
+  </section>
 
   <!-- Edit alert modal -->
-  <div id="alert-edit-modal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:1rem;padding:1.5rem;width:min(480px,92vw);box-shadow:0 8px 32px rgba(0,0,0,.18);">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
-        <h3 style="font-size:1rem;font-weight:600;margin:0;">Edit job alert</h3>
-        <button onclick="closeAlertEdit()" style="background:none;border:none;cursor:pointer;color:var(--muted-foreground);padding:.25rem;">
+  <div id="alert-edit-modal" class="digest-modal" role="dialog" aria-modal="true" aria-labelledby="alert-edit-title" aria-hidden="true">
+    <div class="digest-modal-panel">
+      <div class="digest-modal-head">
+        <div>
+          <span>Delivery routine</span>
+          <h3 id="alert-edit-title">Edit job alert</h3>
+        </div>
+        <button type="button" onclick="closeAlertEdit()" class="digest-icon-btn" aria-label="Close edit dialog">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
-      <form onsubmit="saveAlertEdit(event)" style="display:flex;flex-direction:column;gap:.875rem;">
+      <form onsubmit="saveAlertEdit(event)" class="digest-modal-form">
         <input type="hidden" id="ae-id">
         <div>
-          <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Recipient email</label>
-          <input id="ae-email" type="email" class="input" style="width:100%;font-size:.875rem;" placeholder="recipient@email.com">
+          <label for="ae-email">Recipient email</label>
+          <input id="ae-email" type="email" class="input" placeholder="recipient@email.com" required>
         </div>
         <div>
-          <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Label / name</label>
-          <input id="ae-name" type="text" class="input" style="width:100%;font-size:.875rem;" placeholder="e.g. Product Manager 1">
+          <label for="ae-name">Routine name</label>
+          <input id="ae-name" type="text" class="input" placeholder="Product manager roles">
         </div>
         <div>
-          <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Keywords <span style="font-weight:400;color:var(--muted-foreground);">(comma-separated)</span></label>
-          <textarea id="ae-keyword" class="input" rows="3" style="width:100%;font-size:.875rem;resize:vertical;"></textarea>
+          <label for="ae-keyword">Keywords <span>(comma-separated)</span></label>
+          <textarea id="ae-keyword" class="input" rows="3"></textarea>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <div class="digest-modal-grid">
           <div>
-            <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Min score</label>
-            <select id="ae-min-score" class="input" style="width:100%;font-size:.875rem;">
+            <label for="ae-min-score">Minimum score</label>
+            <select id="ae-min-score" class="input">
               {% for s in [20, 30, 40, 50, 60, 70, 80] %}
               <option value="{{ s }}">{{ s }}+</option>
               {% endfor %}
             </select>
           </div>
           <div>
-            <label style="display:block;font-size:.8125rem;font-weight:600;margin-bottom:.375rem;">Max jobs</label>
-            <select id="ae-max-jobs" class="input" style="width:100%;font-size:.875rem;">
+            <label for="ae-max-jobs">Maximum jobs</label>
+            <select id="ae-max-jobs" class="input">
               {% for n in [5, 10, 15, 20, 30, 50] %}
               <option value="{{ n }}">{{ n }}</option>
               {% endfor %}
             </select>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:.75rem;padding-top:.25rem;">
+        <div class="digest-modal-actions">
           <button type="submit" id="ae-save-btn" class="btn btn-default">Save</button>
-          <button type="button" onclick="closeAlertEdit()" class="btn" style="background:transparent;border:1px solid var(--border);">Cancel</button>
-          <span id="ae-status" style="font-size:.8125rem;color:var(--muted-foreground);display:none;margin-left:.25rem;"></span>
+          <button type="button" onclick="closeAlertEdit()" class="btn btn-ghost">Cancel</button>
+          <span id="ae-status" class="digest-modal-status" role="status"></span>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Digest configuration -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Digest settings</div>
-      <div class="card-description">Configure what gets included and where it gets sent.</div>
-    </div>
-    <div class="card-content">
-      <form id="digest-settings-form" onsubmit="saveDigestSettings(event)" style="display:flex;flex-direction:column;gap:1rem;">
-
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.875rem;">
+  <section class="digest-control-grid" aria-label="Digest configuration and preview">
+    <div class="digest-settings-panel">
+      <div class="digest-panel-head">
+        <div>
+          <h2>Default digest</h2>
+          <p>Set the recipient and quality threshold for manual and scheduled digests.</p>
+        </div>
+      </div>
+      <form id="digest-settings-form" onsubmit="saveDigestSettings(event)" class="digest-settings-form">
+        <div class="digest-field-grid">
           <div>
-            <label style="display:block;font-size:.8125rem;font-weight:600;color:var(--foreground);margin-bottom:.375rem;">Recipient email</label>
-            <input id="ds-email" type="email" class="input" style="width:100%;font-size:.875rem;"
+            <label for="ds-email">Recipient email</label>
+            <input id="ds-email" type="email" class="input"
               value="{{ prefs.get('email','') or user_email }}"
-              placeholder="your@email.com">
+              placeholder="your@email.com" required>
           </div>
           <div>
-            <label style="display:block;font-size:.8125rem;font-weight:600;color:var(--foreground);margin-bottom:.375rem;">Jobs per digest</label>
-            <select id="ds-top-n" class="input" style="width:100%;font-size:.875rem;">
+            <label for="ds-top-n">Jobs per digest</label>
+            <select id="ds-top-n" class="input">
               {% for n in [3, 5, 10, 15, 20] %}
               <option value="{{ n }}" {% if (prefs.get('top_jobs_per_digest', 5)|int) == n %}selected{% endif %}>{{ n }} jobs</option>
               {% endfor %}
             </select>
           </div>
           <div>
-            <label style="display:block;font-size:.8125rem;font-weight:600;color:var(--foreground);margin-bottom:.375rem;">Minimum match score</label>
-            <select id="ds-min-score" class="input" style="width:100%;font-size:.875rem;">
+            <label for="ds-min-score">Minimum match score</label>
+            <select id="ds-min-score" class="input">
               {% for s in [30, 40, 50, 60, 70, 80] %}
               <option value="{{ s }}" {% if (prefs.get('min_score', 50)|int) == s %}selected{% endif %}>{{ s }}+</option>
               {% endfor %}
             </select>
           </div>
         </div>
-
-        <div style="display:flex;align-items:center;gap:.75rem;padding-top:.25rem;">
+        <div class="digest-form-actions">
           <button type="submit" id="ds-save-btn" class="btn btn-default">Save settings</button>
-          <span id="ds-save-status" style="font-size:.8125rem;color:var(--muted-foreground);display:none;"></span>
+          <span id="ds-save-status" class="digest-action-status" role="status" aria-live="polite"></span>
         </div>
       </form>
     </div>
-  </div>
 
-  <!-- Archive -->
-  {% if files %}
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Digest archive</div>
-      <div class="card-description">Past digest files. Click to view; delete when no longer needed.</div>
+    <aside class="digest-preview-panel">
+      <div class="digest-panel-head">
+        <div>
+          <h2>Current shortlist</h2>
+          <p>{{ stats.qualified }} jobs meet your {{ prefs.get('min_score', 50) }}+ threshold.</p>
+        </div>
+        <span class="digest-preview-count tabular">{{ top_jobs|length }}/{{ prefs.get('top_jobs_per_digest', 5) }}</span>
+      </div>
+      {% if top_jobs %}
+      <ol class="digest-preview-list">
+        {% for job in top_jobs %}
+        <li>
+          <span class="digest-preview-rank tabular">{{ loop.index }}</span>
+          <div>
+            <strong>{{ job.role }}</strong>
+            <span>{{ job.company }}{% if job.location %} · {{ job.location }}{% endif %}</span>
+          </div>
+          <span class="digest-preview-score tabular">{{ job.score }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <div class="digest-preview-empty">
+        <p>No jobs currently meet this score threshold.</p>
+        <a href="{{ url_for('jobs') }}">Review all jobs</a>
+      </div>
+      {% endif %}
+    </aside>
+  </section>
+
+  <section class="digest-section digest-archive" aria-labelledby="digest-archive-title">
+    <div class="digest-section-heading">
+      <div>
+        <h2 id="digest-archive-title">Digest archive</h2>
+        <p>Open a previous brief or remove files you no longer need.</p>
+      </div>
+      {% if files %}<span class="digest-archive-total tabular">{{ files|length }} saved</span>{% endif %}
     </div>
-    <div class="card-content" style="padding:0 1.5rem 1.5rem;">
-      <!-- Header row -->
-      <div style="display:grid;grid-template-columns:1fr 7rem 5rem 4rem;gap:.75rem;
-                  padding:.5rem .75rem;border-bottom:1px solid var(--border);
-                  font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);">
-        <span>File</span>
-        <span>Date</span>
-        <span style="text-align:right;">Size</span>
+
+    {% if files %}
+    <div class="digest-archive-table">
+      <div class="digest-archive-header" aria-hidden="true">
+        <span>Digest</span>
+        <span>Created</span>
+        <span>Size</span>
         <span></span>
       </div>
-
       {% for f in files %}
-      <div style="display:grid;grid-template-columns:1fr 7rem 5rem 4rem;gap:.75rem;
-                  align-items:center;padding:.625rem .75rem;border-bottom:1px solid var(--border);
-                  transition:background .12s;"
-           onmouseenter="this.style.background='var(--muted)'" onmouseleave="this.style.background=''"
-           id="archive-row-{{ loop.index }}">
-
-        <!-- Filename / link -->
-        <div style="min-width:0;overflow:hidden;">
-          <a href="/digests/{{ f.filename }}" target="_blank"
-             style="font-size:.8125rem;font-weight:500;color:var(--primary);text-decoration:none;
-                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;"
-             title="{{ f.filename }}">{{ f.filename }}</a>
-        </div>
-
-        <!-- Date -->
-        <div style="font-size:.8rem;color:var(--muted-foreground);white-space:nowrap;">{{ f.date }}</div>
-
-        <!-- Size -->
-        <div style="font-size:.8rem;color:var(--muted-foreground);text-align:right;white-space:nowrap;">{{ f.size_kb }} KB</div>
-
-        <!-- Delete -->
-        <div style="text-align:right;">
-          <button onclick="deleteDigest('{{ f.filename }}', {{ loop.index }})"
-                  style="background:none;border:none;cursor:pointer;color:var(--muted-foreground);
-                         padding:.25rem;border-radius:4px;transition:color .12s,background .12s;"
-                  title="Delete"
-                  onmouseenter="this.style.color='var(--destructive)';this.style.background='rgba(212,24,61,.06)'"
-                  onmouseleave="this.style.color='var(--muted-foreground)';this.style.background=''">
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+      <div class="digest-archive-row" id="archive-row-{{ loop.index }}">
+        <a href="/digests/{{ f.filename }}" target="_blank" rel="noopener" class="digest-archive-file" title="{{ f.filename }}">
+          <span class="digest-file-icon" aria-hidden="true">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 2h9l5 5v15H6zM14 2v6h6"/></svg>
+          </span>
+          <span>{{ f.filename }}</span>
+        </a>
+        <span class="digest-archive-date">{{ f.date }}</span>
+        <span class="digest-archive-size tabular">{{ f.size_kb }} KB</span>
+        <button type="button" onclick="deleteDigest('{{ f.filename }}', {{ loop.index }})" class="digest-icon-btn digest-archive-delete" aria-label="Delete {{ f.filename }}" title="Delete digest">
+          <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
             </svg>
-          </button>
-        </div>
-
+        </button>
       </div>
       {% endfor %}
     </div>
-  </div>
-  {% endif %}
+    {% else %}
+    <div class="digest-archive-empty">
+      <span class="digest-file-icon" aria-hidden="true">
+        <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 2h9l5 5v15H6zM14 2v6h6"/></svg>
+      </span>
+      <div>
+        <strong>No saved digests yet</strong>
+        <p>Your first generated brief will appear here.</p>
+      </div>
+    </div>
+    {% endif %}
+    <p id="archive-status" class="digest-action-status" role="status" aria-live="polite"></p>
+  </section>
 
-</div>
+</main>
 {% endblock %}
 
 {% block scripts %}
@@ -301,11 +263,17 @@ function openAlertEdit(id, alert) {
   for (const opt of jobsEl.options) { opt.selected = opt.value === jobsVal; }
   document.getElementById('ae-status').style.display = 'none';
   const modal = document.getElementById('alert-edit-modal');
-  modal.style.display = 'flex';
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  window.setTimeout(() => document.getElementById('ae-email').focus(), 0);
 }
 
 function closeAlertEdit() {
-  document.getElementById('alert-edit-modal').style.display = 'none';
+  const modal = document.getElementById('alert-edit-modal');
+  modal.classList.remove('is-open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
 }
 
 async function saveAlertEdit(e) {
@@ -346,28 +314,45 @@ async function saveAlertEdit(e) {
 document.getElementById('alert-edit-modal').addEventListener('click', function(e) {
   if (e.target === this) closeAlertEdit();
 });
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeAlertEdit();
+});
 
 async function sendDigestNow() {
   const btn = document.getElementById('send-now-btn');
+  const label = btn.querySelector('span');
+  const status = document.getElementById('send-now-status');
   btn.disabled = true;
-  btn.textContent = 'Sending…';
+  label.textContent = 'Sending…';
+  status.textContent = '';
   try {
     const r = await fetch('/api/digest/send-now', {method: 'POST'});
     const data = await r.json();
     if (data.ok) {
-      btn.textContent = 'Sent!';
-      setTimeout(() => { btn.textContent = 'Send now'; btn.disabled = false; }, 3000);
+      label.textContent = 'Digest sent';
+      status.textContent = 'The latest shortlist is on its way.';
+      status.className = 'digest-action-status is-success';
+      setTimeout(() => {
+        label.textContent = 'Send digest now';
+        status.textContent = '';
+        status.className = 'digest-action-status';
+        btn.disabled = false;
+      }, 3000);
     } else {
       throw new Error(data.error || 'Failed');
     }
   } catch (err) {
-    alert('Could not send: ' + err.message + '\n\nMake sure your email and Gmail credentials are configured in Settings.');
-    btn.textContent = 'Send now';
+    status.textContent = 'Could not send: ' + err.message;
+    status.className = 'digest-action-status is-error';
+    label.textContent = 'Send digest now';
     btn.disabled = false;
   }
 }
 
 async function deleteDigest(filename, rowIndex) {
+  const status = document.getElementById('archive-status');
+  status.textContent = '';
+  status.className = 'digest-action-status';
   if (!confirm('Delete this digest archive?\n' + filename)) return;
   try {
     const r = await fetch('/api/digest/archive/' + encodeURIComponent(filename), {method: 'DELETE'});
@@ -380,7 +365,8 @@ async function deleteDigest(filename, rowIndex) {
       setTimeout(() => row.remove(), 220);
     }
   } catch (err) {
-    alert('Could not delete: ' + err.message);
+    status.textContent = 'Could not delete: ' + err.message;
+    status.className = 'digest-action-status is-error';
   }
 }
 </script>

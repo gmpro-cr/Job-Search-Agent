@@ -1,14 +1,41 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# DBs (live + backups)
 jobs.db
+jobs.db.*
+job_search_agent.db
+*.db.bak
+*.db.pre-*.bak
+
+# Caches / artefacts
 .cache/
 digests/
 *.log
+*.tmp
+config.json.tmp
+
+# Per-user / personal data — DO NOT COMMIT
 user_preferences.json
+cv_data.json
+reminders.json
+data/latest_scrape.json
+data/last_import.txt
+data/hr_sent_contacts.json
+data/prds/
+data/blob_local/
+
+# Env
 .env
+.env*.local
 .vercel/
 .vercel
+
 node_modules/
-data/last_import.txt
-.env*.local
+
+# Editor / OS
+.DS_Store
+
+# Worktrees / tmp work
+tmp_career_ops/

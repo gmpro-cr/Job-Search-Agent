@@ -16,3 +16,4 @@ class AgentState(TypedDict):
     preferences: dict           # user preferences (for email, thresholds, etc.)
     config: dict                # app config
     errors: list[str]           # non-fatal errors logged during run
+    owner_user_id: int          # DB user_id whose CV/prefs the run is for

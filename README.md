@@ -535,20 +535,43 @@ job-search-agent/
 
 ---
 
-## Security Model
+## Deployment Mode — Owner-Only
 
-This application is designed for multi-user public deployment. Here is what protects your data:
+This codebase is **multi-user-safe but single-owner by default**. The job
+scraper only knows how to use *one* set of preferences (the owner's), and
+the GitHub Actions cron runs that scrape on a shared schedule. The web app
+then scores those jobs per-user using each user's uploaded CV.
+
+What that means in practice for a fresh deployment:
+
+1. **Set `ALLOWED_EMAILS`** in your Vercel project env to a comma-separated
+   allowlist of Google accounts that may sign in. Anyone outside the list
+   sees a friendly "invite-only" message and gets bounced back to login.
+2. **Set `OWNER_EMAIL`** to the Google account whose CV/preferences drive
+   the cron scrape. The first user to sign in becomes the admin.
+3. Only the admin (`is_admin=1` in the `users` table) can hit the
+   scraper / agent / portals / dedup endpoints.
+
+If you want true multi-tenant scrape (each user's job titles fanned out
+to the scraper), that's a future change — see Roadmap.
+
+## Security Model
 
 | Threat | Protection |
 |--------|-----------|
-| Unauthorized access | Google OAuth — only sign in with Google |
+| Unauthorized signup | `ALLOWED_EMAILS` env-var allowlist enforced in OAuth callback |
 | Seeing another user's data | All tables keyed by `user_id`, queries always scoped |
 | Cross-site request forgery | `flask-wtf` CSRFProtect on every form and API endpoint |
 | Session hijacking | `HttpOnly`, `Secure`, `SameSite=Lax` cookie flags |
 | Open redirect attacks | All `next` parameters validated — external URLs rejected |
-| Import endpoint abuse | Secret header (`X-Import-Secret`) checked before body is read |
 | Approval link replay | Tokens claimed atomically with a single SQL `UPDATE WHERE status='pending'`, 48-hour expiry |
-| Brute-force reminder IDs | Full 128-bit UUIDs (not truncated 32-bit IDs) |
+| Email-prefetcher auto-approval | Approval/skip require a POST from a confirmation page; the bare GET only renders the preview |
+| Outreach token cross-user use | Each `outreach_queue` row is owned by `user_id`; save/mark-applied/map endpoints filter to the calling user |
+| Brute-force reminder IDs | Full 128-bit `secrets.token_urlsafe(24)` (~192 bits of entropy) |
+| Credential leak via storage | Gmail/Telegram/Apollo creds are stripped from `user_preferences` on read AND write — they live only in `.env` / Vercel env |
+| Admin endpoint abuse | `/api/scraper/*`, `/api/admin/*`, `/api/agent/run`, `/api/portals/update` require `is_admin=1` |
+| Clickjacking / MIME sniffing / dangling perms | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS on Vercel |
+| Bypass auth via dev-login | Off unless `ENABLE_DEV_LOGIN=1` is set (and never honoured on Vercel) |
 
 ---
 
