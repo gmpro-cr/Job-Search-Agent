@@ -360,23 +360,30 @@ def _upload_digest_blob(filename: str, content: str, content_type: str) -> None:
 
 
 def list_digests() -> list[dict]:
-    """Return a list of digest HTML entries from Blob (preferred) or local
-    disk (fallback). Each entry: {filename, uploaded_at, size_kb}."""
+    """Return a list of digest entries from Blob (preferred) or local disk
+    (fallback). Each entry: {filename, uploaded_at, size_kb}.
+    HTML is preferred over TXT for the same base filename."""
     try:
         import blob_storage as _bs
         if _bs._use_blob():
-            entries = []
+            # Collect all blobs; prefer .html over .txt for the same stem.
+            seen: dict[str, dict] = {}  # stem -> entry
             for b in _bs.list(_BLOB_DIGEST_PREFIX):
                 pn = b.get("pathname") or ""
-                if not pn.endswith(".html"):
+                if not (pn.endswith(".html") or pn.endswith(".txt")):
                     continue
                 fn = pn[len(_BLOB_DIGEST_PREFIX):]
-                entries.append({
+                stem = fn.rsplit(".", 1)[0]
+                is_html = fn.endswith(".html")
+                entry = {
                     "filename": fn,
                     "uploaded_at": b.get("uploaded_at") or "",
                     "size_kb": round((b.get("size") or 0) / 1024, 1),
-                })
-            entries.sort(key=lambda e: e["uploaded_at"], reverse=True)
+                }
+                # HTML wins; only store TXT if nothing else exists for this stem
+                if stem not in seen or is_html:
+                    seen[stem] = entry
+            entries = sorted(seen.values(), key=lambda e: e["uploaded_at"], reverse=True)
             return entries
     except Exception as e:
         logger.warning("Blob digest list failed: %s", e)
