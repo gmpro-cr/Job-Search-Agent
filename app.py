@@ -2251,9 +2251,11 @@ def digests():
         })
     uid = current_user_id()
     prefs = load_preferences(uid)
+    from database import get_user_reminders
+    job_alerts = get_user_reminders(uid) if uid else []
     user_email = dict(session).get('user', {}).get('email', '')
     return render_template("digests.html", files=files, prefs=prefs,
-                           user_email=user_email, job_alerts=[])
+                           user_email=user_email, job_alerts=job_alerts)
 
 
 @app.route("/api/digest/send-now", methods=["POST"])
