@@ -68,6 +68,89 @@
     </div>
   </section>
 
+  <section class="digest-section" aria-labelledby="digest-routines-title">
+    <div class="digest-section-heading">
+      <div>
+        <h2 id="digest-routines-title">Saved routines</h2>
+        <p>Each routine runs after the 7 AM and 7 PM scrapes and emails your shortlist.</p>
+      </div>
+      {% if job_alerts %}<span class="digest-archive-total tabular">{{ job_alerts|length }} active</span>{% endif %}
+    </div>
+
+    {% if job_alerts %}
+    <div class="digest-archive-table">
+      <div class="digest-archive-header" aria-hidden="true">
+        <span>Name</span>
+        <span>Keywords</span>
+        <span>Score</span>
+        <span>Last sent</span>
+        <span></span>
+      </div>
+      {% for r in job_alerts %}
+      <div class="digest-archive-row" id="routine-row-{{ loop.index }}">
+        <span class="digest-archive-file" style="font-weight:500">{{ r.name or 'Unnamed' }}</span>
+        <span class="digest-archive-date" style="font-size:0.8rem;color:var(--muted-foreground)">{{ (r.keyword or '')[:40] }}{% if (r.keyword or '')|length > 40 %}…{% endif %}</span>
+        <span class="digest-archive-size tabular">{{ r.min_score }}+</span>
+        <span class="digest-archive-date">{{ r.last_sent[:10] if r.last_sent else '—' }}</span>
+        <span style="display:flex;gap:0.375rem;justify-content:flex-end">
+          <button type="button" onclick="toggleEditRoutine('{{ r.id }}')" class="btn btn-outline btn-sm" title="Edit routine">Edit</button>
+          <button type="button" onclick="deleteRoutine('{{ r.id }}', {{ loop.index }})" class="digest-icon-btn digest-archive-delete" aria-label="Delete {{ r.name }}" title="Delete routine">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </span>
+      </div>
+      <div id="routine-edit-{{ r.id }}" class="routine-edit-form" style="display:none">
+        <form onsubmit="saveRoutine(event, '{{ r.id }}')">
+          <div class="digest-field-grid" style="grid-template-columns:1fr 1fr;gap:0.75rem;padding:1rem 1rem 0">
+            <div>
+              <label>Routine name</label>
+              <input class="input" name="name" value="{{ r.name or '' }}" required>
+            </div>
+            <div>
+              <label>Recipient email</label>
+              <input class="input" type="email" name="email" value="{{ r.email or '' }}" required>
+            </div>
+            <div style="grid-column:1/-1">
+              <label>Keywords</label>
+              <input class="input" name="keyword" value="{{ r.keyword or '' }}" placeholder="Product Manager, fintech, …">
+            </div>
+            <div>
+              <label>Min match score</label>
+              <select class="input" name="min_score">
+                {% for s in [30,40,50,60,70,80] %}
+                <option value="{{ s }}" {% if r.min_score == s %}selected{% endif %}>{{ s }}+</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label>Max jobs per email</label>
+              <select class="input" name="max_jobs">
+                {% for n in [5,10,15,20,30] %}
+                <option value="{{ n }}" {% if r.max_jobs == n %}selected{% endif %}>{{ n }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="digest-form-actions" style="padding:0.75rem 1rem 1rem">
+            <button type="submit" class="btn btn-default btn-sm">Save</button>
+            <button type="button" onclick="toggleEditRoutine('{{ r.id }}')" class="btn btn-ghost btn-sm">Cancel</button>
+            <span class="routine-save-status digest-action-status" role="status" aria-live="polite"></span>
+          </div>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="digest-archive-empty">
+      <div>
+        <strong>No saved routines</strong>
+        <p>Routines are created automatically when the scraper runs with your preferences.</p>
+      </div>
+    </div>
+    {% endif %}
+    <p id="routine-status" class="digest-action-status" role="status" aria-live="polite"></p>
+  </section>
+
   <section class="digest-section digest-archive" aria-labelledby="digest-archive-title">
     <div class="digest-section-heading">
       <div>
@@ -187,6 +270,62 @@ async function sendDigestNow() {
     status.className = 'digest-action-status is-error';
     label.textContent = 'Send digest now';
     btn.disabled = false;
+  }
+}
+
+function toggleEditRoutine(id) {
+  const el = document.getElementById('routine-edit-' + id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveRoutine(e, id) {
+  e.preventDefault();
+  const form = e.target;
+  const status = form.querySelector('.routine-save-status');
+  const btn = form.querySelector('[type=submit]');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  const payload = {
+    name:      form.name.value.trim(),
+    email:     form.email.value.trim(),
+    keyword:   form.keyword.value.trim(),
+    min_score: parseInt(form.min_score.value),
+    max_jobs:  parseInt(form.max_jobs.value),
+  };
+  try {
+    const r = await fetch('/api/reminders/' + id, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Save failed');
+    status.textContent = 'Saved.';
+    status.style.color = 'var(--accent)';
+    setTimeout(() => location.reload(), 800);
+  } catch (err) {
+    status.textContent = err.message;
+    status.style.color = 'var(--destructive)';
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
+async function deleteRoutine(id, rowIndex) {
+  if (!confirm('Delete this routine?')) return;
+  const status = document.getElementById('routine-status');
+  try {
+    const r = await fetch('/api/reminders/' + id, { method: 'DELETE' });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Delete failed');
+    const row = document.getElementById('routine-row-' + rowIndex);
+    const edit = document.getElementById('routine-edit-' + id);
+    [row, edit].forEach(el => {
+      if (el) { el.style.transition = 'opacity .2s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 220); }
+    });
+  } catch (err) {
+    status.textContent = 'Could not delete: ' + err.message;
+    status.className = 'digest-action-status is-error';
   }
 }
 

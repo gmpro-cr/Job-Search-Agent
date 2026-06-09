@@ -3218,6 +3218,40 @@ def _extract_cv_text(file_storage) -> str:
 # Reminders
 # ---------------------------------------------------------------------------
 
+@app.route("/api/reminders/<reminder_id>", methods=["PUT"])
+def update_reminder(reminder_id):
+    uid = require_user_id()
+    if isinstance(uid, tuple):
+        return uid
+    from database import get_user_reminders, save_user_reminders
+    data = request.get_json(silent=True) or {}
+    reminders = get_user_reminders(uid)
+    for r in reminders:
+        if str(r.get("id")) == reminder_id:
+            r["name"]      = str(data.get("name", r.get("name", "")))[:100]
+            r["email"]     = str(data.get("email", r.get("email", "")))[:200]
+            r["keyword"]   = str(data.get("keyword", r.get("keyword", "")))[:500]
+            r["min_score"] = int(data.get("min_score", r.get("min_score", 50)))
+            r["max_jobs"]  = int(data.get("max_jobs",  r.get("max_jobs",  10)))
+            save_user_reminders(uid, reminders)
+            return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": "Routine not found"}), 404
+
+
+@app.route("/api/reminders/<reminder_id>", methods=["DELETE"])
+def delete_reminder(reminder_id):
+    uid = require_user_id()
+    if isinstance(uid, tuple):
+        return uid
+    from database import get_user_reminders, save_user_reminders
+    reminders = get_user_reminders(uid)
+    updated = [r for r in reminders if str(r.get("id")) != reminder_id]
+    if len(updated) == len(reminders):
+        return jsonify({"ok": False, "error": "Routine not found"}), 404
+    save_user_reminders(uid, updated)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/scheduler/jobs")
 def scheduler_jobs():
     """List all scheduled jobs and their next run times."""

@@ -3042,6 +3042,17 @@ body.public-page {
   font-size: 0.75rem;
 }
 .digest-archive-size { text-align: right; }
+.routine-edit-form {
+  border-top: 1px solid var(--border);
+  background: var(--muted);
+}
+.routine-edit-form label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  margin-bottom: 0.25rem;
+}
 .digest-archive-delete:hover {
   color: var(--destructive);
   background: color-mix(in srgb, var(--destructive) 8%, transparent);
