@@ -1872,10 +1872,6 @@ def tailored_points(job_id):
     return jsonify({"ok": True, "points": points})
 
 
-@app.route("/scraper")
-def scraper():
-    return render_template("scraper.html", config=load_config(), is_vercel=_IS_VERCEL)
-
 
 @app.route("/api/jobs/import", methods=["POST"])
 @csrf.exempt
@@ -3282,15 +3278,6 @@ def scheduler_jobs():
 
 
 # ---------------------------------------------------------------------------
-# How it Works
-# ---------------------------------------------------------------------------
-
-@app.route("/how-it-works")
-def how_it_works():
-    return render_template("how_it_works.html")
-
-
-# ---------------------------------------------------------------------------
 # Setup / Profile (career-ops integration)
 # ---------------------------------------------------------------------------
 
@@ -3426,55 +3413,6 @@ def setup_profile():
         profile_complete=profile_complete,
         cv_complete=cv_complete,
     )
-
-
-# ---------------------------------------------------------------------------
-# PRD Library
-# ---------------------------------------------------------------------------
-
-@app.route("/prds")
-def prd_library():
-    from prd_generator import list_prds, generate_daily_prd
-    prds = list_prds()
-    today_prd = None
-    try:
-        today_prd = generate_daily_prd()
-    except Exception:
-        pass
-    return render_template("prd_library.html", prds=prds, today_prd=today_prd, detail=None)
-
-
-@app.route("/prds/<date_str>")
-def prd_detail(date_str):
-    import re
-    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date_str):
-        from flask import abort
-        abort(400)
-    from prd_generator import PRD_DIR
-    import json
-    cache_path = os.path.join(PRD_DIR, f"prd_{date_str}.json")
-    if not os.path.exists(cache_path):
-        flash("PRD not found.", "error")
-        return redirect(url_for("prd_library"))
-    with open(cache_path) as f:
-        prd = json.load(f)
-    return render_template("prd_library.html", prds=[], today_prd=prd, detail=prd)
-
-
-
-@app.route("/api/prd/<date_str>")
-def prd_json(date_str):
-    import re
-    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date_str):
-        from flask import abort
-        abort(400)
-    from prd_generator import PRD_DIR
-    import json
-    cache_path = os.path.join(PRD_DIR, f"prd_{date_str}.json")
-    if not os.path.exists(cache_path):
-        return jsonify({"error": "not found"}), 404
-    with open(cache_path) as f:
-        return jsonify(json.load(f))
 
 
 # ---------------------------------------------------------------------------
