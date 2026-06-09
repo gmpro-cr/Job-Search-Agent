@@ -2249,55 +2249,10 @@ def digests():
             "date": pretty,
             "size_kb": entry["size_kb"],
         })
-    # Top jobs for the latest digest display
     uid = current_user_id()
     prefs = load_preferences(uid)
-    top_n = prefs.get("top_jobs_per_digest", 5) if prefs else 5
-    min_score = prefs.get("min_score", 50) if prefs else 50
-    conn = get_connection()
-    cursor = conn.cursor()
-    if uid:
-        cursor.execute(
-            """
-            SELECT j.role, j.company, j.location, j.salary, s.cv_score AS score
-            FROM job_listings j
-            JOIN user_job_state s ON s.job_id = j.job_id AND s.user_id = ?
-            WHERE s.cv_score >= ?
-            ORDER BY s.cv_score DESC
-            LIMIT ?
-            """,
-            (uid, min_score, top_n),
-        )
-    else:
-        cursor.execute(
-            """SELECT role, company, location, salary, cv_score as score
-               FROM job_listings WHERE cv_score >= ? ORDER BY cv_score DESC LIMIT ?""",
-            (min_score, top_n),
-        )
-    top_jobs = [dict(r) for r in cursor.fetchall()]
-    cursor.execute("SELECT COUNT(*) as total FROM job_listings")
-    total = cursor.fetchone()["total"]
-    if uid:
-        cursor.execute(
-            "SELECT COUNT(*) as q FROM user_job_state WHERE user_id = ? AND cv_score >= ?",
-            (uid, min_score),
-        )
-        qualified = cursor.fetchone()["q"]
-        cursor.execute(
-            "SELECT AVG(cv_score) as avg FROM user_job_state WHERE user_id = ? AND cv_score > 0",
-            (uid,),
-        )
-    else:
-        cursor.execute("SELECT COUNT(*) as q FROM job_listings WHERE cv_score >= ?", (min_score,))
-        qualified = cursor.fetchone()["q"]
-        cursor.execute("SELECT AVG(cv_score) as avg FROM job_listings WHERE cv_score > 0")
-    avg_row = cursor.fetchone()
-    avg_score = round(avg_row["avg"] or 0, 1)
-    conn.close()
-    stats = {"total": total, "qualified": qualified, "avg_score": avg_score}
     user_email = dict(session).get('user', {}).get('email', '')
-
-    return render_template("digests.html", files=files, stats=stats, prefs=prefs,
+    return render_template("digests.html", files=files, prefs=prefs,
                            user_email=user_email, job_alerts=[])
 
 

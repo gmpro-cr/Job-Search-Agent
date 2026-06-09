@@ -166,6 +166,25 @@ def main():
     else:
         logger.warning("Email credentials not set — skipping email notification")
 
+    # --- Phase 6b: Generate HTML digest and upload to Blob ---
+    try:
+        from collections import Counter
+        from digest_generator import generate_digest
+        company_counts = Counter(j.get("company", "") for j in all_analyzed if j.get("company"))
+        role_counts    = Counter(j.get("role", "")    for j in all_analyzed if j.get("role"))
+        digest_stats = {
+            "top_companies":  company_counts.most_common(10),
+            "top_roles":      role_counts.most_common(10),
+            "jobs_today":     len(all_analyzed),
+            "jobs_this_week": len(all_analyzed),
+            "total_jobs":     len(all_analyzed),
+        }
+        generate_digest(qualified_jobs[:top_n], portal_results, owner_prefs,
+                        digest_stats, open_browser=False)
+        logger.info("HTML digest generated and uploaded to Blob")
+    except Exception as e:
+        logger.warning("Digest generation failed: %s", e)
+
     # --- Phase 7: Insert jobs + retention sweep ---
     init_db()
     insert_jobs_bulk(all_analyzed)

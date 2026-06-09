@@ -12,7 +12,7 @@
     <div class="digest-hero-copy">
       <span class="eyebrow">Email delivery</span>
       <h1>Your best matches, without the daily search.</h1>
-      <p class="page-lede">Control the emails the agent sends after each scrape, preview the current shortlist, and review past digests.</p>
+      <p class="page-lede">Control the emails the agent sends after each scrape and review past digests.</p>
     </div>
     <div class="digest-hero-actions">
       <div class="digest-delivery-status">
@@ -27,7 +27,7 @@
     </div>
   </header>
 
-  <section class="digest-control-grid" aria-label="Digest configuration and preview">
+  <section class="digest-control-grid" aria-label="Digest configuration">
     <div class="digest-settings-panel">
       <div class="digest-panel-head">
         <div>
@@ -66,35 +66,6 @@
         </div>
       </form>
     </div>
-
-    <aside class="digest-preview-panel">
-      <div class="digest-panel-head">
-        <div>
-          <h2>Current shortlist</h2>
-          <p>{{ stats.qualified }} jobs meet your {{ prefs.get('min_score', 50) }}+ threshold.</p>
-        </div>
-        <span class="digest-preview-count tabular">{{ top_jobs|length }}/{{ prefs.get('top_jobs_per_digest', 5) }}</span>
-      </div>
-      {% if top_jobs %}
-      <ol class="digest-preview-list">
-        {% for job in top_jobs %}
-        <li>
-          <span class="digest-preview-rank tabular">{{ loop.index }}</span>
-          <div>
-            <strong>{{ job.role }}</strong>
-            <span>{{ job.company }}{% if job.location %} · {{ job.location }}{% endif %}</span>
-          </div>
-          <span class="digest-preview-score tabular">{{ job.score }}</span>
-        </li>
-        {% endfor %}
-      </ol>
-      {% else %}
-      <div class="digest-preview-empty">
-        <p>No jobs currently meet this score threshold.</p>
-        <a href="{{ url_for('jobs') }}">Review all jobs</a>
-      </div>
-      {% endif %}
-    </aside>
   </section>
 
   <section class="digest-section digest-archive" aria-labelledby="digest-archive-title">
