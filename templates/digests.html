@@ -151,55 +151,6 @@
     <p id="routine-status" class="digest-action-status" role="status" aria-live="polite"></p>
   </section>
 
-  <section class="digest-section digest-archive" aria-labelledby="digest-archive-title">
-    <div class="digest-section-heading">
-      <div>
-        <h2 id="digest-archive-title">Digest archive</h2>
-        <p>Open a previous brief or remove files you no longer need.</p>
-      </div>
-      {% if files %}<span class="digest-archive-total tabular">{{ files|length }} saved</span>{% endif %}
-    </div>
-
-    {% if files %}
-    <div class="digest-archive-table">
-      <div class="digest-archive-header" aria-hidden="true">
-        <span>Digest</span>
-        <span>Created</span>
-        <span>Size</span>
-        <span></span>
-      </div>
-      {% for f in files %}
-      <div class="digest-archive-row" id="archive-row-{{ loop.index }}">
-        <a href="/digests/{{ f.filename }}" target="_blank" rel="noopener" class="digest-archive-file" title="{{ f.filename }}">
-          <span class="digest-file-icon" aria-hidden="true">
-            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 2h9l5 5v15H6zM14 2v6h6"/></svg>
-          </span>
-          <span>{{ f.filename }}</span>
-        </a>
-        <span class="digest-archive-date">{{ f.date }}</span>
-        <span class="digest-archive-size tabular">{{ f.size_kb }} KB</span>
-        <button type="button" onclick="deleteDigest('{{ f.filename }}', {{ loop.index }})" class="digest-icon-btn digest-archive-delete" aria-label="Delete {{ f.filename }}" title="Delete digest">
-          <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-            </svg>
-        </button>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="digest-archive-empty">
-      <span class="digest-file-icon" aria-hidden="true">
-        <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 2h9l5 5v15H6zM14 2v6h6"/></svg>
-      </span>
-      <div>
-        <strong>No saved digests yet</strong>
-        <p>Your first generated brief will appear here.</p>
-      </div>
-    </div>
-    {% endif %}
-    <p id="archive-status" class="digest-action-status" role="status" aria-live="polite"></p>
-  </section>
 
 </main>
 {% endblock %}
@@ -329,25 +280,5 @@ async function deleteRoutine(id, rowIndex) {
   }
 }
 
-async function deleteDigest(filename, rowIndex) {
-  const status = document.getElementById('archive-status');
-  status.textContent = '';
-  status.className = 'digest-action-status';
-  if (!confirm('Delete this digest archive?\n' + filename)) return;
-  try {
-    const r = await fetch('/api/digest/archive/' + encodeURIComponent(filename), {method: 'DELETE'});
-    const data = await r.json();
-    if (!data.ok) throw new Error(data.error || 'Delete failed');
-    const row = document.getElementById('archive-row-' + rowIndex);
-    if (row) {
-      row.style.transition = 'opacity .2s';
-      row.style.opacity = '0';
-      setTimeout(() => row.remove(), 220);
-    }
-  } catch (err) {
-    status.textContent = 'Could not delete: ' + err.message;
-    status.className = 'digest-action-status is-error';
-  }
-}
 </script>
 {% endblock %}

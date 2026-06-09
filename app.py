@@ -2236,25 +2236,12 @@ def api_hiring_managers_search():
 
 @app.route("/digests")
 def digests():
-    from digest_generator import list_digests
-    files = []
-    for entry in list_digests():
-        try:
-            dt = datetime.fromisoformat(entry["uploaded_at"].replace("Z", "+00:00"))
-            pretty = dt.strftime("%B %d, %Y %I:%M %p")
-        except Exception:
-            pretty = entry["uploaded_at"]
-        files.append({
-            "filename": entry["filename"],
-            "date": pretty,
-            "size_kb": entry["size_kb"],
-        })
     uid = current_user_id()
     prefs = load_preferences(uid)
     from database import get_user_reminders
     job_alerts = get_user_reminders(uid) if uid else []
     user_email = dict(session).get('user', {}).get('email', '')
-    return render_template("digests.html", files=files, prefs=prefs,
+    return render_template("digests.html", prefs=prefs,
                            user_email=user_email, job_alerts=job_alerts)
 
 
@@ -2360,37 +2347,6 @@ def api_digest_deactivate():
         return jsonify({"ok": False, "error": "Failed to save"}), 500
     return jsonify({"ok": True})
 
-
-@app.route("/api/digest/archive/<filename>", methods=["DELETE"])
-def api_digest_archive_delete(filename):
-    """Delete a single digest archive file from Blob / local FS."""
-    uid = current_user_id()
-    if not uid:
-        return jsonify({"ok": False, "error": "Not authenticated"}), 401
-    if "/" in filename or ".." in filename or not filename.endswith(".html"):
-        return jsonify({"ok": False, "error": "Invalid filename"}), 400
-    from blob_storage import delete as blob_delete
-    try:
-        blob_delete(f"digests/{filename}")
-    except Exception as e:
-        logger.error("Failed to delete digest %s: %s", filename, e)
-        return jsonify({"ok": False, "error": "Delete failed"}), 500
-    return jsonify({"ok": True})
-
-
-@app.route("/digests/<filename>")
-def serve_digest(filename):
-    from digest_generator import read_digest
-    # Defence in depth: don't let a crafted filename escape the digest namespace.
-    if "/" in filename or ".." in filename:
-        return "Bad filename", 400
-    data, content_type = read_digest(filename)
-    if data is None:
-        return "Digest not found", 404
-    from flask import Response
-    # Pass `content_type` (not `mimetype`) so Flask doesn't append a second
-    # `; charset=utf-8` onto a mimetype string that already includes one.
-    return Response(data, content_type=content_type)
 
 
 # ---------------------------------------------------------------------------
