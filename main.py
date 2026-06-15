@@ -34,6 +34,7 @@ from database import (
     init_db,
     insert_jobs_bulk,
     mark_sent_in_digest,
+    select_digest_jobs,
     generate_job_id,
     get_comprehensive_stats,
     get_portal_quality_stats,
@@ -123,7 +124,7 @@ DEFAULT_PREFS = {
         "Cross-functional Leadership", "Client Relationship Management",
     ],
     "work_modes": ["on-site", "remote", "hybrid"],
-    "top_jobs_per_digest": 5,
+    "top_jobs_per_digest": 10,
     "digest_time": "6:00 AM",
     "email": "",
     "gmail_address": "",
@@ -358,7 +359,7 @@ def run_pipeline(config, preferences):
 
     job_titles = preferences.get("job_titles", DEFAULT_PREFS["job_titles"])
     locations = preferences.get("locations", DEFAULT_PREFS["locations"])
-    top_n = preferences.get("top_jobs_per_digest", 5)
+    top_n = preferences.get("top_jobs_per_digest", 10)
 
     # --- Step 1: Scrape ---
     print("\n[1/4] Scraping job portals...")
@@ -406,8 +407,9 @@ def run_pipeline(config, preferences):
     inserted, skipped = insert_jobs_bulk(all_analyzed)
     print(f"  Inserted: {inserted}, Duplicates skipped: {skipped}")
 
-    # Get top N for digest
-    digest_jobs = qualified_jobs[:top_n]
+    # Get top N for digest, preferring jobs not emailed in the last 7 days but
+    # backfilling so the digest is never empty when few jobs qualify.
+    digest_jobs = select_digest_jobs(qualified_jobs, top_n, days=7)
 
     # --- Step 4: Generate Digest ---
     print("\n[4/4] Generating digest...")

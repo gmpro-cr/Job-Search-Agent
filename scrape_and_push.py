@@ -39,7 +39,7 @@ from scrapers import scrape_all_portals
 from analyzer import analyze_jobs
 from database import generate_job_id, init_db, insert_jobs_bulk, delete_old_jobs, \
     get_all_user_targets, get_all_users_with_cv_data, get_unscored_jobs_for_user, \
-    bulk_set_user_cv_scores
+    bulk_set_user_cv_scores, select_digest_jobs, mark_sent_in_digest
 from email_notifier import send_job_email
 from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
 
@@ -67,7 +67,7 @@ def main():
     job_titles = db_titles or default_titles
     locations  = db_locs  or default_locs
 
-    top_n = preferences.get("top_jobs_per_digest", 5)
+    top_n = preferences.get("top_jobs_per_digest", 10)
     logger.info("Scraper targets — %d titles, %d locations across all users", len(job_titles), len(locations))
 
     # --- Phase 1: Scrape ---
@@ -90,10 +90,12 @@ def main():
     # keyword-only (which scores everything < 65 → "0 jobs" digest).
     owner_cv: dict = {}
     owner_prefs = preferences
+    owner_user_id = None
     try:
         all_cv_users = get_all_users_with_cv_data()
         if all_cv_users:
             owner_cv = all_cv_users[0]["cv_data"] or {}
+            owner_user_id = all_cv_users[0]["user_id"]
             if all_cv_users[0].get("prefs"):
                 owner_prefs = all_cv_users[0]["prefs"]
             logger.info("Loaded CV + prefs from DB for user %d (digest scoring)", all_cv_users[0]["user_id"])
@@ -114,6 +116,21 @@ def main():
             job.get("role", ""),
             job.get("location", ""),
         )
+
+    # --- Phase 3b: Pick digest jobs, excluding ones already sent recently ---
+    # qualified_jobs is sorted by score desc. Drop any job emailed in the last
+    # 7 days so each digest surfaces fresh listings instead of repeating the
+    # same top matches every run. job_ids are set in Phase 3 above.
+    # Scope dedup to the owner user so it never leaks across users; the digest
+    # email below goes to the owner. select_digest_jobs prefers fresh listings
+    # but backfills with recently-sent ones so the digest is never empty when
+    # few jobs qualify (e.g. LLM down -> keyword-only scoring).
+    digest_jobs = select_digest_jobs(qualified_jobs, top_n, days=7, user_id=owner_user_id)
+    digest_job_ids = [j.get("job_id") for j in digest_jobs if j.get("job_id")]
+    logger.info(
+        "Digest selection: %d qualified -> sending %d (top_n=%d)",
+        len(qualified_jobs), len(digest_jobs), top_n,
+    )
 
     # --- Phase 4: Write JSON for local app to import ---
     serializable_fields = [
@@ -154,7 +171,6 @@ def main():
     gmail_addr = preferences.get("gmail_address", "").strip()
     gmail_pass = preferences.get("gmail_app_password", "").strip()
     if recipient and gmail_addr and gmail_pass:
-        digest_jobs = qualified_jobs[:top_n]
         try:
             ok, err = send_job_email(recipient, digest_jobs, preferences)
             if ok:
@@ -179,7 +195,7 @@ def main():
             "jobs_this_week": len(all_analyzed),
             "total_jobs":     len(all_analyzed),
         }
-        generate_digest(qualified_jobs[:top_n], portal_results, owner_prefs,
+        generate_digest(digest_jobs, portal_results, owner_prefs,
                         digest_stats, open_browser=False)
         logger.info("HTML digest generated and uploaded to Blob")
     except Exception as e:
@@ -188,6 +204,14 @@ def main():
     # --- Phase 7: Insert jobs + retention sweep ---
     init_db()
     insert_jobs_bulk(all_analyzed)
+    # Mark the jobs we just emailed as sent (AFTER insert, so the UPDATE hits
+    # real rows) — this is what makes the next run's dedup work.
+    if digest_job_ids:
+        try:
+            mark_sent_in_digest(digest_job_ids, user_id=owner_user_id)
+            logger.info("Marked %d jobs as sent in digest", len(digest_job_ids))
+        except Exception as e:
+            logger.warning("mark_sent_in_digest failed: %s", e)
     try:
         purged = delete_old_jobs(days=7)
         logger.info(

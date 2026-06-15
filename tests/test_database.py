@@ -75,3 +75,101 @@ def test_get_jobs_for_reminder_comma_keywords_respect_min_score():
     roles = [r["role"] for r in results]
     assert any("Product Manager MSK3" in r for r in roles)
     assert not any("Program Manager MSK3" in r for r in roles), "Low-score job should be filtered out"
+
+
+def test_digest_dedup_is_per_user():
+    """mark_sent_in_digest / recently_sent_job_ids scoped to a user must not
+    leak across users: marking a job sent for user A must not suppress it for
+    user B."""
+    from database import (
+        mark_sent_in_digest, recently_sent_job_ids, get_or_create_user,
+    )
+    init_db()
+    _seed_jobs([("Dedup Role DDP", 90)], prefix="ddp")
+    # Resolve the seeded job_id
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT job_id FROM job_listings WHERE role = 'Dedup Role DDP'")
+    job_id = cur.fetchone()["job_id"]
+    conn.close()
+
+    uid_a = get_or_create_user("dedup-a@test.local", "A")
+    uid_b = get_or_create_user("dedup-b@test.local", "B")
+
+    mark_sent_in_digest([job_id], user_id=uid_a)
+
+    assert recently_sent_job_ids([job_id], user_id=uid_a) == {job_id}
+    assert recently_sent_job_ids([job_id], user_id=uid_b) == set(), \
+        "job sent to user A must not be marked sent for user B"
+
+
+def test_select_digest_jobs_backfills_when_all_sent():
+    """When every qualified job was already sent, the digest must still fill up
+    to top_n by backfilling recently-sent jobs — never return an empty digest."""
+    from database import select_digest_jobs, mark_sent_in_digest, get_or_create_user
+    init_db()
+    _seed_jobs([("PM Backfill A", 90), ("PM Backfill B", 85), ("PM Backfill C", 80)], prefix="bf")
+    conn = get_connection(); cur = conn.cursor()
+    cur.execute("SELECT job_id, role FROM job_listings WHERE role LIKE 'PM Backfill%'")
+    ids = {r["role"]: r["job_id"] for r in cur.fetchall()}
+    conn.close()
+    uid = get_or_create_user("backfill@test.local", "BF")
+    qualified = [
+        {"job_id": ids["PM Backfill A"], "relevance_score": 90},
+        {"job_id": ids["PM Backfill B"], "relevance_score": 85},
+        {"job_id": ids["PM Backfill C"], "relevance_score": 80},
+    ]
+    mark_sent_in_digest([j["job_id"] for j in qualified], user_id=uid)
+    picked = select_digest_jobs(qualified, top_n=2, days=7, user_id=uid)
+    assert len(picked) == 2, f"expected backfill to fill 2, got {len(picked)}"
+    assert picked[0]["job_id"] == ids["PM Backfill A"], "highest score should lead"
+
+
+def test_select_digest_jobs_prefers_fresh():
+    """Fresh (not-recently-sent) jobs are preferred over recently-sent ones."""
+    from database import select_digest_jobs, mark_sent_in_digest, get_or_create_user
+    init_db()
+    _seed_jobs([("PM Fresh A", 90), ("PM Fresh B", 85), ("PM Fresh C", 80)], prefix="fr")
+    conn = get_connection(); cur = conn.cursor()
+    cur.execute("SELECT job_id, role FROM job_listings WHERE role LIKE 'PM Fresh%'")
+    ids = {r["role"]: r["job_id"] for r in cur.fetchall()}
+    conn.close()
+    uid = get_or_create_user("fresh@test.local", "FR")
+    qualified = [
+        {"job_id": ids["PM Fresh A"], "relevance_score": 90},
+        {"job_id": ids["PM Fresh B"], "relevance_score": 85},
+        {"job_id": ids["PM Fresh C"], "relevance_score": 80},
+    ]
+    # Mark only the top job sent; asking for 2 should skip A and return B, C.
+    mark_sent_in_digest([ids["PM Fresh A"]], user_id=uid)
+    picked = select_digest_jobs(qualified, top_n=2, days=7, user_id=uid)
+    picked_ids = [j["job_id"] for j in picked]
+    assert ids["PM Fresh A"] not in picked_ids, "recently-sent job should be deferred"
+    assert picked_ids == [ids["PM Fresh B"], ids["PM Fresh C"]]
+
+
+def test_purge_stale_demo_users():
+    """purge_stale_demo_users removes only old demo-* users, leaving real and
+    fresh demo users intact."""
+    from datetime import datetime, timedelta
+    from database import purge_stale_demo_users, get_or_create_user, get_user_by_email
+
+    init_db()
+    domain = "demo.local"
+    old_uid = get_or_create_user(f"demo-old@{domain}", "Old Demo")
+    fresh_uid = get_or_create_user(f"demo-fresh@{domain}", "Fresh Demo")
+    real_uid = get_or_create_user("real-user@gmail.com", "Real")
+
+    # Backdate the "old" demo user past the 24h cutoff.
+    conn = get_connection()
+    cur = conn.cursor()
+    stale = (datetime.now() - timedelta(hours=48)).isoformat()
+    cur.execute("UPDATE users SET created_at = ? WHERE id = ?", (stale, old_uid))
+    conn.commit()
+    conn.close()
+
+    removed = purge_stale_demo_users(domain, hours=24)
+    assert removed == 1
+    assert get_user_by_email(f"demo-old@{domain}") is None
+    assert get_user_by_email(f"demo-fresh@{domain}") is not None
+    assert get_user_by_email("real-user@gmail.com") is not None

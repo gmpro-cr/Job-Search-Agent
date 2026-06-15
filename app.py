@@ -33,6 +33,7 @@ from main import load_config, load_preferences, save_preferences, DEFAULT_PREFS,
 from database import (
     init_db, get_connection, get_comprehensive_stats, get_portal_quality_stats,
     update_applied_status, insert_jobs_bulk, generate_job_id, mark_sent_in_digest,
+    select_digest_jobs,
     get_unsent_jobs, update_job_contacts, get_distinct_locations,
     get_normalized_locations, normalize_location, _CITY_PATTERNS,
     get_application_pipeline_stats, get_best_matching_categories,
@@ -47,7 +48,7 @@ from database import (
     get_application_pipeline_stats_user_with_legacy_fallback,
     user_state_join_sql,
     is_admin_user, promote_first_user_to_admin,
-    get_user_cv_data,
+    get_user_cv_data, purge_stale_demo_users,
 )
 from scrapers import scrape_all_portals
 from analyzer import analyze_jobs, generate_tailored_points, parse_nlp_query, parse_cv_text, cv_score, compute_gap_analysis, load_cv_data, save_cv_data, CV_DATA_PATH
@@ -536,7 +537,7 @@ def _run_scraper_pipeline():
         preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
         job_titles = preferences.get("job_titles", DEFAULT_PREFS["job_titles"])
         locations = preferences.get("locations", DEFAULT_PREFS["locations"])
-        top_n = preferences.get("top_jobs_per_digest", 5)
+        top_n = preferences.get("top_jobs_per_digest", 10)
 
         # Phase 1: Scrape
         with scraper_lock:
@@ -625,7 +626,9 @@ def _run_scraper_pipeline():
         with scraper_lock:
             scraper_status["phase"] = "generating_digest"
 
-        digest_jobs = qualified_jobs[:top_n]
+        # Prefer jobs not emailed in the last 7 days, but backfill so the digest
+        # is never empty when few jobs qualify (e.g. LLM down -> keyword-only).
+        digest_jobs = select_digest_jobs(qualified_jobs, top_n, days=7)
         stats = get_comprehensive_stats()
         html_path, _ = generate_digest(
             digest_jobs, portal_results, preferences, stats, open_browser=False,
@@ -981,6 +984,13 @@ def auth_demo_login():
     if not _ENABLE_DEMO_LOGIN:
         from flask import abort
         abort(403)
+    # Bound table growth: clear out throwaway demo users older than 24h before
+    # minting a new one, so the public endpoint can't grow the users table
+    # without limit.
+    try:
+        purge_stale_demo_users(_DEMO_EMAIL_DOMAIN, hours=24)
+    except Exception as e:
+        logger.warning("purge_stale_demo_users failed: %s", e)
     import secrets as _secrets
     token = _secrets.token_hex(4)
     email = f"demo-{token}@{_DEMO_EMAIL_DOMAIN}"
@@ -1783,6 +1793,10 @@ def preferences():
             updated["transferable_skills"] = [
                 s.strip() for s in request.form.get("transferable_skills", "").split(",") if s.strip()
             ]
+        if "industries" in request.form:
+            updated["industries"] = [
+                s.strip() for s in request.form.get("industries", "").split(",") if s.strip()
+            ]
         work_modes = request.form.getlist("work_modes")
         if work_modes:
             updated["work_modes"] = work_modes
@@ -1839,6 +1853,8 @@ def api_save_preferences():
         updated["work_modes"] = data["work_modes"] or list({"on-site", "remote", "hybrid"})
     if "transferable_skills" in data:
         updated["transferable_skills"] = [s.strip() for s in data["transferable_skills"] if s.strip()]
+    if "industries" in data:
+        updated["industries"] = [s.strip() for s in data["industries"] if s.strip()]
     try:
         save_preferences(updated, user_id=uid)
     except Exception as e:
@@ -2266,8 +2282,11 @@ def api_digest_send_now():
     if not recipient:
         return jsonify({"ok": False, "error": "Could not determine your email address. Please sign out and sign in again."}), 400
 
-    top_n = max(1, min(50, int(prefs.get("top_jobs_per_digest", 5))))
+    top_n = max(1, min(50, int(prefs.get("top_jobs_per_digest", 10))))
     min_score = max(0, int(prefs.get("min_score", 50)))
+    # Pull a wider candidate window so we can drop jobs already emailed to this
+    # user in the last 7 days and still fill up to top_n with fresh ones.
+    candidate_limit = min(200, max(top_n * 4, top_n))
     conn = get_connection()
     cursor = conn.cursor()
     if uid:
@@ -2280,15 +2299,19 @@ def api_digest_send_now():
             ORDER BY s.cv_score DESC
             LIMIT ?
             """,
-            (uid, min_score, top_n),
+            (uid, min_score, candidate_limit),
         )
     else:
         cursor.execute(
             "SELECT * FROM job_listings WHERE cv_score >= ? AND (hidden = 0 OR hidden IS NULL) ORDER BY cv_score DESC LIMIT ?",
-            (min_score, top_n),
+            (min_score, candidate_limit),
         )
-    jobs = [dict(r) for r in cursor.fetchall()]
+    candidates = [dict(r) for r in cursor.fetchall()]
     conn.close()
+
+    # Prefer jobs not emailed to this user recently, but backfill so a manual
+    # send is never empty when few jobs qualify.
+    jobs = select_digest_jobs(candidates, top_n, days=7, user_id=uid)
     if not jobs:
         return jsonify({"ok": False, "error": "No matching jobs found to send."}), 400
 
@@ -2298,6 +2321,12 @@ def api_digest_send_now():
     send_prefs["gmail_app_password"] = gmail_app_password
     ok, err = send_job_email(recipient, jobs, send_prefs)
     if ok:
+        try:
+            mark_sent_in_digest(
+                [j.get("job_id") for j in jobs if j.get("job_id")], user_id=uid,
+            )
+        except Exception as e:
+            logger.warning("mark_sent_in_digest failed for user %s: %s", uid, e)
         return jsonify({"ok": True, "message": f"Sent {len(jobs)} jobs to {recipient}"})
     return jsonify({"ok": False, "error": err or "Email send failed."}), 500
 

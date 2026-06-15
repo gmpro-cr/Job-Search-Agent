@@ -200,6 +200,21 @@
         </div>
       </div>
 
+      <!-- Industries / sectors -->
+      <div>
+        <div style="font-size:.875rem;font-weight:600;color:var(--foreground);margin-bottom:.5rem;">Target industries / sectors</div>
+        <div style="display:flex;gap:.5rem;margin-bottom:.5rem;">
+          <input id="p-new-industry" type="text" class="input" style="flex:1;font-size:.875rem;" placeholder="e.g. Fintech"
+                 onkeypress="if(event.key==='Enter'){event.preventDefault();pAddTag('industries',this);}">
+          <button type="button" onclick="pAddTag('industries',document.getElementById('p-new-industry'))" class="btn btn-default" style="font-size:.875rem;">Add</button>
+        </div>
+        <div id="p-industries-list" class="tag-list">
+          {% for industry in prefs.get('industries', []) %}
+          <span class="tag-pill">{{ industry }}<button type="button" onclick="pRemoveTag(this)" aria-label="Remove">×</button></span>
+          {% endfor %}
+        </div>
+      </div>
+
     </div><!-- /body -->
 
     <!-- Footer -->
@@ -586,6 +601,7 @@
       locations:  getTags('p-locations-list'),
       work_modes: modes,
       transferable_skills: getTags('p-skills-list'),
+      industries: getTags('p-industries-list'),
     };
 
     try {

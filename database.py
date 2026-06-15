@@ -376,7 +376,7 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ujs_user_status ON user_job_state(user_id, applied_status)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ujs_user_hidden ON user_job_state(user_id, hidden)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ujs_user_cv_score ON user_job_state(user_id, cv_score)")
-    _add_columns_idempotent(conn, cursor, "user_job_state", ["viewed_at TEXT"])
+    _add_columns_idempotent(conn, cursor, "user_job_state", ["viewed_at TEXT", "digest_sent_at TEXT"])
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_preferences (
@@ -490,6 +490,63 @@ def was_sent_recently(job_id, days=7):
     return sent
 
 
+def recently_sent_job_ids(job_ids, days=7, user_id=None):
+    """Return the subset of job_ids that were already sent in a digest within
+    the last N days. Callers exclude these so each digest surfaces fresh jobs
+    instead of repeating the same listings every run.
+
+    When user_id is given, "sent" is scoped to THAT user via
+    user_job_state.digest_sent_at — so one user receiving a job never suppresses
+    it for everyone else. Without a user_id (CLI / local single-user), it falls
+    back to the global job_listings.date_sent_in_digest column.
+
+    One query for the whole batch (vs. N calls to was_sent_recently)."""
+    ids = [j for j in (job_ids or []) if j]
+    if not ids:
+        return set()
+    conn = get_connection()
+    cursor = conn.cursor()
+    cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+    placeholders = ",".join("?" for _ in ids)
+    if user_id:
+        cursor.execute(
+            f"SELECT job_id FROM user_job_state "
+            f"WHERE user_id = ? AND digest_sent_at IS NOT NULL AND digest_sent_at > ? "
+            f"AND job_id IN ({placeholders})",
+            [user_id, cutoff, *ids],
+        )
+    else:
+        cursor.execute(
+            f"SELECT job_id FROM job_listings "
+            f"WHERE date_sent_in_digest IS NOT NULL AND date_sent_in_digest > ? "
+            f"AND job_id IN ({placeholders})",
+            [cutoff, *ids],
+        )
+    sent = {row["job_id"] for row in cursor.fetchall()}
+    conn.close()
+    return sent
+
+
+def select_digest_jobs(qualified_jobs, top_n, days=7, user_id=None):
+    """Pick up to top_n jobs for a digest.
+
+    Prefers jobs NOT sent in the last `days` (so repeat runs surface fresh
+    listings), but BACKFILLS with recently-sent ones rather than ever returning
+    an empty or short digest when the qualified pool is small — which happens
+    when the LLM is unavailable and keyword scoring qualifies only a handful of
+    jobs that were already emailed. `qualified_jobs` must already be sorted
+    best-first; ordering is preserved (fresh first, then recently-sent)."""
+    if not qualified_jobs:
+        return []
+    ids = [j.get("job_id") for j in qualified_jobs]
+    already = recently_sent_job_ids(ids, days=days, user_id=user_id)
+    fresh = [j for j in qualified_jobs if j.get("job_id") not in already]
+    if len(fresh) >= top_n:
+        return fresh[:top_n]
+    backfill = [j for j in qualified_jobs if j.get("job_id") in already]
+    return (fresh + backfill)[:top_n]
+
+
 def insert_job(job):
     """
     Insert a new job into the database. Returns True if inserted, False if duplicate.
@@ -599,19 +656,38 @@ def insert_jobs_bulk(jobs):
     return inserted, skipped
 
 
-def mark_sent_in_digest(job_ids):
-    """Mark jobs as sent in today's digest."""
+def mark_sent_in_digest(job_ids, user_id=None):
+    """Mark jobs as sent in today's digest.
+
+    When user_id is given, the timestamp is recorded per-user on
+    user_job_state.digest_sent_at (upserted so it works even if no state row
+    exists yet). Without a user_id, it sets the global
+    job_listings.date_sent_in_digest column (CLI / local single-user path)."""
+    ids = [j for j in (job_ids or []) if j]
+    if not ids:
+        return
     conn = get_connection()
     cursor = conn.cursor()
     now = datetime.now().isoformat()
-    for jid in job_ids:
-        cursor.execute(
-            "UPDATE job_listings SET date_sent_in_digest = ? WHERE job_id = ?",
-            (now, jid),
-        )
+    if user_id:
+        for jid in ids:
+            cursor.execute(
+                "INSERT INTO user_job_state (user_id, job_id, digest_sent_at, updated_at) "
+                "VALUES (?, ?, ?, ?) "
+                "ON CONFLICT (user_id, job_id) DO UPDATE SET "
+                "digest_sent_at = EXCLUDED.digest_sent_at, updated_at = EXCLUDED.updated_at",
+                (user_id, jid, now, now),
+            )
+    else:
+        for jid in ids:
+            cursor.execute(
+                "UPDATE job_listings SET date_sent_in_digest = ? WHERE job_id = ?",
+                (now, jid),
+            )
     conn.commit()
     conn.close()
-    logger.info("Marked %d jobs as sent in digest", len(job_ids))
+    logger.info("Marked %d jobs as sent in digest%s", len(ids),
+                f" for user {user_id}" if user_id else "")
 
 
 def update_applied_status(job_id, status, notes=None, follow_up_date=None, rejection_reason=None):
@@ -1613,6 +1689,38 @@ def get_or_create_user(email: str, name: str = None, picture: str = None) -> int
     conn.commit()
     conn.close()
     return uid
+
+
+def purge_stale_demo_users(domain: str, hours: int = 24) -> int:
+    """Delete throwaway demo users (email like 'demo-%@<domain>') created more
+    than `hours` ago, plus their dependent rows. Keeps the public demo-login
+    endpoint from growing the users table without bound. Returns the count
+    removed."""
+    if not domain:
+        return 0
+    conn = get_connection()
+    cursor = conn.cursor()
+    cutoff = (datetime.now() - timedelta(hours=hours)).isoformat()
+    like = f"demo-%@{domain}"
+    cursor.execute(
+        "SELECT id FROM users WHERE email LIKE ? AND created_at < ?",
+        (like, cutoff),
+    )
+    ids = [row["id"] for row in cursor.fetchall()]
+    if not ids:
+        conn.close()
+        return 0
+    placeholders = ",".join("?" for _ in ids)
+    for table in ("user_job_state", "user_preferences", "user_cv_data", "user_reminders"):
+        try:
+            cursor.execute(f"DELETE FROM {table} WHERE user_id IN ({placeholders})", ids)
+        except Exception as e:
+            logger.warning("purge_stale_demo_users: %s cleanup failed: %s", table, e)
+    cursor.execute(f"DELETE FROM users WHERE id IN ({placeholders})", ids)
+    conn.commit()
+    conn.close()
+    logger.info("Purged %d stale demo users (older than %dh)", len(ids), hours)
+    return len(ids)
 
 
 def get_user_by_email(email: str):
