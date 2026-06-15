@@ -39,3 +39,6 @@ node_modules/
 
 # Worktrees / tmp work
 tmp_career_ops/
+
+# Virtualenv
+venv/
