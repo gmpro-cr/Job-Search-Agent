@@ -1842,6 +1842,9 @@ def save_user_preferences(user_id: int, prefs: dict) -> None:
     )
     conn.commit()
     conn.close()
+    # Prefs (job_titles/industries) feed the profile embedding, so a prefs
+    # change makes the stored cv_embedding stale -> recomputed next cron.
+    invalidate_cv_embedding(user_id)
 
 
 # ---------------------------------------------------------------------------
@@ -1877,7 +1880,8 @@ def save_user_cv_data(user_id: int, cv_data: dict) -> None:
         ON CONFLICT(user_id) DO UPDATE SET
             cv_json = excluded.cv_json,
             filename = excluded.filename,
-            updated_at = excluded.updated_at
+            updated_at = excluded.updated_at,
+            cv_embedding = NULL
         """,
         (user_id, _json.dumps(cv_data), filename, datetime.now().isoformat()),
     )

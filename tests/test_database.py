@@ -125,6 +125,30 @@ def test_job_and_cv_embedding_columns_and_helpers():
     assert get_job_embedding("does-not-exist") is None
 
 
+def test_cv_embedding_invalidated_on_prefs_save():
+    from database import (init_db, get_or_create_user, save_user_cv_data,
+                          set_cv_embedding, get_cv_embedding, save_user_preferences)
+    import numpy as np
+    init_db()
+    uid = get_or_create_user("inval-prefs@test.local", "X")
+    save_user_cv_data(uid, {"skills": ["a"]})
+    set_cv_embedding(uid, np.array([1, 2, 3], dtype=np.float32))
+    save_user_preferences(uid, {"job_titles": ["X"]})   # prefs feed profile text
+    assert get_cv_embedding(uid) is None
+
+
+def test_cv_embedding_invalidated_on_cv_save():
+    from database import (init_db, get_or_create_user, save_user_cv_data,
+                          set_cv_embedding, get_cv_embedding)
+    import numpy as np
+    init_db()
+    uid = get_or_create_user("inval-cv@test.local", "Y")
+    save_user_cv_data(uid, {"skills": ["a"]})
+    set_cv_embedding(uid, np.array([1, 2, 3], dtype=np.float32))
+    save_user_cv_data(uid, {"skills": ["b"]})           # CV change clears embedding
+    assert get_cv_embedding(uid) is None
+
+
 def test_select_digest_jobs_backfills_when_all_sent():
     """When every qualified job was already sent, the digest must still fill up
     to top_n by backfilling recently-sent jobs — never return an empty digest."""
