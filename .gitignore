@@ -42,3 +42,6 @@ tmp_career_ops/
 
 # Virtualenv
 venv/
+
+# Worktrees
+.worktrees/
