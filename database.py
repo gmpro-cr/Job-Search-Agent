@@ -41,6 +41,12 @@ else:
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 USE_POSTGRES = DATABASE_URL.startswith(("postgres://", "postgresql://"))
 
+# Column type for stored embedding vectors (float32 bytes).
+_BLOB_TYPE = "BYTEA" if USE_POSTGRES else "BLOB"
+
+# Vector (de)serialization. embeddings.py imports only numpy (Vercel-safe).
+from embeddings import to_blob as _to_blob, from_blob as _from_blob
+
 if USE_POSTGRES:
     import psycopg  # type: ignore
     from psycopg.rows import dict_row as _pg_dict_row  # type: ignore
@@ -415,6 +421,10 @@ def init_db():
     _add_columns_idempotent(conn, cursor, "outreach_queue", ["user_id INTEGER"])
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_outreach_user ON outreach_queue(user_id)")
 
+    # Embedding vectors (float32 bytes) for the deterministic+embedding scorer.
+    _add_columns_idempotent(conn, cursor, "job_listings", [f"embedding {_BLOB_TYPE}"])
+    _add_columns_idempotent(conn, cursor, "user_cv_data", [f"cv_embedding {_BLOB_TYPE}"])
+
     conn.commit()
     conn.close()
     logger.info("Database initialized at %s", DB_PATH)
@@ -545,6 +555,55 @@ def select_digest_jobs(qualified_jobs, top_n, days=7, user_id=None):
         return fresh[:top_n]
     backfill = [j for j in qualified_jobs if j.get("job_id") in already]
     return (fresh + backfill)[:top_n]
+
+
+# ---------------------------------------------------------------------------
+# Embedding vectors (float32 BLOB/BYTEA) for the deterministic+embedding scorer
+# ---------------------------------------------------------------------------
+
+def set_job_embedding(job_id, vec):
+    conn = get_connection(); cursor = conn.cursor()
+    cursor.execute("UPDATE job_listings SET embedding = ? WHERE job_id = ?",
+                   (_to_blob(vec), job_id))
+    conn.commit(); conn.close()
+
+
+def get_job_embedding(job_id):
+    conn = get_connection(); cursor = conn.cursor()
+    cursor.execute("SELECT embedding FROM job_listings WHERE job_id = ?", (job_id,))
+    row = cursor.fetchone(); conn.close()
+    return _from_blob(row["embedding"]) if row and row["embedding"] is not None else None
+
+
+def set_cv_embedding(user_id, vec):
+    conn = get_connection(); cursor = conn.cursor()
+    cursor.execute("UPDATE user_cv_data SET cv_embedding = ? WHERE user_id = ?",
+                   (_to_blob(vec), user_id))
+    conn.commit(); conn.close()
+
+
+def get_cv_embedding(user_id):
+    conn = get_connection(); cursor = conn.cursor()
+    cursor.execute("SELECT cv_embedding FROM user_cv_data WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone(); conn.close()
+    return _from_blob(row["cv_embedding"]) if row and row["cv_embedding"] is not None else None
+
+
+def invalidate_cv_embedding(user_id):
+    """Mark a user's CV embedding stale (NULL) so the next cron recomputes it.
+    Called whenever the CV or preferences change."""
+    conn = get_connection(); cursor = conn.cursor()
+    cursor.execute("UPDATE user_cv_data SET cv_embedding = NULL WHERE user_id = ?", (user_id,))
+    conn.commit(); conn.close()
+
+
+def get_jobs_missing_embedding(limit=500):
+    conn = get_connection(); cursor = conn.cursor()
+    cursor.execute(
+        "SELECT job_id, role, company, job_description FROM job_listings "
+        "WHERE embedding IS NULL LIMIT ?", (limit,))
+    rows = [dict(r) for r in cursor.fetchall()]; conn.close()
+    return rows
 
 
 def insert_job(job):

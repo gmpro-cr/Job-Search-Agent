@@ -103,6 +103,28 @@ def test_digest_dedup_is_per_user():
         "job sent to user A must not be marked sent for user B"
 
 
+def test_job_and_cv_embedding_columns_and_helpers():
+    """Embedding columns exist on both tables and the float32 roundtrip works."""
+    from database import (init_db, get_connection, set_job_embedding,
+                          get_job_embedding)
+    import numpy as np
+    init_db()
+    conn = get_connection(); cur = conn.cursor()
+    cur.execute("PRAGMA table_info(job_listings)")
+    assert "embedding" in [r["name"] for r in cur.fetchall()]
+    cur.execute("PRAGMA table_info(user_cv_data)")
+    assert "cv_embedding" in [r["name"] for r in cur.fetchall()]
+    conn.close()
+    _seed_jobs([("Embed Role EMB", 70)], prefix="emb")
+    conn = get_connection(); cur = conn.cursor()
+    cur.execute("SELECT job_id FROM job_listings WHERE role='Embed Role EMB'")
+    jid = cur.fetchone()["job_id"]; conn.close()
+    v = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    set_job_embedding(jid, v)
+    assert np.allclose(get_job_embedding(jid), v)
+    assert get_job_embedding("does-not-exist") is None
+
+
 def test_select_digest_jobs_backfills_when_all_sent():
     """When every qualified job was already sent, the digest must still fill up
     to top_n by backfilling recently-sent jobs — never return an empty digest."""
