@@ -52,8 +52,9 @@ def test_blend_uses_both_components():
 
 
 def test_missing_vectors_is_deterministic_only():
+    # No vectors -> deterministic score at full scale (not deflated by weight).
     s, bd = score_job(_job("Product Manager"), CV, PREFS, job_vec=None, profile_vec=None)
-    assert bd["semantic"] == 0 and s == round(0.55 * bd["deterministic"])
+    assert bd["semantic"] == 0 and s == bd["deterministic"]
 
 
 def test_irrelevant_gate_overrides_semantic():

@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import json
+import scorer
 
 logger = logging.getLogger(__name__)
 
@@ -720,30 +721,31 @@ Respond with ONLY a JSON array of strings, like: ["point 1", "point 2", ...]"""
     return points[:5]
 
 
-def analyze_jobs(jobs, preferences, config, progress_callback=None, cv_data=None):
+def analyze_jobs(jobs, preferences, config, progress_callback=None, cv_data=None,
+                 profile_vec=None):
     """
-    Analyze and score all jobs using LLM (Ollama → OpenRouter fallback) with
-    keyword scoring as emergency fallback. CV data drives scoring for accuracy.
+    Analyze and score all jobs with the deterministic + embedding scorer
+    (scorer.score_job) — no LLM. CV data drives scoring for accuracy.
     Returns list of jobs enriched with relevance_score, remote_status,
     company_type, skills, and application_email.
 
     cv_data: optional pre-loaded CV dict. When None, falls back to load_cv_data()
              (JSON file / session user). Pass explicitly from the scraper so the
              multi-user DB CV is used instead of the empty JSON-file path.
+    profile_vec: optional embedding of the user's profile. When provided along
+             with a per-job vector (job["_vec"]), the semantic component is
+             blended in; otherwise scoring is deterministic-only.
     """
     min_score = config.get("scoring", {}).get("min_relevance_score", 65)
 
     # Load CV once for the whole batch (caller may supply it directly)
     if cv_data is None:
         cv_data = load_cv_data() or {}
-    llm_available = bool(cv_data.get("skills"))
-    if not llm_available:
-        logger.warning("No CV uploaded — falling back to keyword scoring. Upload CV at /cv for better accuracy.")
+    if not cv_data.get("skills"):
+        logger.warning("No CV uploaded — scoring on titles/location/domain only. Upload CV at /cv for better accuracy.")
 
     analyzed = []
     total = len(jobs)
-    llm_consecutive_failures = 0
-    LLM_CIRCUIT_BREAKER = 5  # give up on LLM after this many consecutive failures
 
     for i, job in enumerate(jobs):
         passed, gate_reason = quality_gate(job)
@@ -760,36 +762,15 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None, cv_data=None
             job.get("location", ""),
         ])
 
-        # Keyword pre-filter: only send to LLM if basic keyword match passes.
-        # Keeps LLM calls to ~50-100 per run (free-tier Gemini: 15 RPM).
-        # Circuit breaker: if LLM fails 5 times in a row, skip it for the rest of the run.
-        kw_breakdown = keyword_score(job, preferences, cv_data=cv_data, breakdown=True)
-        kw = kw_breakdown["total"]
-        scored = False
-        if llm_available and kw >= 35 and llm_consecutive_failures < LLM_CIRCUIT_BREAKER:
-            result = llm_score(job, cv_data, preferences)
-            if result:
-                job["relevance_score"] = result["score"]
-                job["llm_reason"] = result.get("reason", "")
-                job["remote_status"] = result.get("remote_status") or detect_remote_status(text)
-                job["company_type"] = result.get("company_type") or detect_company_type(text)
-                job["score_breakdown"] = json.dumps({
-                    "total": job["relevance_score"],
-                    "llm": True,
-                    "reason": result.get("reason", ""),
-                })
-                scored = True
-                llm_consecutive_failures = 0  # reset on success
-            else:
-                llm_consecutive_failures += 1
-                if llm_consecutive_failures >= LLM_CIRCUIT_BREAKER:
-                    logger.warning("LLM circuit breaker tripped after %d failures — using keyword scoring for remaining jobs", LLM_CIRCUIT_BREAKER)
-
-        if not scored:
-            job["relevance_score"] = kw_breakdown["total"]
-            job["score_breakdown"] = json.dumps(kw_breakdown)
-            job["remote_status"] = detect_remote_status(text)
-            job["company_type"] = detect_company_type(text)
+        # Deterministic + (optional) semantic scoring — no LLM, no quota.
+        score, breakdown = scorer.score_job(
+            job, cv_data, preferences,
+            job_vec=job.get("_vec"), profile_vec=profile_vec,
+        )
+        job["relevance_score"] = score
+        job["score_breakdown"] = json.dumps(breakdown)
+        job["remote_status"] = detect_remote_status(text)
+        job["company_type"] = detect_company_type(text)
 
         # Extract skills and generate email for all jobs
         job["skills"] = extract_skills(job.get("job_description", ""))
@@ -1723,89 +1704,19 @@ def save_cv_data(cv_data, user_id: int = None):
         json.dump(cv_data, f, indent=2)
 
 
-def cv_score(job, cv_data, preferences=None):
+def cv_score(job, cv_data, preferences=None, job_vec=None, profile_vec=None):
     """
-    Score a job 0-100 based on how well it matches the user.
+    Score a job 0-100 against the user's CV + preferences.
 
-    Base signal: skill overlap between the user's CV and the JD.
-    On top of that, when `preferences` is provided, three small
-    intent-based boosts are added:
-        +12 if any of the user's job_titles is a substring of the job's role
-        +6  if the job's location matches any of prefs.locations (or 'remote'
-            appears in both)
-        up to +10 if the user's transferable_skills appear in the JD
-            (~+2 per matched skill, capped at 10)
-
-    All boosts are additive on top of the base CV-skill match. Final
-    score is capped at 100.
-
-    Args:
-        job: dict with role, job_description, location, remote_status
-        cv_data: dict from parse_cv_text(); None if no CV uploaded
-        preferences: optional dict with job_titles / locations /
-                     transferable_skills
-
-    Returns:
-        int 0-100
+    Thin wrapper over the unified scorer.score_job (deterministic + optional
+    embedding semantic component). When job_vec and profile_vec are both
+    provided the semantic component is blended in; otherwise the score is
+    deterministic-only. Returns int 0-100.
     """
     if not cv_data:
         return 0
-
-    cv_skills_lower = {s.lower() for s in cv_data.get("skills", [])}
-    if not cv_skills_lower:
-        return 0
-
-    role_text = (job.get("role") or "").strip()
-    raw_jd    = (job.get("job_description") or "").strip()
-    jd_text   = f"{role_text} {raw_jd}".strip()
-    jd_skills = extract_skills(jd_text, max_skills=20)
-
-    if not raw_jd:
-        # ── No job description at all ──────────────────────────────────────
-        # The only signal is the role title. Score it two ways and take
-        # the higher:
-        #   A) extracted skill-pattern matches in the role title (capped at 30)
-        #   B) raw word-overlap between role title and CV text (capped at 25)
-        role_skills = extract_skills(role_text, max_skills=10)
-        if role_skills:
-            matched = [s for s in [x.lower() for x in role_skills] if s in cv_skills_lower]
-            eff = max(len(role_skills), 5)
-            score_a = int(len(matched) / eff * 100)
-        else:
-            score_a = 0
-
-        role_words = set(re.findall(r'\b\w{3,}\b', role_text.lower()))
-        cv_words   = set(re.findall(r'\b\w{3,}\b', cv_data.get("raw_text", "").lower()))
-        if role_words:
-            score_b = min(25, int(len(role_words & cv_words) / len(role_words) * 100))
-        else:
-            score_b = 0
-
-        base = max(score_a, score_b)
-
-    elif not jd_skills:
-        # ── JD present but no recognisable skill keywords ──────────────────
-        # Fall back to word-overlap, require ≥8 distinct words.
-        jd_words = set(re.findall(r'\b\w{4,}\b', jd_text.lower()))
-        if len(jd_words) < 8:
-            base = 0
-        else:
-            cv_words = set(re.findall(r'\b\w{4,}\b', cv_data.get("raw_text", "").lower()))
-            base = min(45, int(len(jd_words & cv_words) / len(jd_words) * 100))
-
-    else:
-        # ── Full JD with extractable skills ───────────────────────────────
-        jd_skills_lower = [s.lower() for s in jd_skills]
-        matched = [s for s in jd_skills_lower if s in cv_skills_lower]
-        # Minimum denominator of 5 so a single-skill JD can't reach 100.
-        effective_denom = max(len(jd_skills_lower), 5)
-        base = int(len(matched) / effective_denom * 100)
-
-    if not preferences:
-        return min(base, 100)
-
-    boost = _preference_boost(job, jd_text.lower(), preferences)
-    return min(base + boost, 100)
+    return scorer.score_job(job, cv_data, preferences or {},
+                            job_vec=job_vec, profile_vec=profile_vec)[0]
 
 
 def _preference_boost(job, jd_text_lower, preferences):

@@ -116,8 +116,13 @@ def score_job(job, cv_data, preferences, job_vec=None, profile_vec=None):
         return 0, bd
     if job_vec is not None and profile_vec is not None:
         sem = semantic_score(cosine(job_vec, profile_vec))
+        blended = round(DET_WEIGHT * det + SEM_WEIGHT * sem)
     else:
+        # No semantic signal available -> use the deterministic score at full
+        # scale (do NOT deflate by DET_WEIGHT, which would push scores below
+        # thresholds calibrated for the blended scale).
         sem = 0.0
-    blended = max(0, min(100, round(DET_WEIGHT * det + SEM_WEIGHT * sem)))
+        blended = round(det)
+    blended = max(0, min(100, blended))
     bd.update({"deterministic": round(det), "semantic": round(sem), "blended": blended})
     return blended, bd

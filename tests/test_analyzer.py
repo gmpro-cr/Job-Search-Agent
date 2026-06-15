@@ -79,3 +79,36 @@ def test_compute_gap_analysis_no_cv():
     result = compute_gap_analysis(SAMPLE_JD_JOB, None)
     assert result["cv_score"] == 0
     assert "Upload your CV" in result["action_steps"][0]
+
+
+def test_analyze_jobs_no_llm_and_scores():
+    """analyze_jobs scores via scorer (no LLM), gates irrelevant roles to 0."""
+    from analyzer import analyze_jobs
+    prefs = {"job_titles": ["Product Manager"], "locations": ["Pune"],
+             "industries": ["Fintech"]}
+    cv = {"skills": ["Product Strategy", "Stakeholder Management"]}
+    jobs = [
+        {"role": "Product Manager", "company": "FinCo",
+         "job_description": ("Own the fintech product strategy and roadmap for our "
+                             "lending platform. Work cross-functionally with engineering "
+                             "and design teams to ship features, run experiments, and "
+                             "drive stakeholder management across the credit organisation. "
+                             "You will define the product vision, prioritise the backlog, "
+                             "analyse user data, and partner with risk and operations to "
+                             "launch new lending products to market on a quarterly basis."),
+         "apply_url": "https://x.test/1", "location": "Pune", "remote_status": "hybrid"},
+        {"role": "Registered Nurse", "company": "Hospital",
+         "job_description": ("Provide ICU nursing care for critically ill patients, "
+                             "administer medication, monitor vitals, and coordinate with "
+                             "physicians on treatment plans across day and night shifts. "
+                             "Maintain accurate patient records, operate ventilators and "
+                             "monitoring equipment, respond to emergencies, support families, "
+                             "and follow strict infection-control and clinical safety "
+                             "protocols throughout every shift on the critical care ward."),
+         "apply_url": "https://x.test/2", "location": "Pune", "remote_status": ""},
+    ]
+    config = {"scoring": {"min_relevance_score": 40}}
+    qualified, analyzed = analyze_jobs(jobs, prefs, config, cv_data=cv)
+    assert all("relevance_score" in j for j in analyzed)
+    assert any(j["role"] == "Product Manager" for j in qualified)
+    assert all(j["role"] != "Registered Nurse" for j in qualified)
