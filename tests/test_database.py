@@ -77,6 +77,27 @@ def test_get_jobs_for_reminder_comma_keywords_respect_min_score():
     assert not any("Program Manager MSK3" in r for r in roles), "Low-score job should be filtered out"
 
 
+def test_end_to_end_digest_non_empty_without_llm():
+    """Full path: analyze_jobs (deterministic, no LLM) -> select_digest_jobs
+    yields a non-empty digest when relevant jobs exist."""
+    from analyzer import analyze_jobs
+    from database import select_digest_jobs, init_db
+    init_db()
+    prefs = {"job_titles": ["Product Manager"], "locations": ["Pune"],
+             "industries": ["Fintech"]}
+    cv = {"skills": ["Product Strategy", "Stakeholder Management"]}
+    jd = ("Own the fintech product strategy and roadmap for our lending platform. "
+          "Partner with engineering and design to ship features, run experiments, "
+          "analyse user data, prioritise the backlog, and drive stakeholder "
+          "management across the credit organisation every single quarter without fail.")
+    jobs = [{"role": f"Product Manager {i}", "company": "FinCo", "job_description": jd,
+             "apply_url": f"https://x.test/{i}", "location": "Pune",
+             "remote_status": "hybrid", "job_id": f"e2e-{i}"} for i in range(8)]
+    qualified, _ = analyze_jobs(jobs, prefs, {"scoring": {"min_relevance_score": 40}}, cv_data=cv)
+    picked = select_digest_jobs(qualified, top_n=5, days=7)
+    assert len(picked) >= 1
+
+
 def test_digest_dedup_is_per_user():
     """mark_sent_in_digest / recently_sent_job_ids scoped to a user must not
     leak across users: marking a job sent for user A must not suppress it for

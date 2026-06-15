@@ -101,7 +101,7 @@
     "cache_expiry_hours": 12
   },
   "scoring": {
-    "min_relevance_score": 65,
+    "min_relevance_score": 55,
     "ollama_model": "llama3.2:3b",
     "ollama_timeout": 60,
     "use_ollama": true
