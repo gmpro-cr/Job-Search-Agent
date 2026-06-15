@@ -20,3 +20,9 @@ lxml>=4.9.0
 # CV upload parsing
 pdfplumber>=0.10.0
 python-docx>=1.1.0
+
+# Scoring: numpy (cosine on stored embedding vectors) + rapidfuzz (fuzzy
+# title/skill matching). Both load at module import on Vercel
+# (database.py -> embeddings, analyzer.py -> scorer), so they're in the slim set.
+numpy>=1.26
+rapidfuzz>=3.0

@@ -28,6 +28,14 @@ jobs:
           python-version: '3.11'
           cache: pip
 
+      - name: Cache embedding model
+        # all-MiniLM-L6-v2 (~80MB) downloaded by sentence-transformers; cache
+        # the HF hub dir so it isn't re-downloaded every run.
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-all-MiniLM-L6-v2
+
       - name: Install dependencies
         # Slim Vercel deps + scraper-only extras (selenium, langgraph, etc).
         run: |
