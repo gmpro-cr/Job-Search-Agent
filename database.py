@@ -568,6 +568,19 @@ def set_job_embedding(job_id, vec):
     conn.commit(); conn.close()
 
 
+def set_job_embeddings_bulk(pairs):
+    """Persist many (job_id, vector) pairs on a single connection with one
+    commit — far faster than set_job_embedding per row (matters for the 14k-row
+    backfill, where per-row connections would otherwise dominate runtime)."""
+    rows = [(_to_blob(v), jid) for jid, v in pairs if jid and v is not None]
+    if not rows:
+        return 0
+    conn = get_connection(); cursor = conn.cursor()
+    cursor.executemany("UPDATE job_listings SET embedding = ? WHERE job_id = ?", rows)
+    conn.commit(); conn.close()
+    return len(rows)
+
+
 def get_job_embedding(job_id):
     conn = get_connection(); cursor = conn.cursor()
     cursor.execute("SELECT embedding FROM job_listings WHERE job_id = ?", (job_id,))

@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database import get_jobs_missing_embedding, set_job_embedding, init_db  # noqa: E402
+from database import get_jobs_missing_embedding, set_job_embeddings_bulk, init_db  # noqa: E402
 from embeddings import embed_texts  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -36,8 +36,7 @@ def main():
             for r in rows
         ]
         vecs = embed_texts(texts)
-        for r, v in zip(rows, vecs):
-            set_job_embedding(r["job_id"], v)
+        set_job_embeddings_bulk([(r["job_id"], v) for r, v in zip(rows, vecs)])
         total += len(rows)
         logger.info("Embedded %d jobs (running total %d)", len(rows), total)
         if len(rows) < BATCH:
