@@ -39,7 +39,8 @@ from scrapers import scrape_all_portals
 from analyzer import analyze_jobs
 from database import generate_job_id, init_db, insert_jobs_bulk, delete_old_jobs, \
     get_all_user_targets, get_all_users_with_cv_data, get_unscored_jobs_for_user, \
-    bulk_set_user_cv_scores, select_digest_jobs, mark_sent_in_digest
+    bulk_set_user_cv_scores, select_digest_jobs, mark_sent_in_digest, \
+    set_job_embedding, set_cv_embedding
 from email_notifier import send_job_email
 from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
 
@@ -48,6 +49,50 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+def _safe_embed(texts):
+    """Embed texts, returning a list of vectors — or [None]*len on any failure
+    (e.g. sentence-transformers not installed in a local run). Keeps the cron
+    working in deterministic-only mode when the model is unavailable."""
+    if not texts:
+        return []
+    try:
+        from embeddings import embed_texts
+        return embed_texts(texts)
+    except Exception as e:
+        logger.warning("Embeddings unavailable (%s) — scoring deterministic-only", e)
+        return [None] * len(texts)
+
+
+def embed_jobs(jobs):
+    """Attach an embedding vector to each job under job['_vec']."""
+    texts = [
+        f"{j.get('role', '')}. {j.get('company', '')}. {(j.get('job_description') or '')[:2000]}"
+        for j in jobs
+    ]
+    vecs = _safe_embed(texts)
+    for j, v in zip(jobs, vecs):
+        j["_vec"] = v
+    return jobs
+
+
+def build_profile_vec(cv_data, preferences):
+    """Embed a synthesized profile text (titles + industries + CV skills/summary).
+    Returns None when there is nothing to embed or the model is unavailable."""
+    cv_data = cv_data or {}
+    preferences = preferences or {}
+    parts = [
+        " ".join(preferences.get("job_titles", []) or []),
+        " ".join(preferences.get("industries", []) or []),
+        " ".join(cv_data.get("skills", []) or []),
+        cv_data.get("summary", "") or "",
+    ]
+    text = " ".join(p for p in parts if p).strip()
+    if not text:
+        return None
+    vecs = _safe_embed([text])
+    return vecs[0] if vecs else None
 
 DATA_DIR = os.path.join(BASE_DIR, "data")
 SCRAPE_OUTPUT = os.path.join(DATA_DIR, "latest_scrape.json")
@@ -104,8 +149,20 @@ def main():
     except Exception as e:
         logger.warning("Could not load owner CV from DB: %s", e)
 
+    # Embed jobs + owner profile so scoring can blend in semantic similarity.
+    # Degrades to deterministic-only if the model isn't available.
+    logger.info("Embedding jobs + owner profile...")
+    all_jobs = embed_jobs(all_jobs)
+    profile_vec = build_profile_vec(owner_cv, owner_prefs)
+    if owner_user_id is not None and profile_vec is not None:
+        try:
+            set_cv_embedding(owner_user_id, profile_vec)
+        except Exception as e:
+            logger.warning("set_cv_embedding failed: %s", e)
+
     logger.info("Analyzing and scoring jobs...")
-    qualified_jobs, all_analyzed = analyze_jobs(all_jobs, owner_prefs, config, cv_data=owner_cv)
+    qualified_jobs, all_analyzed = analyze_jobs(
+        all_jobs, owner_prefs, config, cv_data=owner_cv, profile_vec=profile_vec)
     logger.info("Analyzed %d jobs, %d qualified", len(all_analyzed), len(qualified_jobs))
 
     # --- Phase 3: Generate IDs ---
@@ -204,6 +261,19 @@ def main():
     # --- Phase 7: Insert jobs + retention sweep ---
     init_db()
     insert_jobs_bulk(all_analyzed)
+    # Persist job embedding vectors (after insert, so the rows exist).
+    _embedded = 0
+    for job in all_analyzed:
+        vec = job.get("_vec")
+        jid = job.get("job_id")
+        if vec is not None and jid:
+            try:
+                set_job_embedding(jid, vec)
+                _embedded += 1
+            except Exception as e:
+                logger.warning("set_job_embedding failed for %s: %s", jid, e)
+    if _embedded:
+        logger.info("Stored embeddings for %d jobs", _embedded)
     # Mark the jobs we just emailed as sent (AFTER insert, so the UPDATE hits
     # real rows) — this is what makes the next run's dedup work.
     if digest_job_ids:
