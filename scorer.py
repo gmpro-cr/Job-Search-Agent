@@ -7,6 +7,10 @@ fuzzy matching plus experience-range parsing, negation handling, and hard gates.
 import re
 from rapidfuzz import fuzz
 from scoring_maps import canonical_terms
+from embeddings import cosine, semantic_score
+
+DET_WEIGHT = 0.55
+SEM_WEIGHT = 0.45
 
 # Domains that mean "definitely not for this candidate" -> hard zero.
 _IRRELEVANT = ["nurse", "nursing", "phlebotom", "welder", "electrician",
@@ -99,3 +103,21 @@ def deterministic_score(job, cv_data, preferences):
     total = (bd["title"] + bd["location"] + bd["cv_skills"] + bd["domain"]
              + bd["experience"] + bd["seniority_penalty"])
     return max(0, min(100, total)), bd
+
+
+def score_job(job, cv_data, preferences, job_vec=None, profile_vec=None):
+    """Unified score 0-100 + breakdown, blending the deterministic component
+    with embedding cosine similarity. The semantic component is skipped (0) when
+    either vector is missing (deterministic-only fallback). Hard gates from the
+    deterministic component (irrelevant domain) override the blend."""
+    det, bd = deterministic_score(job, cv_data, preferences)
+    if bd.get("irrelevant"):
+        bd.update({"deterministic": 0, "semantic": 0, "blended": 0})
+        return 0, bd
+    if job_vec is not None and profile_vec is not None:
+        sem = semantic_score(cosine(job_vec, profile_vec))
+    else:
+        sem = 0.0
+    blended = max(0, min(100, round(DET_WEIGHT * det + SEM_WEIGHT * sem)))
+    bd.update({"deterministic": round(det), "semantic": round(sem), "blended": blended})
+    return blended, bd
