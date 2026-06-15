@@ -100,6 +100,9 @@ SCRAPE_OUTPUT = os.path.join(DATA_DIR, "latest_scrape.json")
 
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
+    # Run the idempotent schema migration up front so the embedding columns
+    # exist before Phase 2 writes the owner profile vector (set_cv_embedding).
+    init_db()
 
     config = load_config()
     preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())

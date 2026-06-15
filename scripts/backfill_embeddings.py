@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database import get_jobs_missing_embedding, set_job_embedding  # noqa: E402
+from database import get_jobs_missing_embedding, set_job_embedding, init_db  # noqa: E402
 from embeddings import embed_texts  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -23,6 +23,9 @@ BATCH = 200
 
 
 def main():
+    # Ensure the embedding column exists (idempotent migration) before querying
+    # it — the embedding/cv_embedding columns are added by init_db().
+    init_db()
     total = 0
     while True:
         rows = get_jobs_missing_embedding(limit=BATCH)
