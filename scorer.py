@@ -9,8 +9,13 @@ from rapidfuzz import fuzz
 from scoring_maps import canonical_terms
 from embeddings import cosine, semantic_score
 
-DET_WEIGHT = 0.55
-SEM_WEIGHT = 0.45
+# Semantic agreement LIFTS a deterministic match by up to this many points
+# (never sinks it). A pure weighted average was miscalibrated: MiniLM cosines
+# for profile-vs-JD cluster low (~0.2-0.5), so a 0.45 semantic weight dragged
+# strong deterministic matches below the threshold. An additive, bounded bonus
+# keeps the deterministic score as the floor (blended >= deterministic) while
+# still rewarding genuine semantic similarity.
+SEMANTIC_BONUS_MAX = 20
 
 # Domains that mean "definitely not for this candidate" -> hard zero.
 _IRRELEVANT = ["nurse", "nursing", "phlebotom", "welder", "electrician",
@@ -116,11 +121,9 @@ def score_job(job, cv_data, preferences, job_vec=None, profile_vec=None):
         return 0, bd
     if job_vec is not None and profile_vec is not None:
         sem = semantic_score(cosine(job_vec, profile_vec))
-        blended = round(DET_WEIGHT * det + SEM_WEIGHT * sem)
+        # Deterministic score is the floor; semantic adds a bounded lift.
+        blended = round(det + SEMANTIC_BONUS_MAX * (sem / 100.0))
     else:
-        # No semantic signal available -> use the deterministic score at full
-        # scale (do NOT deflate by DET_WEIGHT, which would push scores below
-        # thresholds calibrated for the blended scale).
         sem = 0.0
         blended = round(det)
     blended = max(0, min(100, blended))

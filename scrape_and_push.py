@@ -40,7 +40,7 @@ from analyzer import analyze_jobs
 from database import generate_job_id, init_db, insert_jobs_bulk, delete_old_jobs, \
     get_all_user_targets, get_all_users_with_cv_data, get_unscored_jobs_for_user, \
     bulk_set_user_cv_scores, select_digest_jobs, mark_sent_in_digest, \
-    set_job_embedding, set_cv_embedding
+    set_job_embedding, set_cv_embedding, get_user_by_email
 from email_notifier import send_job_email
 from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
 
@@ -141,12 +141,30 @@ def main():
     owner_user_id = None
     try:
         all_cv_users = get_all_users_with_cv_data()
-        if all_cv_users:
-            owner_cv = all_cv_users[0]["cv_data"] or {}
-            owner_user_id = all_cv_users[0]["user_id"]
-            if all_cv_users[0].get("prefs"):
-                owner_prefs = all_cv_users[0]["prefs"]
-            logger.info("Loaded CV + prefs from DB for user %d (digest scoring)", all_cv_users[0]["user_id"])
+        # Pick the ACTUAL owner by OWNER_EMAIL — not an arbitrary first row.
+        # get_all_users_with_cv_data() has no ORDER BY, so [0] could be any
+        # user (e.g. one whose titles are "Summer Trainee"), which would score
+        # the owner's PM jobs against the wrong profile -> ~0 qualified.
+        owner_email = os.environ.get("OWNER_EMAIL", "").strip().lower()
+        owner_row = None
+        if owner_email:
+            owner_user = get_user_by_email(owner_email)
+            if owner_user:
+                owner_row = next(
+                    (u for u in all_cv_users if u["user_id"] == owner_user["id"]), None)
+        if owner_row is None and all_cv_users:
+            owner_row = all_cv_users[0]
+            logger.warning(
+                "OWNER_EMAIL %r not matched to a CV user — falling back to first CV user %s",
+                owner_email or "(unset)", owner_row["user_id"])
+        if owner_row:
+            owner_cv = owner_row["cv_data"] or {}
+            owner_user_id = owner_row["user_id"]
+            if owner_row.get("prefs"):
+                owner_prefs = owner_row["prefs"]
+            logger.info("Digest scoring against user %d (owner_email=%s), titles=%s",
+                        owner_user_id, owner_email or "(unset)",
+                        (owner_prefs or {}).get("job_titles"))
         else:
             logger.warning("No users with CV found in DB — digest will use keyword-only scoring")
     except Exception as e:

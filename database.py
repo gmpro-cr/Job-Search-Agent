@@ -2472,6 +2472,7 @@ def get_all_users_with_cv_data() -> list:
         FROM users u
         JOIN user_cv_data cv ON cv.user_id = u.id
         LEFT JOIN user_preferences p ON p.user_id = u.id
+        ORDER BY u.id ASC
         """
     )
     rows = cursor.fetchall()

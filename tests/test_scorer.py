@@ -49,6 +49,16 @@ def test_blend_uses_both_components():
                       job_vec=jv, profile_vec=pv)
     assert bd["semantic"] == 100 and bd["deterministic"] > 0
     assert bd["blended"] == s and 0 <= s <= 100
+    # Semantic lifts but never sinks the deterministic score.
+    assert s >= bd["deterministic"]
+
+
+def test_low_semantic_never_sinks_deterministic():
+    jv = np.array([1.0, 0.0], dtype=np.float32)
+    pv = np.array([0.0, 1.0], dtype=np.float32)   # cosine 0 -> semantic 0
+    s, bd = score_job(_job("Product Manager", "product strategy"), CV, PREFS,
+                      job_vec=jv, profile_vec=pv)
+    assert s == bd["deterministic"]   # no lift, but no penalty either
 
 
 def test_missing_vectors_is_deterministic_only():
