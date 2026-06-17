@@ -3,6 +3,7 @@ import os
 import sqlite3
 import tempfile
 import pytest
+from datetime import datetime
 
 # Point to a temp DB so tests don't pollute jobs.db
 os.environ.setdefault("DATA_DIR", tempfile.mkdtemp())
@@ -22,15 +23,19 @@ def test_cv_score_column_exists():
 
 
 def _seed_jobs(rows, prefix="seed"):
-    """Insert test rows into job_listings. Each row is (role, relevance_score)."""
+    """Insert test rows into job_listings. Each row is (role, relevance_score).
+
+    date_found is set to "now" so rows fall inside get_jobs_for_reminder's
+    recency cap (it only returns jobs found in the last few days)."""
+    now = datetime.now().isoformat()
     conn = get_connection()
     cursor = conn.cursor()
     for i, (role, score) in enumerate(rows):
         cursor.execute(
             """INSERT OR IGNORE INTO job_listings
                (job_id, portal, company, role, relevance_score, hidden, date_found)
-               VALUES (?, 'test', 'Test Co', ?, ?, 0, '2024-01-01')""",
-            (f"{prefix}-{i}-{role}", role, score),
+               VALUES (?, 'test', 'Test Co', ?, ?, 0, ?)""",
+            (f"{prefix}-{i}-{role}", role, score, now),
         )
     conn.commit()
     conn.close()
