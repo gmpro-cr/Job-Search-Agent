@@ -15,14 +15,18 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
-def run_routines(send_fn=None, now=None):
-    """Email per-routine shortlists for every user's saved routines.
+def run_routines(send_fn=None, now=None, user_id=None, ignore_last_sent=False):
+    """Email per-routine shortlists for saved routines.
 
+    user_id: scope to one user (e.g. an on-demand "Send now"); None = all users.
+    ignore_last_sent: when True, don't restrict to jobs found after last_sent —
+        used by the manual button so it always sends the current fresh matches
+        (the recency cap inside get_jobs_for_reminder still applies).
     send_fn(recipient, jobs, preferences, subject=None) -> bool is injectable for
     testing; defaults to email_notifier.send_job_email. Returns a summary dict."""
     from email_notifier import send_job_email
-    from database import (get_all_user_reminders, get_jobs_for_reminder,
-                          save_user_reminders)
+    from database import (get_all_user_reminders, get_user_reminders,
+                          get_jobs_for_reminder, save_user_reminders)
     from main import apply_env_overrides
 
     send_fn = send_fn or send_job_email
@@ -35,7 +39,12 @@ def run_routines(send_fn=None, now=None):
         logger.warning("Gmail credentials not configured — skipping routine emails")
         return summary
 
-    for user_id, reminders in get_all_user_reminders():
+    if user_id is not None:
+        items = [(user_id, get_user_reminders(user_id))]
+    else:
+        items = get_all_user_reminders()
+
+    for user_id, reminders in items:
         summary["users"] += 1
         changed = False
         for r in reminders:
@@ -51,7 +60,7 @@ def run_routines(send_fn=None, now=None):
                     keyword,
                     int(r.get("min_score", 50) or 50),
                     int(r.get("max_jobs", 10) or 10),
-                    since=r.get("last_sent"),
+                    since=None if ignore_last_sent else r.get("last_sent"),
                     location=r.get("location"),
                 )
             except Exception as e:

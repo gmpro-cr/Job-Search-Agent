@@ -238,7 +238,7 @@ async function sendDigestNow() {
     const data = await r.json();
     if (data.ok) {
       label.textContent = 'Digest sent';
-      status.textContent = 'The latest shortlist is on its way.';
+      status.textContent = data.message || 'The latest shortlist is on its way.';
       status.className = 'digest-action-status is-success';
       setTimeout(() => {
         label.textContent = 'Send digest now';

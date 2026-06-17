@@ -2275,6 +2275,27 @@ def api_digest_send_now():
     if not gmail_address or not gmail_app_password:
         return jsonify({"ok": False, "error": "Email sending is not configured on this server. Contact the administrator."}), 503
 
+    # If the user has saved routines, "Send now" runs THOSE (one email per
+    # routine, each with its own keywords/location/score), matching the
+    # automation — forced (ignore last_sent) so it always sends current matches.
+    from database import get_user_reminders
+    active_routines = [
+        r for r in (get_user_reminders(uid) or [])
+        if r.get("enabled", True) and (r.get("email") or "").strip()
+        and (r.get("keyword") or "").strip()
+    ]
+    if active_routines:
+        from routine_runner import run_routines
+        rr = run_routines(user_id=uid, ignore_last_sent=True)
+        if rr["emails_sent"]:
+            n = rr["emails_sent"]
+            return jsonify({"ok": True,
+                            "message": f"Sent {n} routine email{'' if n == 1 else 's'} "
+                                       f"({rr['jobs_sent']} jobs)."})
+        return jsonify({"ok": False,
+                        "error": "No fresh matches for your routines right now."}), 400
+
+    # No routines: fall back to the default top-matches digest.
     # Load once; apply_env_overrides injects sender creds from env, not user storage.
     prefs = apply_env_overrides(load_preferences(uid) or DEFAULT_PREFS.copy())
     google_email = (session.get("user") or {}).get("email", "")

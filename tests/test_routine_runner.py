@@ -107,6 +107,24 @@ def test_dedup_after_last_sent(monkeypatch):
     assert s2["emails_sent"] == 0
 
 
+def test_user_scope_and_ignore_last_sent(monkeypatch):
+    import routine_runner
+    monkeypatch.setenv("GMAIL_ADDRESS", "bot@test.local")
+    monkeypatch.setenv("GMAIL_APP_PASSWORD", "pw")
+    db.init_db()
+    uid_a = db.get_or_create_user("rr-e@test.local", "E")
+    # last_sent = now would normally dedup-skip on the cron path
+    db.save_user_reminders(uid_a, [_routine(id="e1", email="me@test.local",
+                                            last_sent=datetime.now().isoformat())])
+    uid_b = db.get_or_create_user("rr-f@test.local", "F")
+    db.save_user_reminders(uid_b, [_routine(id="f1", email="b@test.local")])
+    _seed_job("rr-6", "Product Manager", "Pune", 80, datetime.now().isoformat())
+    send_fn = _recorder()
+    s = routine_runner.run_routines(send_fn=send_fn, user_id=uid_a, ignore_last_sent=True)
+    assert s["emails_sent"] == 1 and s["users"] == 1          # force-sent despite last_sent
+    assert all(x["recipient"] == "me@test.local" for x in send_fn.sent)  # only user A's routine
+
+
 def test_no_gmail_creds_is_noop(monkeypatch):
     import routine_runner
     monkeypatch.delenv("GMAIL_ADDRESS", raising=False)
