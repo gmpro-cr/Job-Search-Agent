@@ -33,7 +33,56 @@
         <h2 id="digest-routines-title">Saved routines</h2>
         <p>Each routine runs after the 7 AM and 7 PM scrapes and emails your shortlist.</p>
       </div>
-      {% if job_alerts %}<span class="digest-archive-total tabular">{{ job_alerts|length }} active</span>{% endif %}
+      <div class="digest-heading-actions">
+        {% if job_alerts %}<span class="digest-archive-total tabular">{{ job_alerts|length }} active</span>{% endif %}
+        <button type="button" class="btn btn-default btn-sm" onclick="toggleCreateRoutine()">New routine</button>
+      </div>
+    </div>
+
+    <div id="routine-create" class="routine-create" style="display:none">
+      <form onsubmit="createRoutine(event)">
+        <div class="routine-edit-grid">
+          <div>
+            <label>Routine name</label>
+            <input class="input" name="name" placeholder="e.g. Fintech PM roles">
+          </div>
+          <div>
+            <label>Recipient email</label>
+            <input class="input" type="email" name="email" value="{{ prefs.get('email','') or user_email }}" required>
+          </div>
+          <div class="routine-edit-full">
+            <label>Roles / keywords</label>
+            <input class="input" name="keyword" placeholder="Product Manager, fintech, lending" required>
+            <span class="routine-edit-hint">Comma-separated. A job matches if its title contains any of these.</span>
+          </div>
+          <div class="routine-edit-full">
+            <label>Locations</label>
+            <input class="input" name="location" placeholder="Pune, Bengaluru, Remote">
+            <span class="routine-edit-hint">Comma-separated. Leave blank to include every location.</span>
+          </div>
+          <div>
+            <label>Min match score</label>
+            <select class="input" name="min_score">
+              {% for s in [30,40,50,60,70,80] %}
+              <option value="{{ s }}" {% if s == 50 %}selected{% endif %}>{{ s }}+</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label>Max jobs per email</label>
+            <select class="input" name="max_jobs">
+              {% for n in [5,10,15,20,30] %}
+              <option value="{{ n }}" {% if n == 10 %}selected{% endif %}>{{ n }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="routine-edit-actions">
+          <button type="submit" class="btn btn-default btn-sm">Create routine</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="toggleCreateRoutine()">Cancel</button>
+          <span class="routine-create-status digest-action-status" role="status" aria-live="polite"></span>
+        </div>
+      </form>
     </div>
 
     {% if job_alerts %}
@@ -135,9 +184,10 @@
     {% else %}
     <div class="digest-archive-empty">
       <div>
-        <strong>No saved routines</strong>
-        <p>Routines are created automatically when the scraper runs with your preferences.</p>
+        <strong>No saved routines yet</strong>
+        <p>Create a routine to get a focused email of matching roles after each scrape.</p>
       </div>
+      <button type="button" class="btn btn-default btn-sm" onclick="toggleCreateRoutine()">New routine</button>
     </div>
     {% endif %}
     <p id="routine-status" class="digest-action-status" role="status" aria-live="polite"></p>
@@ -260,6 +310,45 @@ async function sendDigestNow() {
 function toggleEditRoutine(id) {
   const el = document.getElementById('routine-edit-' + id);
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleCreateRoutine() {
+  const el = document.getElementById('routine-create');
+  const open = el.style.display === 'none';
+  el.style.display = open ? 'block' : 'none';
+  if (open) { const f = el.querySelector('[name=keyword]'); if (f) f.focus(); }
+}
+
+async function createRoutine(e) {
+  e.preventDefault();
+  const form = e.target;
+  const btn = form.querySelector('[type=submit]');
+  const status = form.querySelector('.routine-create-status');
+  btn.disabled = true;
+  btn.textContent = 'Creating…';
+  const payload = {
+    name:      form.name.value.trim(),
+    email:     form.email.value.trim(),
+    keyword:   form.keyword.value.trim(),
+    location:  form.location.value.trim(),
+    min_score: parseInt(form.min_score.value),
+    max_jobs:  parseInt(form.max_jobs.value),
+  };
+  try {
+    const r = await fetch('/api/reminders', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Failed to create routine');
+    location.reload();
+  } catch (err) {
+    status.textContent = err.message;
+    status.style.color = 'var(--destructive)';
+    btn.disabled = false;
+    btn.textContent = 'Create routine';
+  }
 }
 
 async function saveRoutine(e, id) {

@@ -3270,6 +3270,20 @@ body.public-page {
   color: var(--muted-foreground);
 }
 
+/* Heading actions (count + New routine) and the create-routine panel */
+.digest-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-shrink: 0;
+}
+.routine-create {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 0.75rem;
+}
+
 .routine-edit-actions {
   display: flex;
   align-items: center;

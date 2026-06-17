@@ -3224,6 +3224,38 @@ def _extract_cv_text(file_storage) -> str:
 # Reminders
 # ---------------------------------------------------------------------------
 
+@app.route("/api/reminders", methods=["POST"])
+def create_reminder():
+    """Create a new saved routine for the current user."""
+    uid = require_user_id()
+    if isinstance(uid, tuple):
+        return uid
+    from database import get_user_reminders, save_user_reminders, uuid_safe
+    data = request.get_json(silent=True) or {}
+    keyword = str(data.get("keyword", "")).strip()[:500]
+    if not keyword:
+        return jsonify({"ok": False, "error": "Add at least one role or keyword."}), 400
+    google_email = (session.get("user") or {}).get("email", "")
+    email = (str(data.get("email", "")).strip() or google_email)[:200]
+    if not email:
+        return jsonify({"ok": False, "error": "Add a recipient email."}), 400
+    new = {
+        "id": uuid_safe(),
+        "name": (str(data.get("name", "")).strip() or keyword)[:100],
+        "email": email,
+        "keyword": keyword,
+        "location": str(data.get("location", "")).strip()[:300],
+        "min_score": int(data.get("min_score", 50)),
+        "max_jobs": int(data.get("max_jobs", 10)),
+        "enabled": True,
+        "last_sent": None,
+    }
+    reminders = get_user_reminders(uid)
+    reminders.append(new)
+    save_user_reminders(uid, reminders)
+    return jsonify({"ok": True, "id": new["id"]})
+
+
 @app.route("/api/reminders/<reminder_id>", methods=["PUT"])
 def update_reminder(reminder_id):
     uid = require_user_id()
