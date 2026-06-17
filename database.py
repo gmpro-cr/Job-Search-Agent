@@ -1342,12 +1342,14 @@ def delete_old_jobs(days: int = 7) -> dict:
 
 
 def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: str = None,
-                          max_age_days: int = 3) -> list:
+                          max_age_days: int = 3, location: str = None) -> list:
     """
     Return up to max_jobs listings whose role contains any of the comma-separated
     terms in `keyword` (case-insensitive, OR logic) and whose relevance_score >=
     min_score, ordered newest first. Only returns non-hidden jobs.
 
+    location: optional comma-separated locations. When given, the job's location
+              must match any of the terms (OR logic) — e.g. "Pune, Remote".
     since: ISO datetime string (last_sent). Jobs must be found after this timestamp.
     max_age_days: Hard recency cap — never return jobs older than this many days,
                   regardless of since. Defaults to 3 days so reminders only surface
@@ -1356,30 +1358,34 @@ def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: st
     terms = [t.strip().lower() for t in keyword.split(",") if t.strip()]
     if not terms:
         return []
-    role_clauses = " OR ".join("LOWER(role) LIKE ?" for _ in terms)
-    params = [f"%{t}%" for t in terms] + [int(min_score)]
+
+    where = [f"({' OR '.join('LOWER(role) LIKE ?' for _ in terms)})"]
+    params = [f"%{t}%" for t in terms]
+
+    loc_terms = [t.strip().lower() for t in (location or "").split(",") if t.strip()]
+    if loc_terms:
+        where.append(f"({' OR '.join('LOWER(location) LIKE ?' for _ in loc_terms)})")
+        params += [f"%{t}%" for t in loc_terms]
+
+    where.append("relevance_score >= ?")
+    params.append(int(min_score))
 
     # Recency cap: whichever cutoff is MORE recent wins
     recency_cutoff = (datetime.now() - timedelta(days=max_age_days)).isoformat()
     effective_since = recency_cutoff
     if since and since > recency_cutoff:
         effective_since = since
-
+    where.append("date_found > ?")
     params.append(effective_since)
+
+    where.append("(hidden = 0 OR hidden IS NULL)")
     params.append(int(max_jobs))
 
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        f"""
-        SELECT * FROM job_listings
-        WHERE ({role_clauses})
-          AND relevance_score >= ?
-          AND date_found > ?
-          AND (hidden = 0 OR hidden IS NULL)
-        ORDER BY date_found DESC
-        LIMIT ?
-        """,
+        f"SELECT * FROM job_listings WHERE {' AND '.join(where)} "
+        f"ORDER BY date_found DESC LIMIT ?",
         params,
     )
     rows = cursor.fetchall()

@@ -27,6 +27,122 @@
     </div>
   </header>
 
+  <section class="digest-section" aria-labelledby="digest-routines-title">
+    <div class="digest-section-heading">
+      <div>
+        <h2 id="digest-routines-title">Saved routines</h2>
+        <p>Each routine runs after the 7 AM and 7 PM scrapes and emails your shortlist.</p>
+      </div>
+      {% if job_alerts %}<span class="digest-archive-total tabular">{{ job_alerts|length }} active</span>{% endif %}
+    </div>
+
+    {% if job_alerts %}
+    <div class="routine-cards">
+      {% for r in job_alerts %}
+      <div class="routine-card" id="routine-row-{{ loop.index }}">
+        <div class="routine-card-body">
+          <div class="routine-card-left">
+            <div class="routine-card-info">
+              <div class="routine-card-titlerow">
+                <span class="routine-card-name">{{ r.name or 'Unnamed routine' }}</span>
+                <span class="routine-status-tag"><span class="routine-status-dot"></span>Active</span>
+              </div>
+              {% if r.keyword %}
+              <div class="routine-card-chips">
+                {% for kw in (r.keyword or '').split(',') %}{% set k = kw.strip() %}{% if k %}<span class="routine-chip">{{ k }}</span>{% endif %}{% endfor %}
+              </div>
+              {% endif %}
+              {% if r.location %}
+              <div class="routine-card-chips routine-card-locs">
+                {% for lc in (r.location or '').split(',') %}{% set l = lc.strip() %}{% if l %}<span class="routine-chip routine-chip-loc"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7-5.4 7-11a7 7 0 10-14 0c0 5.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>{{ l }}</span>{% endif %}{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="routine-card-right">
+            <div class="routine-stats">
+              <div class="routine-stat">
+                <span class="routine-stat-label">Score</span>
+                <span class="routine-stat-value">{{ r.min_score }}+</span>
+              </div>
+              <div class="routine-stat">
+                <span class="routine-stat-label">Max jobs</span>
+                <span class="routine-stat-value">{{ r.max_jobs }}</span>
+              </div>
+              <div class="routine-stat">
+                <span class="routine-stat-label">Last sent</span>
+                <span class="routine-stat-value">{{ r.last_sent[:10] if r.last_sent else 'Never' }}</span>
+              </div>
+            </div>
+            <div class="routine-card-actions">
+              <button type="button" onclick="toggleEditRoutine('{{ r.id }}')" class="routine-btn-edit" title="Edit routine">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                Edit
+              </button>
+              <button type="button" onclick="deleteRoutine('{{ r.id }}', {{ loop.index }})" class="routine-btn-delete" aria-label="Delete {{ r.name }}" title="Delete routine">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div id="routine-edit-{{ r.id }}" class="routine-edit-form" style="display:none">
+          <form onsubmit="saveRoutine(event, '{{ r.id }}')">
+            <div class="routine-edit-grid">
+              <div>
+                <label>Routine name</label>
+                <input class="input" name="name" value="{{ r.name or '' }}" required>
+              </div>
+              <div>
+                <label>Recipient email</label>
+                <input class="input" type="email" name="email" value="{{ r.email or '' }}" required>
+              </div>
+              <div class="routine-edit-full">
+                <label>Keywords</label>
+                <input class="input" name="keyword" value="{{ r.keyword or '' }}" placeholder="Product Manager, fintech, …">
+              </div>
+              <div class="routine-edit-full">
+                <label>Locations</label>
+                <input class="input" name="location" value="{{ r.location or '' }}" placeholder="Pune, Bengaluru, Remote">
+                <span class="routine-edit-hint">Comma-separated. Leave blank to include every location.</span>
+              </div>
+              <div>
+                <label>Min match score</label>
+                <select class="input" name="min_score">
+                  {% for s in [30,40,50,60,70,80] %}
+                  <option value="{{ s }}" {% if r.min_score == s %}selected{% endif %}>{{ s }}+</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label>Max jobs per email</label>
+                <select class="input" name="max_jobs">
+                  {% for n in [5,10,15,20,30] %}
+                  <option value="{{ n }}" {% if r.max_jobs == n %}selected{% endif %}>{{ n }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="routine-edit-actions">
+              <button type="submit" class="btn btn-default btn-sm">Save changes</button>
+              <button type="button" onclick="toggleEditRoutine('{{ r.id }}')" class="btn btn-ghost btn-sm">Cancel</button>
+              <span class="routine-save-status digest-action-status" role="status" aria-live="polite"></span>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="digest-archive-empty">
+      <div>
+        <strong>No saved routines</strong>
+        <p>Routines are created automatically when the scraper runs with your preferences.</p>
+      </div>
+    </div>
+    {% endif %}
+    <p id="routine-status" class="digest-action-status" role="status" aria-live="polite"></p>
+  </section>
+
   <section class="digest-control-grid" aria-label="Digest configuration">
     <div class="digest-settings-panel">
       <div class="digest-panel-head">
@@ -66,113 +182,6 @@
         </div>
       </form>
     </div>
-  </section>
-
-  <section class="digest-section" aria-labelledby="digest-routines-title">
-    <div class="digest-section-heading">
-      <div>
-        <h2 id="digest-routines-title">Saved routines</h2>
-        <p>Each routine runs after the 7 AM and 7 PM scrapes and emails your shortlist.</p>
-      </div>
-      {% if job_alerts %}<span class="digest-archive-total tabular">{{ job_alerts|length }} active</span>{% endif %}
-    </div>
-
-    {% if job_alerts %}
-    <div class="routine-cards">
-      {% for r in job_alerts %}
-      <div class="routine-card" id="routine-row-{{ loop.index }}">
-        <div class="routine-card-body">
-          <div class="routine-card-left">
-            <div class="routine-active-dot" title="Active"></div>
-            <div class="routine-card-info">
-              <span class="routine-card-name">{{ r.name or 'Unnamed' }}</span>
-              {% if r.keyword %}
-              <div class="routine-card-chips">
-                {% for kw in (r.keyword or '').split(',') %}
-                  {% set k = kw.strip() %}
-                  {% if k %}<span class="routine-chip">{{ k }}</span>{% endif %}
-                {% endfor %}
-              </div>
-              {% endif %}
-            </div>
-          </div>
-          <div class="routine-card-right">
-            <div class="routine-stats">
-              <div class="routine-stat">
-                <span class="routine-stat-label">Score</span>
-                <span class="routine-stat-value">{{ r.min_score }}+</span>
-              </div>
-              <div class="routine-stat">
-                <span class="routine-stat-label">Max jobs</span>
-                <span class="routine-stat-value">{{ r.max_jobs }}</span>
-              </div>
-              <div class="routine-stat">
-                <span class="routine-stat-label">Last sent</span>
-                <span class="routine-stat-value">{{ r.last_sent[:10] if r.last_sent else '—' }}</span>
-              </div>
-            </div>
-            <div class="routine-card-actions">
-              <button type="button" onclick="toggleEditRoutine('{{ r.id }}')" class="routine-btn-edit" title="Edit routine">
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                Edit
-              </button>
-              <button type="button" onclick="deleteRoutine('{{ r.id }}', {{ loop.index }})" class="routine-btn-delete" aria-label="Delete {{ r.name }}" title="Delete routine">
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div id="routine-edit-{{ r.id }}" class="routine-edit-form" style="display:none">
-          <form onsubmit="saveRoutine(event, '{{ r.id }}')">
-            <div class="routine-edit-grid">
-              <div>
-                <label>Routine name</label>
-                <input class="input" name="name" value="{{ r.name or '' }}" required>
-              </div>
-              <div>
-                <label>Recipient email</label>
-                <input class="input" type="email" name="email" value="{{ r.email or '' }}" required>
-              </div>
-              <div class="routine-edit-full">
-                <label>Keywords</label>
-                <input class="input" name="keyword" value="{{ r.keyword or '' }}" placeholder="Product Manager, fintech, …">
-              </div>
-              <div>
-                <label>Min match score</label>
-                <select class="input" name="min_score">
-                  {% for s in [30,40,50,60,70,80] %}
-                  <option value="{{ s }}" {% if r.min_score == s %}selected{% endif %}>{{ s }}+</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div>
-                <label>Max jobs per email</label>
-                <select class="input" name="max_jobs">
-                  {% for n in [5,10,15,20,30] %}
-                  <option value="{{ n }}" {% if r.max_jobs == n %}selected{% endif %}>{{ n }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-            </div>
-            <div class="routine-edit-actions">
-              <button type="submit" class="btn btn-default btn-sm">Save changes</button>
-              <button type="button" onclick="toggleEditRoutine('{{ r.id }}')" class="btn btn-ghost btn-sm">Cancel</button>
-              <span class="routine-save-status digest-action-status" role="status" aria-live="polite"></span>
-            </div>
-          </form>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="digest-archive-empty">
-      <div>
-        <strong>No saved routines</strong>
-        <p>Routines are created automatically when the scraper runs with your preferences.</p>
-      </div>
-    </div>
-    {% endif %}
-    <p id="routine-status" class="digest-action-status" role="status" aria-live="polite"></p>
   </section>
 
 
@@ -264,6 +273,7 @@ async function saveRoutine(e, id) {
     name:      form.name.value.trim(),
     email:     form.email.value.trim(),
     keyword:   form.keyword.value.trim(),
+    location:  form.location.value.trim(),
     min_score: parseInt(form.min_score.value),
     max_jobs:  parseInt(form.max_jobs.value),
   };

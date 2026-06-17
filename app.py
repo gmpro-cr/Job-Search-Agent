@@ -3216,6 +3216,7 @@ def update_reminder(reminder_id):
             r["name"]      = str(data.get("name", r.get("name", "")))[:100]
             r["email"]     = str(data.get("email", r.get("email", "")))[:200]
             r["keyword"]   = str(data.get("keyword", r.get("keyword", "")))[:500]
+            r["location"]  = str(data.get("location", r.get("location", "")))[:300]
             r["min_score"] = int(data.get("min_score", r.get("min_score", 50)))
             r["max_jobs"]  = int(data.get("max_jobs",  r.get("max_jobs",  10)))
             save_user_reminders(uid, reminders)
