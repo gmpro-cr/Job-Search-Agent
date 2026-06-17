@@ -2274,6 +2274,26 @@ def get_user_reminders(user_id: int) -> list:
     return out
 
 
+def get_all_user_reminders() -> list:
+    """Return [(user_id, [reminder dicts]), ...] for every user that has at
+    least one saved reminder. Used by the routine runner to email per-routine
+    shortlists after each scrape."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT user_id, reminder_json FROM user_reminders ORDER BY user_id, id"
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    by_user = {}
+    for r in rows:
+        try:
+            by_user.setdefault(r["user_id"], []).append(_json.loads(r["reminder_json"]))
+        except (ValueError, TypeError):
+            continue
+    return list(by_user.items())
+
+
 def save_user_reminders(user_id: int, reminders: list) -> None:
     """Replace the entire reminders list for the user."""
     if not user_id:

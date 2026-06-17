@@ -332,6 +332,15 @@ def main():
     except Exception as e:
         logger.warning("Per-user scoring failed: %s", e)
 
+    # --- Phase 7c: Send per-routine digest emails (one email per saved routine) ---
+    try:
+        from routine_runner import run_routines
+        rr = run_routines()
+        logger.info("Routine emails: %d sent across %d routines (%d users)",
+                    rr["emails_sent"], rr["routines"], rr["users"])
+    except Exception as e:
+        logger.warning("Routine run failed: %s", e)
+
     # --- Phase 8: Auto-discover hiring managers ---
     try:
         from hiring_managers_search import (

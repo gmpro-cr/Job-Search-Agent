@@ -122,7 +122,7 @@ def _build_plain_body(jobs, preferences):
     return "\n".join(lines)
 
 
-def send_job_email(recipient, jobs, preferences):
+def send_job_email(recipient, jobs, preferences, subject=None):
     """
     Send a job digest email via Gmail SMTP.
 
@@ -130,6 +130,8 @@ def send_job_email(recipient, jobs, preferences):
         recipient: Email address to send to (the user's email from prefs)
         jobs: List of job dicts to include in the email
         preferences: User preferences dict containing gmail_address and gmail_app_password
+        subject: Optional subject line override (e.g. a routine name). When None,
+                 a default "Job Digest - <date> (N jobs)" subject is used.
 
     Returns:
         True on success, False on failure
@@ -147,7 +149,7 @@ def send_job_email(recipient, jobs, preferences):
         return False
 
     msg = EmailMessage()
-    msg["Subject"] = f"Job Digest - {datetime.now().strftime('%b %d, %Y')} ({len(jobs)} jobs)"
+    msg["Subject"] = subject or f"Job Digest - {datetime.now().strftime('%b %d, %Y')} ({len(jobs)} jobs)"
     msg["From"] = gmail_address
     msg["To"] = recipient
 
