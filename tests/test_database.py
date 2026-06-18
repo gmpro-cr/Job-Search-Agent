@@ -82,6 +82,29 @@ def test_get_jobs_for_reminder_comma_keywords_respect_min_score():
     assert not any("Program Manager MSK3" in r for r in roles), "Low-score job should be filtered out"
 
 
+def test_get_jobs_for_reminder_per_user_cv_score():
+    """With user_id, matching uses the recipient's own cv_score, not the global
+    relevance_score — so the same job matches one user and not another."""
+    from database import get_or_create_user, set_user_cv_score
+    init_db()
+    _seed_jobs([("PM PerUser", 20)], prefix="pu")   # global relevance_score = 20
+    conn = get_connection(); cur = conn.cursor()
+    cur.execute("SELECT job_id FROM job_listings WHERE role='PM PerUser'")
+    jid = cur.fetchone()["job_id"]; conn.close()
+    ua = get_or_create_user("pu-a@test.local", "A")
+    ub = get_or_create_user("pu-b@test.local", "B")
+    set_user_cv_score(ua, jid, 90)   # strong fit for A
+    set_user_cv_score(ub, jid, 10)   # weak fit for B
+
+    res_a = get_jobs_for_reminder("PM PerUser", 70, 10, user_id=ua)
+    assert any(j["job_id"] == jid for j in res_a)
+    assert res_a[0]["user_cv_score"] == 90          # email shows HER score
+    res_b = get_jobs_for_reminder("PM PerUser", 70, 10, user_id=ub)
+    assert all(j["job_id"] != jid for j in res_b)   # excluded for B (her fit is 10)
+    res_global = get_jobs_for_reminder("PM PerUser", 70, 10)
+    assert all(j["job_id"] != jid for j in res_global)  # global relevance 20 < 70
+
+
 def test_get_jobs_for_reminder_posted_within_days():
     """posted_within_days filters on date_posted (the real posting age), since
     date_found is refreshed every scrape."""

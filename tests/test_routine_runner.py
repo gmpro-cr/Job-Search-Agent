@@ -21,7 +21,7 @@ def _isolate():
     yield
 
 
-def _seed_job(job_id, role, location, score, when):
+def _seed_job(job_id, role, location, score, when, for_user=None):
     conn = db.get_connection(); cur = conn.cursor()
     cur.execute(
         """INSERT OR IGNORE INTO job_listings
@@ -30,6 +30,9 @@ def _seed_job(job_id, role, location, score, when):
         (job_id, role, location, score, when),
     )
     conn.commit(); conn.close()
+    # Routine matching is per-recipient: score the job against the user's CV.
+    if for_user is not None:
+        db.set_user_cv_score(for_user, job_id, score)
 
 
 def _recorder():
@@ -59,8 +62,8 @@ def test_sends_per_routine_and_stamps_last_sent(monkeypatch):
     uid = db.get_or_create_user("rr-a@test.local", "A")
     db.save_user_reminders(uid, [_routine(email="me@test.local")])
     now = datetime.now().isoformat()
-    _seed_job("rr-1", "Senior Product Manager", "Pune", 80, now)
-    _seed_job("rr-2", "Product Manager Lending", "Remote", 70, now)
+    _seed_job("rr-1", "Senior Product Manager", "Pune", 80, now, for_user=uid)
+    _seed_job("rr-2", "Product Manager Lending", "Remote", 70, now, for_user=uid)
 
     send_fn = _recorder()
     summary = routine_runner.run_routines(send_fn=send_fn)
@@ -98,7 +101,7 @@ def test_dedup_after_last_sent(monkeypatch):
     db.save_user_reminders(uid, [_routine(id="c1")])
     # job found 1 minute ago
     t0 = (datetime.now() - timedelta(minutes=1)).isoformat()
-    _seed_job("rr-4", "Product Manager", "Pune", 80, t0)
+    _seed_job("rr-4", "Product Manager", "Pune", 80, t0, for_user=uid)
     send_fn = _recorder()
     # first run sends; stamps last_sent = now (after t0)
     routine_runner.run_routines(send_fn=send_fn, now=datetime.now().isoformat())
@@ -118,7 +121,7 @@ def test_user_scope_and_ignore_last_sent(monkeypatch):
                                             last_sent=datetime.now().isoformat())])
     uid_b = db.get_or_create_user("rr-f@test.local", "F")
     db.save_user_reminders(uid_b, [_routine(id="f1", email="b@test.local")])
-    _seed_job("rr-6", "Product Manager", "Pune", 80, datetime.now().isoformat())
+    _seed_job("rr-6", "Product Manager", "Pune", 80, datetime.now().isoformat(), for_user=uid_a)
     send_fn = _recorder()
     s = routine_runner.run_routines(send_fn=send_fn, user_id=uid_a, ignore_last_sent=True)
     assert s["emails_sent"] == 1 and s["users"] == 1          # force-sent despite last_sent

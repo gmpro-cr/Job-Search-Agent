@@ -1343,18 +1343,19 @@ def delete_old_jobs(days: int = 7) -> dict:
 
 def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: str = None,
                           max_age_days: int = 3, location: str = None,
-                          posted_within_days: int = None) -> list:
+                          posted_within_days: int = None, user_id: int = None) -> list:
     """
     Return up to max_jobs listings whose role contains any of the comma-separated
-    terms in `keyword` (case-insensitive, OR logic) and whose relevance_score >=
-    min_score, ordered newest first. Only returns non-hidden jobs.
+    terms in `keyword` (case-insensitive, OR logic), filtered by score.
 
-    location: optional comma-separated locations. When given, the job's location
-              must match any of the terms (OR logic) — e.g. "Pune, Remote".
-    since: ISO datetime string (last_sent). Jobs must be found after this timestamp.
+    user_id: when given, score against THAT user's CV (user_job_state.cv_score)
+             and rank best-match first, so routine matches reflect the recipient's
+             own CV. Each row carries `user_cv_score`. Without a user_id, the
+             global job_listings.relevance_score is used (CLI / legacy).
+    location: optional comma-separated locations (OR logic) — e.g. "Pune, Remote".
+    since: ISO datetime (last_sent). Jobs must be found after this timestamp.
     max_age_days: Hard recency cap on date_found (last-seen), regardless of since.
     posted_within_days: optional cap on the job's POSTING date (date_posted).
-                  When set, only jobs posted within this many days are returned.
                   date_found is refreshed every scrape, so date_posted is the only
                   reliable signal of how old a listing actually is.
     """
@@ -1362,6 +1363,7 @@ def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: st
     if not terms:
         return []
 
+    # Shared filters reference job_listings columns (role/location/date_posted).
     where = [f"({' OR '.join('LOWER(role) LIKE ?' for _ in terms)})"]
     params = [f"%{t}%" for t in terms]
 
@@ -1375,27 +1377,33 @@ def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: st
         where.append("date_posted IS NOT NULL AND date_posted != '' AND date_posted >= ?")
         params.append(cutoff_date)
 
-    where.append("relevance_score >= ?")
-    params.append(int(min_score))
-
-    # Recency cap: whichever cutoff is MORE recent wins
+    # Recency cap: whichever cutoff is MORE recent wins.
     recency_cutoff = (datetime.now() - timedelta(days=max_age_days)).isoformat()
     effective_since = recency_cutoff
     if since and since > recency_cutoff:
         effective_since = since
-    where.append("date_found > ?")
-    params.append(effective_since)
-
-    where.append("(hidden = 0 OR hidden IS NULL)")
-    params.append(int(max_jobs))
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        f"SELECT * FROM job_listings WHERE {' AND '.join(where)} "
-        f"ORDER BY date_found DESC LIMIT ?",
-        params,
-    )
+    if user_id:
+        # Per-recipient: rank by the user's own CV score, best match first.
+        sql = (
+            "SELECT j.*, s.cv_score AS user_cv_score "
+            "FROM job_listings j "
+            "JOIN user_job_state s ON s.job_id = j.job_id AND s.user_id = ? "
+            f"WHERE {' AND '.join(where)} "
+            "AND s.cv_score >= ? AND j.date_found > ? AND COALESCE(s.hidden, 0) = 0 "
+            "ORDER BY s.cv_score DESC LIMIT ?"
+        )
+        full_params = [user_id, *params, int(min_score), effective_since, int(max_jobs)]
+    else:
+        sql = (
+            f"SELECT * FROM job_listings WHERE {' AND '.join(where)} "
+            "AND relevance_score >= ? AND date_found > ? AND (hidden = 0 OR hidden IS NULL) "
+            "ORDER BY date_found DESC LIMIT ?"
+        )
+        full_params = [*params, int(min_score), effective_since, int(max_jobs)]
+    cursor.execute(sql, full_params)
     rows = cursor.fetchall()
     conn.close()
     return [dict(r) for r in rows]

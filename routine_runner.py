@@ -63,6 +63,7 @@ def run_routines(send_fn=None, now=None, user_id=None, ignore_last_sent=False):
                     since=None if ignore_last_sent else r.get("last_sent"),
                     location=r.get("location"),
                     posted_within_days=int(r["max_age_days"]) if r.get("max_age_days") else None,
+                    user_id=user_id,
                 )
             except Exception as e:
                 logger.warning("Routine %s query failed: %s", r.get("id"), e)
