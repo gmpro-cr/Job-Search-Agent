@@ -130,9 +130,6 @@ DEFAULT_PREFS = {
     "gmail_address": "",
     "gmail_app_password": "",
     "apollo_api_key": "",
-    "telegram_bot_token": "",
-    "telegram_chat_id": "",
-    "telegram_min_score": 65,
     "agent_score_threshold": 50,   # min LLM score to include a job in outreach
     "agent_job_cap": 200,          # max jobs fetched per agent run
     "agent_host": "http://localhost:5001",  # base URL for approve/skip links in email
@@ -141,7 +138,7 @@ DEFAULT_PREFS = {
 }
 
 # Keys that should be stored in .env, not in user_preferences.json
-_CREDENTIAL_KEYS = {"gmail_app_password", "telegram_bot_token", "apollo_api_key", "linkedin_password"}
+_CREDENTIAL_KEYS = {"gmail_app_password", "apollo_api_key", "linkedin_password"}
 
 
 def _current_session_user_id():
@@ -222,8 +219,6 @@ def apply_env_overrides(prefs):
         "GMAIL_ADDRESS": "gmail_address",
         "GMAIL_APP_PASSWORD": "gmail_app_password",
         "EMAIL_RECIPIENT": "email",
-        "TELEGRAM_BOT_TOKEN": "telegram_bot_token",
-        "TELEGRAM_CHAT_ID": "telegram_chat_id",
         "APOLLO_API_KEY": "apollo_api_key",
         "LINKEDIN_EMAIL": "linkedin_email",
         "LINKEDIN_PASSWORD": "linkedin_password",
@@ -232,13 +227,6 @@ def apply_env_overrides(prefs):
         val = os.environ.get(env_key)
         if val:
             prefs[pref_key] = val
-
-    telegram_min = os.environ.get("TELEGRAM_MIN_SCORE")
-    if telegram_min:
-        try:
-            prefs["telegram_min_score"] = int(telegram_min)
-        except ValueError:
-            pass
 
     return prefs
 

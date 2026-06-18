@@ -319,3 +319,12 @@ Sidebar:
   `requirements-scraper.txt`.
 - Push directly to `main` with `--force` — Vercel will deploy
   whatever you push, including broken state.
+
+---
+
+## Harness Rules
+
+See global `~/.claude/CLAUDE.md` for the universal gate (Plan → Build → Verify → Commit → Push).
+
+**Project-specific:**
+- No Vercel deploy without confirming Neon Postgres connection string is set

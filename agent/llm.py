@@ -78,12 +78,35 @@ def _call_gemini(prompt: str, system: str) -> str:
         _time.sleep(wait)
 
     full_prompt = f"{system}\n\n{prompt}" if system else prompt
-    resp = requests.post(
-        f"{GEMINI_URL}?key={api_key}",
-        headers={"Content-Type": "application/json"},
-        json={"contents": [{"parts": [{"text": full_prompt}]}]},
-        timeout=GEMINI_TIMEOUT,
-    )
+
+    # Retry on 429 (rate-limit) with exponential backoff. Honours the
+    # Retry-After header when the API supplies one. A persistent 429 (daily
+    # quota exhausted) still raises after the final attempt, at which point the
+    # caller falls back to keyword scoring.
+    max_attempts = 3
+    resp = None
+    for attempt in range(max_attempts):
+        resp = requests.post(
+            f"{GEMINI_URL}?key={api_key}",
+            headers={"Content-Type": "application/json"},
+            json={"contents": [{"parts": [{"text": full_prompt}]}]},
+            timeout=GEMINI_TIMEOUT,
+        )
+        if resp.status_code != 429:
+            break
+        if attempt == max_attempts - 1:
+            break
+        retry_after = resp.headers.get("Retry-After")
+        try:
+            backoff = float(retry_after) if retry_after else 2.0 * (2 ** attempt)
+        except ValueError:
+            backoff = 2.0 * (2 ** attempt)
+        logger.warning(
+            "Gemini 429 (attempt %d/%d), backing off %.1fs",
+            attempt + 1, max_attempts, backoff,
+        )
+        _time.sleep(backoff)
+
     resp.raise_for_status()
     data = resp.json()
     try:

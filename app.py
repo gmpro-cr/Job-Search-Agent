@@ -57,8 +57,6 @@ from email_notifier import send_job_email
 from database import delete_old_jobs
 from contact_scraper import enrich_jobs_with_contacts
 from database import update_job_description
-from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
-from telegram_bot import start_telegram_bot
 from git_sync import sync_from_scrape
 
 # ---------------------------------------------------------------------------
@@ -599,22 +597,6 @@ def _run_scraper_pipeline():
             scraper_status["inserted"] = inserted
             scraper_status["skipped"] = skipped
 
-        # Phase 3.5: Telegram alerts
-        tg_token = preferences.get("telegram_bot_token", "").strip()
-        tg_chat = preferences.get("telegram_chat_id", "").strip()
-        tg_min = int(preferences.get("telegram_min_score", 65))
-        if tg_token and tg_chat:
-            with scraper_lock:
-                scraper_status["phase"] = "telegram_alerts"
-            alert_count = 0
-            for job in qualified_jobs:
-                if job.get("relevance_score", 0) >= tg_min:
-                    send_telegram_alert(job, tg_token, tg_chat)
-                    alert_count += 1
-            if alert_count > 0 or inserted > 0:
-                send_telegram_batch_summary(len(all_jobs), len(qualified_jobs), inserted, tg_token, tg_chat)
-            logger.info("Sent %d Telegram alerts", alert_count)
-
         # Phase 3.6: Contact enrichment (via scraper, no API key needed)
         with scraper_lock:
             scraper_status["phase"] = "enriching_contacts"
@@ -744,17 +726,6 @@ def _run_live_search(query, location):
             live_search_status["skipped"] = skipped
             live_search_status["result_job_ids"] = result_ids
 
-        # Phase 3.5: Telegram alerts
-        tg_token = preferences.get("telegram_bot_token", "").strip()
-        tg_chat = preferences.get("telegram_chat_id", "").strip()
-        tg_min = int(preferences.get("telegram_min_score", 65))
-        if tg_token and tg_chat:
-            with live_search_lock:
-                live_search_status["phase"] = "telegram_alerts"
-            for job in qualified_jobs:
-                if job.get("relevance_score", 0) >= tg_min:
-                    send_telegram_alert(job, tg_token, tg_chat)
-
         # Phase 4: Contact enrichment (via scraper, no API key needed)
         if result_ids:
             with live_search_lock:
@@ -853,12 +824,6 @@ if _should_start_background_tasks():
 
     # Periodically pull latest scrape from GitHub Actions and import
     _threading.Thread(target=_git_pull_and_sync, daemon=True).start()
-
-    # Start Telegram bot if token is configured
-    _bot_prefs = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
-    _bot_token = _bot_prefs.get("telegram_bot_token", "").strip()
-    if _bot_token:
-        start_telegram_bot(_bot_token)
 
 # ---------------------------------------------------------------------------
 # Routes
@@ -1919,27 +1884,7 @@ def import_jobs():
     inserted, skipped = insert_jobs_bulk(jobs)
     logger.info("Import API: inserted=%d, skipped=%d (total submitted=%d)", inserted, skipped, len(jobs))
 
-    # Telegram alerts for qualified jobs
-    preferences = apply_env_overrides(load_preferences() or DEFAULT_PREFS.copy())
-    tg_token = preferences.get("telegram_bot_token", "").strip()
-    tg_chat = preferences.get("telegram_chat_id", "").strip()
-    tg_min = int(preferences.get("telegram_min_score", 65))
-    alert_count = 0
-    if tg_token and tg_chat:
-        for job in jobs:
-            if job.get("relevance_score", 0) >= tg_min:
-                try:
-                    send_telegram_alert(job, tg_token, tg_chat)
-                    alert_count += 1
-                except Exception as e:
-                    logger.warning("Telegram alert failed for %s: %s", job.get("job_id"), e)
-        if alert_count > 0 or inserted > 0:
-            try:
-                send_telegram_batch_summary(len(jobs), alert_count, inserted, tg_token, tg_chat)
-            except Exception as e:
-                logger.warning("Telegram batch summary failed: %s", e)
-
-    return jsonify({"ok": True, "inserted": inserted, "skipped": skipped, "alerts": alert_count})
+    return jsonify({"ok": True, "inserted": inserted, "skipped": skipped})
 
 
 @app.route("/api/portals/update", methods=["POST"])

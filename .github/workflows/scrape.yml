@@ -6,16 +6,23 @@ on:
     - cron: '30 13 * * *'  # 7:00 PM IST
   workflow_dispatch:
 
+# Never run two scrapes at once (a manual dispatch overlapping a schedule, or a
+# delayed schedule) — concurrent runs race the same Neon DB and can double-send.
+# Queue a new run rather than killing one mid-write.
+concurrency:
+  group: daily-scrape
+  cancel-in-progress: false
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    # Repo is public -> Actions minutes are free. Capped targets keep the real
-    # runtime well under this; the headroom just prevents a borderline run from
-    # being cancelled (which is what silently stopped scraping on 2026-05-29).
-    timeout-minutes: 90
+    # Public repo -> free minutes. 150 (not 90) so the run finishes its later
+    # phases (per-routine emails + dedup marking) instead of being cancelled
+    # mid-pipeline, which left dedup markers unwritten and caused repeat emails.
+    timeout-minutes: 150
 
     permissions:
       contents: read
@@ -28,16 +35,26 @@ jobs:
           python-version: '3.11'
           cache: pip
 
+      # Pin Chrome so Selenium scraping is deterministic (don't rely on whatever
+      # the runner image happens to ship).
+      - uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
       - name: Cache embedding model
-        # all-MiniLM-L6-v2 (~80MB) downloaded by sentence-transformers; cache
-        # the HF hub dir so it isn't re-downloaded every run.
+        # all-MiniLM-L6-v2 (~80MB). sentence-transformers may cache under either
+        # path depending on version, so cache both.
         uses: actions/cache@v4
         with:
-          path: ~/.cache/huggingface
-          key: hf-all-MiniLM-L6-v2
+          path: |
+            ~/.cache/huggingface
+            ~/.cache/torch/sentence_transformers
+          key: hf-all-MiniLM-L6-v2-v1
+          restore-keys: |
+            hf-all-MiniLM-L6-v2
 
       - name: Install dependencies
-        # Slim Vercel deps + scraper-only extras (selenium, langgraph, etc).
+        # Slim Vercel deps + scraper-only extras (selenium, sentence-transformers, etc).
         run: |
           pip install -r requirements.txt
           pip install -r requirements-scraper.txt
@@ -54,10 +71,17 @@ jobs:
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_MIN_SCORE: ${{ secrets.TELEGRAM_MIN_SCORE }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python scrape_and_push.py
+
+      - name: Notify owner by email on failure
+        if: ${{ failure() || cancelled() }}
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python scripts/notify_failure.py

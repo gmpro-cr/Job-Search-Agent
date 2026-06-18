@@ -2,20 +2,13 @@
 """
 scrape_and_push.py - Standalone scraper that runs on GitHub Actions.
 
-Scrapes all job portals, analyzes/scores jobs, sends email + Telegram
-notifications, then writes results to data/latest_scrape.json for the
-local app to import on startup.
+Scrapes all job portals, analyzes/scores jobs, emails per-routine digests,
+then writes results to data/latest_scrape.json for the local app to import.
 
 Required env vars:
     GMAIL_ADDRESS         - sender Gmail address
     GMAIL_APP_PASSWORD    - Gmail App Password (not your Google password)
     EMAIL_RECIPIENT       - recipient email address
-
-Optional env vars:
-    TELEGRAM_BOT_TOKEN    - Telegram bot token
-    TELEGRAM_CHAT_ID      - Telegram chat ID
-    TELEGRAM_MIN_SCORE    - minimum score for Telegram alerts (default: 65)
-    OPENROUTER_API_KEY    - for AI-based scoring
 """
 
 import json
@@ -42,7 +35,6 @@ from database import generate_job_id, init_db, insert_jobs_bulk, delete_old_jobs
     bulk_set_user_cv_scores, select_digest_jobs, mark_sent_in_digest, \
     set_job_embeddings_bulk, set_cv_embedding, get_user_by_email
 from email_notifier import send_job_email
-from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
 
 logging.basicConfig(
     level=logging.INFO,
@@ -227,22 +219,6 @@ def main():
         json.dump(payload_jobs, f)
     logger.info("Wrote %d jobs to %s", len(payload_jobs), SCRAPE_OUTPUT)
 
-    # --- Phase 5: Telegram alerts ---
-    tg_token = preferences.get("telegram_bot_token", "").strip()
-    tg_chat = preferences.get("telegram_chat_id", "").strip()
-    tg_min = int(preferences.get("telegram_min_score", 65))
-    if tg_token and tg_chat:
-        alert_count = 0
-        for job in qualified_jobs:
-            if job.get("relevance_score", 0) >= tg_min:
-                send_telegram_alert(job, tg_token, tg_chat)
-                alert_count += 1
-        send_telegram_batch_summary(
-            len(all_jobs), len(qualified_jobs), len(payload_jobs), tg_token, tg_chat
-        )
-        logger.info("Sent %d Telegram alerts", alert_count)
-    else:
-        logger.info("Telegram not configured — skipping alerts")
 
     # --- Phase 6: Email digest ---
     recipient = preferences.get("email", "").strip()

@@ -131,7 +131,7 @@ if __name__ == "__main__":
         with open(prefs_path) as f:
             prefs = json.load(f)
 
-    top_n = prefs.get("top_jobs_per_digest", 5)
+    top_n = prefs.get("top_jobs_per_digest", 10)
 
     # Pull top qualifying jobs from the DB
     from database import get_unsent_jobs
