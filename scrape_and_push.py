@@ -40,7 +40,7 @@ from analyzer import analyze_jobs
 from database import generate_job_id, init_db, insert_jobs_bulk, delete_old_jobs, \
     get_all_user_targets, get_all_users_with_cv_data, get_unscored_jobs_for_user, \
     bulk_set_user_cv_scores, select_digest_jobs, mark_sent_in_digest, \
-    set_job_embedding, set_cv_embedding, get_user_by_email
+    set_job_embeddings_bulk, set_cv_embedding, get_user_by_email
 from email_notifier import send_job_email
 from telegram_notifier import send_telegram_alert, send_telegram_batch_summary
 
@@ -282,19 +282,17 @@ def main():
     # --- Phase 7: Insert jobs + retention sweep ---
     init_db()
     insert_jobs_bulk(all_analyzed)
-    # Persist job embedding vectors (after insert, so the rows exist).
-    _embedded = 0
-    for job in all_analyzed:
-        vec = job.get("_vec")
-        jid = job.get("job_id")
-        if vec is not None and jid:
-            try:
-                set_job_embedding(jid, vec)
-                _embedded += 1
-            except Exception as e:
-                logger.warning("set_job_embedding failed for %s: %s", jid, e)
-    if _embedded:
-        logger.info("Stored embeddings for %d jobs", _embedded)
+    # Persist job embedding vectors in ONE batched write (after insert, so the
+    # rows exist). The old per-row loop opened a fresh Neon connection per job
+    # (~2k connections), which stalled the run past the 90-min cron timeout
+    # before the routine + dedup phase could finish.
+    try:
+        _embedded = set_job_embeddings_bulk(
+            (job.get("job_id"), job.get("_vec")) for job in all_analyzed)
+        if _embedded:
+            logger.info("Stored embeddings for %d jobs", _embedded)
+    except Exception as e:
+        logger.warning("bulk embedding persist failed: %s", e)
     # Mark the jobs we just emailed as sent (AFTER insert, so the UPDATE hits
     # real rows) — this is what makes the next run's dedup work.
     if digest_job_ids:
