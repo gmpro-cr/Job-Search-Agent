@@ -3247,6 +3247,7 @@ def create_reminder():
         "location": str(data.get("location", "")).strip()[:300],
         "min_score": int(data.get("min_score", 50)),
         "max_jobs": int(data.get("max_jobs", 10)),
+        "max_age_days": int(data.get("max_age_days", 0) or 0),
         "enabled": True,
         "last_sent": None,
     }
@@ -3272,6 +3273,7 @@ def update_reminder(reminder_id):
             r["location"]  = str(data.get("location", r.get("location", "")))[:300]
             r["min_score"] = int(data.get("min_score", r.get("min_score", 50)))
             r["max_jobs"]  = int(data.get("max_jobs",  r.get("max_jobs",  10)))
+            r["max_age_days"] = int(data.get("max_age_days", r.get("max_age_days", 0)) or 0)
             save_user_reminders(uid, reminders)
             return jsonify({"ok": True})
     return jsonify({"ok": False, "error": "Routine not found"}), 404

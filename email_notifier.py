@@ -33,7 +33,7 @@ def _build_html_body(jobs, preferences):
 
     rows = []
     for j in jobs:
-        score = j["cv_score"] if "cv_score" in j else j.get("relevance_score", "N/A")
+        score = j["user_cv_score"] if j.get("user_cv_score") is not None else j.get("relevance_score", "N/A")
         apply_url = j.get("apply_url", "#")
         rows.append(
             f"<tr>"
@@ -112,7 +112,7 @@ def _build_plain_body(jobs, preferences):
         for i, j in enumerate(jobs, 1):
             lines.append(f"{i}. {j.get('role', '')} at {j.get('company', '')}")
             lines.append(f"   Location: {j.get('location', '')} | Type: {j.get('remote_status', '')}")
-            score = j["cv_score"] if "cv_score" in j else j.get("relevance_score", "N/A")
+            score = j["user_cv_score"] if j.get("user_cv_score") is not None else j.get("relevance_score", "N/A")
             lines.append(f"   Source: {j.get('portal', '')} | Score: {score}")
             lines.append(f"   Apply: {j.get('apply_url', '')}")
             lines.append("")

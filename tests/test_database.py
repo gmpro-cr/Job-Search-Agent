@@ -82,6 +82,29 @@ def test_get_jobs_for_reminder_comma_keywords_respect_min_score():
     assert not any("Program Manager MSK3" in r for r in roles), "Low-score job should be filtered out"
 
 
+def test_get_jobs_for_reminder_posted_within_days():
+    """posted_within_days filters on date_posted (the real posting age), since
+    date_found is refreshed every scrape."""
+    from datetime import timedelta
+    init_db()
+    conn = get_connection(); cur = conn.cursor()
+    recent = (datetime.now() - timedelta(days=2)).date().isoformat()
+    old = (datetime.now() - timedelta(days=20)).date().isoformat()
+    found = datetime.now().isoformat()
+    for jid, posted in [("pw-new", recent), ("pw-old", old)]:
+        cur.execute(
+            """INSERT OR IGNORE INTO job_listings
+               (job_id, portal, company, role, relevance_score, hidden, date_found, date_posted)
+               VALUES (?, 't', 'Co', 'Product Manager PWX', 80, 0, ?, ?)""",
+            (jid, found, posted),
+        )
+    conn.commit(); conn.close()
+    within = {r["job_id"] for r in get_jobs_for_reminder("Product Manager PWX", 50, 10, posted_within_days=7)}
+    assert "pw-new" in within and "pw-old" not in within
+    both = {r["job_id"] for r in get_jobs_for_reminder("Product Manager PWX", 50, 10)}
+    assert {"pw-new", "pw-old"} <= both
+
+
 def test_end_to_end_digest_non_empty_without_llm():
     """Full path: analyze_jobs (deterministic, no LLM) -> select_digest_jobs
     yields a non-empty digest when relevant jobs exist."""

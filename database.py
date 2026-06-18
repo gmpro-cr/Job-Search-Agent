@@ -1342,7 +1342,8 @@ def delete_old_jobs(days: int = 7) -> dict:
 
 
 def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: str = None,
-                          max_age_days: int = 3, location: str = None) -> list:
+                          max_age_days: int = 3, location: str = None,
+                          posted_within_days: int = None) -> list:
     """
     Return up to max_jobs listings whose role contains any of the comma-separated
     terms in `keyword` (case-insensitive, OR logic) and whose relevance_score >=
@@ -1351,9 +1352,11 @@ def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: st
     location: optional comma-separated locations. When given, the job's location
               must match any of the terms (OR logic) — e.g. "Pune, Remote".
     since: ISO datetime string (last_sent). Jobs must be found after this timestamp.
-    max_age_days: Hard recency cap — never return jobs older than this many days,
-                  regardless of since. Defaults to 3 days so reminders only surface
-                  fresh listings.
+    max_age_days: Hard recency cap on date_found (last-seen), regardless of since.
+    posted_within_days: optional cap on the job's POSTING date (date_posted).
+                  When set, only jobs posted within this many days are returned.
+                  date_found is refreshed every scrape, so date_posted is the only
+                  reliable signal of how old a listing actually is.
     """
     terms = [t.strip().lower() for t in keyword.split(",") if t.strip()]
     if not terms:
@@ -1366,6 +1369,11 @@ def get_jobs_for_reminder(keyword: str, min_score: int, max_jobs: int, since: st
     if loc_terms:
         where.append(f"({' OR '.join('LOWER(location) LIKE ?' for _ in loc_terms)})")
         params += [f"%{t}%" for t in loc_terms]
+
+    if posted_within_days:
+        cutoff_date = (datetime.now() - timedelta(days=int(posted_within_days))).date().isoformat()
+        where.append("date_posted IS NOT NULL AND date_posted != '' AND date_posted >= ?")
+        params.append(cutoff_date)
 
     where.append("relevance_score >= ?")
     params.append(int(min_score))
