@@ -92,39 +92,42 @@ def test_skips_disabled_and_recipientless(monkeypatch):
     assert summary["emails_sent"] == 0 and send_fn.sent == []
 
 
-def test_dedup_after_last_sent(monkeypatch):
+def test_dedup_survives_date_found_refresh(monkeypatch):
+    """The morning/evening repeat bug: a sent job whose date_found is refreshed
+    by a later scrape must NOT be re-emailed. Dedup is by digest_sent_at."""
     import routine_runner
     monkeypatch.setenv("GMAIL_ADDRESS", "bot@test.local")
     monkeypatch.setenv("GMAIL_APP_PASSWORD", "pw")
     db.init_db()
     uid = db.get_or_create_user("rr-c@test.local", "C")
     db.save_user_reminders(uid, [_routine(id="c1")])
-    # job found 1 minute ago
-    t0 = (datetime.now() - timedelta(minutes=1)).isoformat()
-    _seed_job("rr-4", "Product Manager", "Pune", 80, t0, for_user=uid)
+    _seed_job("rr-4", "Product Manager", "Pune", 80,
+              (datetime.now() - timedelta(minutes=1)).isoformat(), for_user=uid)
     send_fn = _recorder()
-    # first run sends; stamps last_sent = now (after t0)
-    routine_runner.run_routines(send_fn=send_fn, now=datetime.now().isoformat())
-    # second run: nothing newer than last_sent -> no email
-    s2 = routine_runner.run_routines(send_fn=send_fn, now=datetime.now().isoformat())
+    s1 = routine_runner.run_routines(send_fn=send_fn, user_id=uid)   # morning: sends
+    assert s1["emails_sent"] == 1
+    # Simulate the evening scrape refreshing date_found to "now".
+    conn = db.get_connection(); cur = conn.cursor()
+    cur.execute("UPDATE job_listings SET date_found = ? WHERE job_id = 'rr-4'",
+                (datetime.now().isoformat(),))
+    conn.commit(); conn.close()
+    s2 = routine_runner.run_routines(send_fn=send_fn, user_id=uid)   # evening: no repeat
     assert s2["emails_sent"] == 0
 
 
-def test_user_scope_and_ignore_last_sent(monkeypatch):
+def test_user_scope_runs_only_that_user(monkeypatch):
     import routine_runner
     monkeypatch.setenv("GMAIL_ADDRESS", "bot@test.local")
     monkeypatch.setenv("GMAIL_APP_PASSWORD", "pw")
     db.init_db()
     uid_a = db.get_or_create_user("rr-e@test.local", "E")
-    # last_sent = now would normally dedup-skip on the cron path
-    db.save_user_reminders(uid_a, [_routine(id="e1", email="me@test.local",
-                                            last_sent=datetime.now().isoformat())])
+    db.save_user_reminders(uid_a, [_routine(id="e1", email="me@test.local")])
     uid_b = db.get_or_create_user("rr-f@test.local", "F")
     db.save_user_reminders(uid_b, [_routine(id="f1", email="b@test.local")])
     _seed_job("rr-6", "Product Manager", "Pune", 80, datetime.now().isoformat(), for_user=uid_a)
     send_fn = _recorder()
-    s = routine_runner.run_routines(send_fn=send_fn, user_id=uid_a, ignore_last_sent=True)
-    assert s["emails_sent"] == 1 and s["users"] == 1          # force-sent despite last_sent
+    s = routine_runner.run_routines(send_fn=send_fn, user_id=uid_a)
+    assert s["emails_sent"] == 1 and s["users"] == 1
     assert all(x["recipient"] == "me@test.local" for x in send_fn.sent)  # only user A's routine
 
 

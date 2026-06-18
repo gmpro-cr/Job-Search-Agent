@@ -2286,7 +2286,7 @@ def api_digest_send_now():
     ]
     if active_routines:
         from routine_runner import run_routines
-        rr = run_routines(user_id=uid, ignore_last_sent=True)
+        rr = run_routines(user_id=uid)
         if rr["emails_sent"]:
             n = rr["emails_sent"]
             return jsonify({"ok": True,

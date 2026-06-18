@@ -15,18 +15,24 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
-def run_routines(send_fn=None, now=None, user_id=None, ignore_last_sent=False):
+DEDUP_DAYS = 7  # don't re-email a job to the same user within this many days
+
+
+def run_routines(send_fn=None, now=None, user_id=None):
     """Email per-routine shortlists for saved routines.
 
+    Dedup is by an explicit per-user sent-marker (user_job_state.digest_sent_at),
+    NOT by date_found — date_found is refreshed every scrape, so it can't tell
+    whether a job was already emailed. This is why the evening digest used to
+    repeat the morning's jobs, and why "Send now" re-sent everything.
+
     user_id: scope to one user (e.g. an on-demand "Send now"); None = all users.
-    ignore_last_sent: when True, don't restrict to jobs found after last_sent —
-        used by the manual button so it always sends the current fresh matches
-        (the recency cap inside get_jobs_for_reminder still applies).
     send_fn(recipient, jobs, preferences, subject=None) -> bool is injectable for
     testing; defaults to email_notifier.send_job_email. Returns a summary dict."""
     from email_notifier import send_job_email
     from database import (get_all_user_reminders, get_user_reminders,
-                          get_jobs_for_reminder, save_user_reminders)
+                          get_jobs_for_reminder, save_user_reminders,
+                          recently_sent_job_ids, mark_sent_in_digest)
     from main import apply_env_overrides
 
     send_fn = send_fn or send_job_email
@@ -55,12 +61,14 @@ def run_routines(send_fn=None, now=None, user_id=None, ignore_last_sent=False):
             if not recipient or not keyword:
                 continue
             summary["routines"] += 1
+            max_jobs = int(r.get("max_jobs", 10) or 10)
             try:
-                jobs = get_jobs_for_reminder(
+                # Pull a wider candidate window so we can drop already-sent jobs
+                # and still fill up to max_jobs with genuinely new matches.
+                candidates = get_jobs_for_reminder(
                     keyword,
                     int(r.get("min_score", 50) or 50),
-                    int(r.get("max_jobs", 10) or 10),
-                    since=None if ignore_last_sent else r.get("last_sent"),
+                    min(200, max(max_jobs * 5, max_jobs)),
                     location=r.get("location"),
                     posted_within_days=int(r["max_age_days"]) if r.get("max_age_days") else None,
                     user_id=user_id,
@@ -68,6 +76,9 @@ def run_routines(send_fn=None, now=None, user_id=None, ignore_last_sent=False):
             except Exception as e:
                 logger.warning("Routine %s query failed: %s", r.get("id"), e)
                 continue
+            ids = [j.get("job_id") for j in candidates if j.get("job_id")]
+            already = recently_sent_job_ids(ids, days=DEDUP_DAYS, user_id=user_id)
+            jobs = [j for j in candidates if j.get("job_id") not in already][:max_jobs]
             if not jobs:
                 continue
             name = (r.get("name") or "Saved routine").strip()
@@ -79,6 +90,13 @@ def run_routines(send_fn=None, now=None, user_id=None, ignore_last_sent=False):
                 logger.warning("Routine %s email failed: %s", r.get("id"), e)
                 ok = False
             if ok:
+                # Mark these jobs sent for this user so neither the next cron nor
+                # a manual "Send now" repeats them.
+                try:
+                    mark_sent_in_digest([j["job_id"] for j in jobs if j.get("job_id")],
+                                        user_id=user_id)
+                except Exception as e:
+                    logger.warning("mark_sent_in_digest failed for user %s: %s", user_id, e)
                 r["last_sent"] = now
                 changed = True
                 summary["emails_sent"] += 1
