@@ -82,6 +82,30 @@ def test_get_jobs_for_reminder_comma_keywords_respect_min_score():
     assert not any("Program Manager MSK3" in r for r in roles), "Low-score job should be filtered out"
 
 
+def test_insert_jobs_bulk_inserts_dedups_refreshes():
+    from database import init_db, insert_jobs_bulk, get_connection
+    init_db()
+    jobs = [
+        {"job_id": "ib-1", "portal": "p", "company": "C", "role": "PM", "location": "Pune"},
+        {"job_id": "ib-2", "portal": "p", "company": "D", "role": "BA", "location": "Remote"},
+        {"job_id": "ib-1", "portal": "p", "company": "C", "role": "PM", "location": "Pune"},  # within-batch dup
+    ]
+    ins, refreshed = insert_jobs_bulk(jobs)
+    assert ins == 2 and refreshed == 0
+    conn = get_connection(); cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) AS c FROM job_listings WHERE job_id IN ('ib-1','ib-2')")
+    assert cur.fetchone()["c"] == 2
+    old = cur.execute("SELECT date_found FROM job_listings WHERE job_id='ib-1'").fetchone()["date_found"]
+    conn.close()
+    import time; time.sleep(0.01)
+    ins2, refreshed2 = insert_jobs_bulk([{"job_id": "ib-1", "portal": "p", "company": "C", "role": "PM"}])
+    assert ins2 == 0 and refreshed2 == 1
+    conn = get_connection(); cur = conn.cursor()
+    new = cur.execute("SELECT date_found FROM job_listings WHERE job_id='ib-1'").fetchone()["date_found"]
+    conn.close()
+    assert new > old   # existing row's date_found refreshed
+
+
 def test_get_jobs_for_reminder_per_user_cv_score():
     """With user_id, matching uses the recipient's own cv_score, not the global
     relevance_score — so the same job matches one user and not another."""

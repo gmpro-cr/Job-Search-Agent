@@ -717,15 +717,75 @@ def insert_job(job):
 
 
 def insert_jobs_bulk(jobs):
-    """Insert multiple jobs, returning counts of inserted and skipped."""
-    inserted = 0
-    skipped = 0
+    """Insert many jobs on a SINGLE connection with batched statements.
+
+    Returns (inserted, skipped). Exact duplicates (same job_id, already in the
+    DB or repeated within the batch) are skipped via ON CONFLICT, and existing
+    rows get date_found refreshed. The old path called insert_job per row, which
+    opened ~3 Neon connections per job and ran an unindexed cross-portal LIKE
+    scan each time — that stalled multi-thousand-job runs past the cron timeout.
+    The fuzzy cross-portal merge is intentionally dropped from this hot path
+    (exact job_id dedup remains; use dedup_jobs() for periodic cleanup)."""
+    jobs = list(jobs or [])
+    if not jobs:
+        return 0, 0
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT job_id FROM job_listings")
+    existing = {r["job_id"] for r in cursor.fetchall()}
+    now = _utcnow()
+    seen = set()
+    refresh = []   # (now, job_id) for rows already present
+    rows = []      # full tuples for new rows
     for job in jobs:
-        if insert_job(job):
-            inserted += 1
-        else:
-            skipped += 1
-    return inserted, skipped
+        jid = job.get("job_id") or generate_job_id(
+            job.get("portal", "unknown"), job.get("company", ""),
+            job.get("role", ""), job.get("location", ""))
+        if jid in seen:
+            continue
+        seen.add(jid)
+        if jid in existing:
+            refresh.append((now, jid))
+            continue
+        loc = job.get("location")
+        rows.append((
+            jid, job.get("portal", "unknown"), job.get("company", ""), job.get("role", ""),
+            job.get("salary"), job.get("salary_currency", "INR"),
+            normalize_location(loc) if loc else loc,
+            job.get("job_description"), job.get("apply_url"),
+            job.get("relevance_score", 0), job.get("remote_status", "on-site"),
+            job.get("company_type", "corporate"), now, now, job.get("date_posted"),
+            job.get("experience_min"), job.get("experience_max"),
+            job.get("salary_min"), job.get("salary_max"),
+            job.get("company_size"), job.get("company_funding_stage"),
+            job.get("company_glassdoor_rating"), job.get("cv_score", 0),
+            job.get("score_breakdown"),
+        ))
+
+    if refresh:
+        cursor.executemany(
+            "UPDATE job_listings SET date_found = ? WHERE job_id = ?", refresh)
+    if rows:
+        cursor.executemany(
+            """
+            INSERT INTO job_listings
+                (job_id, portal, company, role, salary, salary_currency, location,
+                 job_description, apply_url, relevance_score, remote_status,
+                 company_type, date_found, date_first_seen, date_posted,
+                 experience_min, experience_max, salary_min, salary_max,
+                 company_size, company_funding_stage, company_glassdoor_rating,
+                 cv_score, score_breakdown)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (job_id) DO NOTHING
+            """,
+            rows,
+        )
+    conn.commit()
+    conn.close()
+    logger.info("insert_jobs_bulk: %d inserted, %d refreshed (of %d)",
+                len(rows), len(refresh), len(jobs))
+    return len(rows), len(refresh)
 
 
 def mark_sent_in_digest(job_ids, user_id=None):
