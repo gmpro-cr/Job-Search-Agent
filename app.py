@@ -2237,8 +2237,10 @@ def api_digest_send_now():
             return jsonify({"ok": True,
                             "message": f"Sent {n} routine email{'' if n == 1 else 's'} "
                                        f"({rr['jobs_sent']} jobs)."})
-        return jsonify({"ok": False,
-                        "error": "No fresh matches for your routines right now."}), 400
+        # Nothing new to send is a normal "all caught up" state, not an error —
+        # return 200 so the UI shows a calm message instead of a console 400.
+        return jsonify({"ok": True,
+                        "message": "You're all caught up — no new matches since your last digest."})
 
     # No routines: fall back to the default top-matches digest.
     # Load once; apply_env_overrides injects sender creds from env, not user storage.
@@ -2279,7 +2281,8 @@ def api_digest_send_now():
     # send is never empty when few jobs qualify.
     jobs = select_digest_jobs(candidates, top_n, days=7, user_id=uid)
     if not jobs:
-        return jsonify({"ok": False, "error": "No matching jobs found to send."}), 400
+        return jsonify({"ok": True,
+                        "message": "You're all caught up — no new matches to send right now."})
 
     from email_notifier import send_job_email
     send_prefs = dict(prefs)
