@@ -10,7 +10,7 @@
       <div style="flex:1;min-width:0;">
         <span class="eyebrow">Profile</span>
         <h1>Profile &amp; CV</h1>
-        <p class="page-lede">Market analysis of your skills against live job data.</p>
+        <p class="page-lede">Your ATS readiness and how your CV matches live jobs.</p>
       </div>
       {% if cv_filename %}
       <form method="POST" enctype="multipart/form-data" action="{{ url_for('cv_page') }}" style="flex-shrink:0;">
@@ -35,7 +35,7 @@
           <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted-foreground);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
           <div>
             <p style="font-weight:600;margin:0 0 .25rem;">Upload your CV to unlock insights</p>
-            <p class="text-muted" style="font-size:.875rem;margin:0;">PDF, DOC, DOCX up to 5 MB — your skills get matched against every job in the database</p>
+            <p class="text-muted" style="font-size:.875rem;margin:0;">PDF, DOC, DOCX up to 5 MB — your skills get matched against every live job, and you get an ATS readiness score.</p>
           </div>
           <span class="btn btn-accent">Choose file</span>
           <input type="file" name="cv_file" accept=".pdf,.doc,.docx" style="display:none;" onchange="this.form.submit()">
@@ -48,488 +48,130 @@
 
   <!-- CV info bar -->
   <div style="display:flex;align-items:center;gap:.75rem;padding:.875rem 1.25rem;background:rgba(3,2,19,.03);border:1px solid var(--border);border-radius:.75rem;">
-    <svg width="20" height="20" fill="none" stroke="var(--success)" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <svg width="20" height="20" fill="none" stroke="var(--accent)" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
     <div style="flex:1;min-width:0;">
       <span style="font-weight:500;font-size:.875rem;">{{ cv_filename }}</span>
       {% if cv_uploaded_at %}<span class="text-muted" style="font-size:.8125rem;margin-left:.75rem;">Uploaded {{ cv_uploaded_at[:10] }}</span>{% endif %}
     </div>
   </div>
 
-  <!-- Extracted profile card -->
-  {% set _u = session.get('user') %}
-  {% set _titles = cv_data.get('suggested_job_titles', []) if cv_data else [] %}
-  {% set _locs   = cv_data.get('suggested_locations', []) if cv_data else [] %}
-  <div class="card">
-    <div class="card-header" style="padding-bottom:.75rem;">
-      <div class="card-title">Extracted Profile</div>
-      <div class="card-description">Details parsed from your CV — used to match and score every job.</div>
-    </div>
-    <div class="card-content" style="padding-top:0;">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem;">
-
-        <!-- Identity -->
-        <div>
-          <p style="font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);margin:0 0 .5rem;">Identity</p>
-          <div style="display:flex;flex-direction:column;gap:.375rem;">
-            {% if _u and _u.get('name') %}
-            <div style="display:flex;align-items:center;gap:.5rem;">
-              {% if _u.get('picture') %}<img src="{{ _u.picture }}" width="24" height="24" style="border-radius:50%;flex-shrink:0;" alt="">{% endif %}
-              <span style="font-size:.875rem;font-weight:600;">{{ _u.name }}</span>
-            </div>
-            {% endif %}
-            {% if _u and _u.get('email') %}
-            <div style="font-size:.8125rem;color:var(--muted-foreground);">{{ _u.email }}</div>
-            {% endif %}
-          </div>
-        </div>
-
-        <!-- Target roles -->
-        <div>
-          <p style="font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);margin:0 0 .5rem;">Target roles</p>
-          {% if _titles %}
-          <div style="display:flex;flex-wrap:wrap;gap:.375rem;">
-            {% for t in _titles[:6] %}
-            <span style="display:inline-block;padding:.25rem .625rem;border-radius:.375rem;background:rgba(3,2,19,.05);border:1px solid var(--border);font-size:.8rem;font-weight:500;">{{ t }}</span>
-            {% endfor %}
-          </div>
-          {% else %}
-          <p style="font-size:.8125rem;color:var(--muted-foreground);margin:0;">Not detected</p>
-          {% endif %}
-        </div>
-
-        <!-- Preferred locations -->
-        <div>
-          <p style="font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);margin:0 0 .5rem;">Preferred locations</p>
-          {% if _locs %}
-          <div style="display:flex;flex-wrap:wrap;gap:.375rem;">
-            {% for l in _locs[:6] %}
-            <span style="display:inline-block;padding:.25rem .625rem;border-radius:.375rem;background:rgba(3,2,19,.05);border:1px solid var(--border);font-size:.8rem;">{{ l }}</span>
-            {% endfor %}
-          </div>
-          {% else %}
-          <p style="font-size:.8125rem;color:var(--muted-foreground);margin:0;">Not detected</p>
-          {% endif %}
-        </div>
-
-      </div>
-
-      <!-- Skills list -->
-      {% if cv_data and cv_data.get('skills') %}
-      <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border);">
-        <p style="font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-foreground);margin:0 0 .625rem;">Detected skills ({{ cv_skills_count }})</p>
-        <div style="display:flex;flex-wrap:wrap;gap:.375rem;">
-          {% for sk in cv_data.get('skills', []) %}
-          <span style="display:inline-block;padding:.25rem .6rem;border-radius:.375rem;font-size:.8rem;background:var(--muted);border:1px solid var(--border);color:var(--foreground);">{{ sk }}</span>
-          {% endfor %}
-        </div>
-      </div>
-      {% endif %}
-
-    </div>
-  </div>
-
-  <!-- Summary stat strip -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;">
-    <div class="card" style="padding:1rem 1.25rem;">
-      <p class="text-muted" style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin:0 0 .375rem;">Skills detected</p>
-      <div style="font-size:1.875rem;font-weight:700;color:var(--accent);line-height:1;">{{ cv_skills_count }}</div>
-      <p class="text-muted" style="font-size:.75rem;margin:.25rem 0 0;">from your CV</p>
-    </div>
-    <div class="card" style="padding:1rem 1.25rem;">
-      <p class="text-muted" style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin:0 0 .375rem;">Jobs scored</p>
-      <div style="font-size:1.875rem;font-weight:700;line-height:1;">{{ total_scored }}</div>
-      <p class="text-muted" style="font-size:.75rem;margin:.25rem 0 0;">against your CV</p>
-    </div>
-    <div class="card" style="padding:1rem 1.25rem;">
-      <p class="text-muted" style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin:0 0 .375rem;">Avg match score</p>
-      <div style="font-size:1.875rem;font-weight:700;line-height:1;color:{% if avg_match_score >= 60 %}var(--success){% elif avg_match_score >= 40 %}var(--warning){% else %}var(--muted-foreground){% endif %};">{{ avg_match_score }}</div>
-      <p class="text-muted" style="font-size:.75rem;margin:.25rem 0 0;">out of 100</p>
-    </div>
-    <div class="card" style="padding:1rem 1.25rem;">
-      <p class="text-muted" style="font-size:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin:0 0 .375rem;">Best portal</p>
-      <div style="font-size:1.25rem;font-weight:700;line-height:1;padding-top:.25rem;">{{ portal_breakdown[0].portal | capitalize if portal_breakdown else '—' }}</div>
-      <p class="text-muted" style="font-size:.75rem;margin:.25rem 0 0;">highest avg score</p>
-    </div>
-  </div>
-
-  <!-- Profile Analysis: completeness + keyword heatmap + skills gap -->
-  {% if cv_uploaded %}
-  <div class="card" id="cv-analysis-card">
-    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
-      <div>
-        <div class="card-title">Profile Analysis</div>
-        <div class="card-description">Completeness, keyword coverage, and skills gap vs. your target roles.</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:.5rem;">
-        <span style="font-size:.75rem;color:var(--muted-foreground);">Profile score</span>
-        <span id="cva-score-badge" style="font-size:1.25rem;font-weight:700;color:var(--accent);">—</span>
-        <span style="font-size:.75rem;color:var(--muted-foreground);">/ 100</span>
-      </div>
-    </div>
-    <div class="card-content" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;">
-
-      <!-- Completeness checklist -->
-      <div>
-        <p style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);margin:0 0 .75rem;">Completeness</p>
-        <div id="cva-checklist" style="display:flex;flex-direction:column;gap:.5rem;">
-          <span style="color:var(--muted-foreground);font-size:.875rem;">Loading…</span>
-        </div>
-      </div>
-
-      <!-- Keyword heatmap -->
-      <div>
-        <p style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);margin:0 0 .75rem;">Top Keywords in Job Market</p>
-        <div id="cva-keywords" style="display:flex;flex-wrap:wrap;gap:.375rem;">
-          <span style="color:var(--muted-foreground);font-size:.875rem;">Loading…</span>
-        </div>
-      </div>
-
-      <!-- Skills gap -->
-      <div>
-        <p style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-foreground);margin:0 0 .75rem;">Skills Gap</p>
-        <div id="cva-gap" style="display:flex;flex-direction:column;gap:.375rem;">
-          <span style="color:var(--muted-foreground);font-size:.875rem;">Loading…</span>
-        </div>
-      </div>
-
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- Row 1: Score distribution + Skill demand -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
-
-    <!-- Score distribution -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Match Score Distribution</div>
-        <div class="card-description">How your CV scores across all {{ total_scored }} scraped jobs</div>
-      </div>
-      <div class="card-content">
-        {% if total_scored > 0 %}
-        <canvas id="score-dist-chart" height="180"></canvas>
-        {% else %}
-        <div class="empty-state" style="padding:2rem 0;">
-          <p style="margin:0;">No scored jobs yet — upload your CV and wait for the next scrape.</p>
-        </div>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Skill demand -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Your Skills in the Market</div>
-        <div class="card-description">How often each CV skill appears in job postings</div>
-      </div>
-      <div class="card-content">
-        {% if skill_demand %}
-        <canvas id="skill-demand-chart" height="180"></canvas>
-        {% else %}
-        <div class="empty-state" style="padding:2rem 0;">
-          <p style="margin:0;">No skill data — upload your CV to see market demand.</p>
-        </div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-  <!-- Row 2: Skill gaps + Portal performance -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
-
-    <!-- Skill gaps -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Skill Gap Analysis</div>
-        <div class="card-description">High-demand skills missing from your CV</div>
-      </div>
-      <div class="card-content">
-        {% if skill_gaps %}
-        <canvas id="skill-gap-chart" height="200"></canvas>
-        {% else %}
-        <div class="empty-state" style="padding:2rem 0;"><p style="margin:0;">No skill gaps identified.</p></div>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Portal performance -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Portal Performance</div>
-        <div class="card-description">Average CV match score per job portal</div>
-      </div>
-      <div class="card-content">
-        {% if portal_breakdown %}
-        <div style="display:flex;flex-direction:column;gap:.75rem;margin-top:.25rem;">
-          {% for p in portal_breakdown %}
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;">
-              <span style="font-size:.875rem;font-weight:500;">{{ p.portal | capitalize }}</span>
-              <span style="font-size:.8125rem;font-weight:600;color:{% if p.avg_score >= 60 %}var(--success){% elif p.avg_score >= 40 %}var(--warning){% else %}var(--muted-foreground){% endif %};">{{ p.avg_score }}  <span class="text-muted" style="font-weight:400;font-size:.75rem;">({{ p.count }} jobs)</span></span>
-            </div>
-            <div style="height:6px;border-radius:999px;background:var(--muted);overflow:hidden;">
-              <div style="height:100%;border-radius:999px;background:{% if p.avg_score >= 60 %}var(--success){% elif p.avg_score >= 40 %}var(--warning){% else %}var(--muted-foreground){% endif %};width:{{ p.avg_score }}%;transition:width .6s ease;"></div>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-state" style="padding:2rem 0;"><p style="margin:0;">Score jobs first to see portal performance.</p></div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-  <!-- Row 3: Top matched titles (if any) -->
-  {% if top_titles %}
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Top Matching Job Titles</div>
-      <div class="card-description">Roles scoring ≥ 65 that appear most across your matched jobs</div>
-    </div>
-    <div class="card-content">
-      <div style="display:flex;flex-wrap:wrap;gap:.625rem;">
-        {% set max_count = top_titles[0].count %}
-        {% for t in top_titles %}
-        <span style="
-          display:inline-flex;align-items:center;gap:.375rem;
-          padding:.375rem .875rem;border-radius:999px;
-          background:rgba(3,2,19,{{ 0.04 + (t.count / max_count) * 0.09 }});
-          border:1px solid rgba(3,2,19,{{ 0.06 + (t.count / max_count) * 0.1 }});
-          font-size:{% if t.count == max_count %}.9375rem{% else %}.8125rem{% endif %};
-          font-weight:{% if t.count == max_count %}600{% else %}400{% endif %};">
-          {{ t.title }}
-          <span class="text-muted" style="font-size:.7rem;">{{ t.count }}</span>
-        </span>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- Skills tag cloud -->
-  {% if tag_cloud %}
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Your Skills — Market Demand</div>
-      <div class="card-description">Larger = appears in more job postings. Colour = demand tier.</div>
-    </div>
-    <div class="card-content">
-      <div style="display:flex;flex-wrap:wrap;gap:.5rem;line-height:1.4;">
-        {% for skill, pct in tag_cloud %}
-        <span style="
-          display:inline-block;
-          padding:.3rem .75rem;
-          border-radius:.375rem;
-          font-size:{% if pct >= 15 %}1rem{% elif pct >= 8 %}.9375rem{% elif pct >= 3 %}.875rem{% else %}.8125rem{% endif %};
-          font-weight:{% if pct >= 15 %}600{% elif pct >= 8 %}500{% else %}400{% endif %};
-          background:{% if pct >= 15 %}rgba(3,2,19,.1){% elif pct >= 8 %}rgba(3,2,19,.06){% else %}rgba(3,2,19,.03){% endif %};
-          border:1px solid {% if pct >= 15 %}rgba(3,2,19,.15){% elif pct >= 8 %}rgba(3,2,19,.08){% else %}var(--border){% endif %};
-          color:{% if pct >= 15 %}var(--foreground){% else %}var(--muted-foreground){% endif %};">
-          {{ skill }}<span style="margin-left:.3rem;font-size:.7em;opacity:.55;">{{ pct }}%</span>
-        </span>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- ATS readiness -->
+  <!-- 1. ATS Readiness — hero -->
   <div class="card" id="ats-card">
-    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
-      <div>
-        <div class="card-title">ATS Readiness</div>
-        <div class="card-description">How well your CV is structured to pass automated screening and match your target roles.</div>
+    <div class="card-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+      <div style="min-width:0;">
+        <div class="card-title">ATS readiness</div>
+        <div class="card-description">Mostly keyword coverage for your target roles, plus résumé hygiene.</div>
       </div>
-      <div style="display:flex;align-items:baseline;gap:.4rem;">
-        <span id="ats-score" style="font-size:2rem;font-weight:700;line-height:1;color:var(--accent);">—</span>
-        <span style="font-size:.8rem;color:var(--muted-foreground);">/ 100</span>
+      <div style="display:flex;align-items:baseline;gap:.5rem;flex-shrink:0;">
+        <span id="ats-score" style="font-size:2.5rem;font-weight:700;line-height:1;color:var(--accent);">—</span>
+        <span style="color:var(--muted-foreground);font-size:1rem;">/100</span>
         <span id="ats-band" class="ats-band"></span>
       </div>
     </div>
-    <div class="card-content" style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.75rem;">
+    <div class="card-content cv-ats-grid">
       <div>
         <p class="ats-subhead">Breakdown</p>
         <div id="ats-breakdown"><span class="text-muted" style="font-size:.875rem;">Analysing your CV…</span></div>
       </div>
       <div>
-        <p class="ats-subhead">Suggested fixes</p>
-        <ul id="ats-suggestions" class="ats-tips"><li class="text-muted" style="font-size:.875rem;list-style:none;">Analysing your CV…</li></ul>
+        <p class="ats-subhead">Top fixes</p>
+        <ul id="ats-suggestions" class="ats-tips"><li class="text-muted" style="font-size:.875rem;">Analysing…</li></ul>
       </div>
     </div>
   </div>
 
-  {% endif %}<!-- end cv_filename -->
+  <!-- 2. Match readiness -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Match readiness</div>
+      <div class="card-description">How your CV scores against live jobs, and the keywords that would unlock more.</div>
+    </div>
+    <div class="card-content">
+      <div class="cv-stats">
+        <div><div class="cv-stat-num" style="color:var(--accent);">{{ strong_match_count }}</div><div class="cv-stat-lbl">strong matches (≥70)</div></div>
+        <div><div class="cv-stat-num">{{ avg_match_score }}</div><div class="cv-stat-lbl">avg match score</div></div>
+        <div><div class="cv-stat-num">{{ total_scored }}</div><div class="cv-stat-lbl">jobs scored</div></div>
+      </div>
+
+      {% if skill_gaps %}
+      <p class="ats-subhead" style="margin-top:1.5rem;">Add these to unlock more matches</p>
+      <div class="cv-bars">
+        {% for g in skill_gaps %}
+        <div class="cv-bar-row">
+          <span class="cv-bar-label">{{ g.skill }}</span>
+          <div class="cv-bar"><div class="cv-bar-fill" style="width:{{ [g.pct, 4]|max }}%;"></div></div>
+          <span class="cv-bar-val tabular">{{ g.pct }}%</span>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="text-muted" style="font-size:.75rem;margin:.6rem 0 0;">% = share of live postings mentioning each skill. Only add what you genuinely have.</p>
+      {% endif %}
+
+      {% if top_titles %}
+      <p class="ats-subhead" style="margin-top:1.5rem;">Roles you match most</p>
+      <div class="cv-chips">
+        {% for t in top_titles %}<span class="cv-chip">{{ t.title }}<b>{{ t.count }}</b></span>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- 3. Your skills in the market -->
+  {% if skill_demand %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Your skills in the market</div>
+      <div class="card-description">How often each of your CV skills appears in live postings.</div>
+    </div>
+    <div class="card-content">
+      <div class="cv-bars">
+        {% for s in skill_demand %}
+        <div class="cv-bar-row">
+          <span class="cv-bar-label">{{ s.name }}</span>
+          <div class="cv-bar"><div class="cv-bar-fill cv-bar-fill-muted" style="width:{{ [s.pct, 4]|max }}%;"></div></div>
+          <span class="cv-bar-val tabular">{{ s.pct }}%</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 4. Your profile (parsed, secondary) -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Your profile</div>
+      <div class="card-description">Parsed from your CV — used to match and score every job.</div>
+    </div>
+    <div class="card-content">
+      {% if cv_data and cv_data.get('skills') %}
+      <p class="ats-subhead">Detected skills ({{ cv_skills_count }})</p>
+      <div class="cv-chips">
+        {% for sk in cv_data.get('skills', []) %}<span class="cv-chip">{{ sk }}</span>{% endfor %}
+      </div>
+      {% endif %}
+      {% if cv_data and cv_data.get('suggested_job_titles') %}
+      <p class="ats-subhead" style="margin-top:1.25rem;">Likely target roles</p>
+      <div class="cv-chips">
+        {% for t in cv_data.get('suggested_job_titles', []) %}<span class="cv-chip">{{ t }}</span>{% endfor %}
+      </div>
+      {% endif %}
+      {% if cv_data and cv_data.get('suggested_locations') %}
+      <p class="ats-subhead" style="margin-top:1.25rem;">Locations on your CV</p>
+      <div class="cv-chips">
+        {% for l in cv_data.get('suggested_locations', []) %}<span class="cv-chip">{{ l }}</span>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-  const chartDefaults = {
-    font: { family: 'inherit', size: 12 },
-  };
-  Chart.defaults.font.family = 'inherit';
-  Chart.defaults.font.size = 12;
-
-  // ── Score distribution (vertical bar) ──────────────────────────
-  {% if total_scored > 0 %}
-  new Chart(document.getElementById('score-dist-chart'), {
-    type: 'bar',
-    data: {
-      labels: ['0–20', '21–40', '41–60', '61–80', '81–100'],
-      datasets: [{
-        data: {{ score_dist_data | tojson }},
-        backgroundColor: [
-          'rgba(239,68,68,.65)',
-          'rgba(249,115,22,.65)',
-          'rgba(234,179,8,.65)',
-          'rgba(34,197,94,.65)',
-          'rgba(3,2,19,.75)',
-        ],
-        borderRadius: 4,
-        borderWidth: 0,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.raw} jobs` } },
-      },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: 'var(--muted-foreground)' } },
-        y: { grid: { color: 'rgba(3,2,19,.05)' }, ticks: { color: 'var(--muted-foreground)', stepSize: 1 }, beginAtZero: true },
-      },
-    }
-  });
-  {% endif %}
-
-  // ── Skill demand (horizontal bar) ───────────────────────────────
-  {% if skill_demand %}
-  const sdData = {{ skill_demand | tojson }};
-  new Chart(document.getElementById('skill-demand-chart'), {
-    type: 'bar',
-    data: {
-      labels: sdData.map(s => s.name),
-      datasets: [{
-        data: sdData.map(s => s.frequency),
-        backgroundColor: 'rgba(3,2,19,.12)',
-        hoverBackgroundColor: 'rgba(3,2,19,.22)',
-        borderRadius: 4,
-        borderWidth: 0,
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.raw} job postings` } },
-      },
-      scales: {
-        x: { grid: { color: 'rgba(3,2,19,.05)' }, ticks: { color: 'var(--muted-foreground)' }, beginAtZero: true },
-        y: { grid: { display: false }, ticks: { color: 'var(--foreground)', font: { size: 11 } } },
-      },
-    }
-  });
-  {% endif %}
-
-  // ── Skill gap (horizontal bar) ───────────────────────────────────
-  {% if skill_gaps %}
-  const sgData = {{ skill_gaps | tojson }};
-  new Chart(document.getElementById('skill-gap-chart'), {
-    type: 'bar',
-    data: {
-      labels: sgData.map(s => s.skill),
-      datasets: [{
-        data: sgData.map(s => s.demand_count),
-        backgroundColor: 'rgba(234,179,8,.3)',
-        hoverBackgroundColor: 'rgba(234,179,8,.5)',
-        borderRadius: 4,
-        borderWidth: 0,
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.raw} job postings` } },
-      },
-      scales: {
-        x: { grid: { color: 'rgba(3,2,19,.05)' }, ticks: { color: 'var(--muted-foreground)' }, beginAtZero: true },
-        y: { grid: { display: false }, ticks: { color: 'var(--foreground)', font: { size: 11 } } },
-      },
-    }
-  });
-  {% endif %}
-
-  // ── Profile Analysis panel ──────────────────────────────────
-  {% if cv_uploaded %}
-  (function() {
-    // Profile score + completeness checklist
-    fetch('/api/cv/profile-score')
-      .then(r => r.json())
-      .then(data => {
-        const badge = document.getElementById('cva-score-badge');
-        if (badge) badge.textContent = data.score || 0;
-        const list = document.getElementById('cva-checklist');
-        if (!list || !data.breakdown) return;
-        list.innerHTML = data.breakdown.map(item => `
-          <div style="display:flex;align-items:flex-start;gap:.5rem;font-size:.8125rem;">
-            <span style="flex-shrink:0;margin-top:.1rem;color:${item.done ? 'var(--success)' : 'var(--muted-foreground)'}">
-              ${item.done
-                ? '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>'
-                : '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/></svg>'}
-            </span>
-            <span style="color:${item.done ? 'var(--foreground)' : 'var(--muted-foreground)'}">${item.label}</span>
-            <span style="margin-left:auto;font-weight:600;color:${item.done ? 'var(--accent)' : 'var(--muted-foreground)'}">+${item.points}</span>
-          </div>`).join('');
-      }).catch(() => {});
-
-    // Keyword heatmap
-    fetch('/api/cv/keyword-heatmap')
-      .then(r => r.json())
-      .then(data => {
-        const el = document.getElementById('cva-keywords');
-        if (!el || !data.keywords) return;
-        const top = data.keywords.slice(0, 20);
-        if (!top.length) { el.innerHTML = '<span style="color:var(--muted-foreground);font-size:.875rem;">No keyword data yet.</span>'; return; }
-        const maxCount = top[0].count || 1;
-        el.innerHTML = top.map(k => {
-          const intensity = Math.round((k.count / maxCount) * 100);
-          const bg = intensity > 66 ? 'var(--accent)' : intensity > 33 ? 'var(--accent-soft)' : 'var(--muted)';
-          const fg = intensity > 66 ? 'var(--accent-foreground)' : 'var(--foreground)';
-          return `<span style="display:inline-flex;align-items:center;gap:.25rem;padding:.25rem .5rem;border-radius:.25rem;font-size:.75rem;font-weight:500;background:${bg};color:${fg};">${k.keyword}<span style="opacity:.6;font-weight:400;">${k.count}</span></span>`;
-        }).join('');
-      }).catch(() => {});
-
-    // Skills gap
-    fetch('/api/cv/skills-gap')
-      .then(r => r.json())
-      .then(data => {
-        const el = document.getElementById('cva-gap');
-        if (!el || !data.skills) return;
-        const top = data.skills.slice(0, 12);
-        if (!top.length) { el.innerHTML = '<span style="color:var(--muted-foreground);font-size:.875rem;">No gap data yet.</span>'; return; }
-        el.innerHTML = top.map(s => `
-          <div style="display:flex;align-items:center;gap:.5rem;font-size:.8125rem;">
-            <span style="flex-shrink:0;color:${s.in_cv ? 'var(--success)' : 'var(--destructive)'}">
-              ${s.in_cv
-                ? '<svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>'
-                : '<svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'}
-            </span>
-            <span style="flex:1;${s.in_cv ? '' : 'color:var(--foreground);font-weight:500;'}">${s.skill}</span>
-            <div style="width:3.5rem;height:4px;background:var(--muted);border-radius:999px;overflow:hidden;">
-              <div style="height:100%;width:${s.pct}%;background:${s.in_cv ? 'var(--success)' : 'var(--destructive)'};border-radius:999px;"></div>
-            </div>
-            <span style="width:2rem;text-align:right;color:var(--muted-foreground);font-size:.75rem;">${s.pct}%</span>
-          </div>`).join('');
-      }).catch(() => {});
-  })();
-
-  // ── ATS readiness ───────────────────────────────────────────────
+  {% if cv_filename %}
   (function () {
     const scoreEl = document.getElementById('ats-score');
     if (!scoreEl) return;
@@ -537,7 +179,7 @@
       .then(r => r.json())
       .then(d => {
         if (!d || !d.ok) return;
-        const col = d.score >= 80 ? 'var(--success)' : d.score >= 60 ? 'var(--accent)'
+        const col = d.score >= 80 ? 'var(--accent)' : d.score >= 60 ? 'var(--accent)'
                   : d.score >= 40 ? 'var(--warning)' : 'var(--destructive)';
         scoreEl.textContent = d.score;
         scoreEl.style.color = col;
@@ -546,8 +188,9 @@
         const bd = document.getElementById('ats-breakdown');
         if (bd) bd.innerHTML = (d.breakdown || []).map(b => {
           const pct = Math.max(4, Math.round(b.points / b.max * 100));
-          const c = b.status === 'pass' ? 'var(--success)' : b.status === 'warn' ? 'var(--warning)' : 'var(--destructive)';
-          return `<div class="ats-row"><div class="ats-row-top"><span>${b.label}</span>`
+          const c = b.status === 'pass' ? 'var(--accent)' : b.status === 'warn' ? 'var(--warning)' : 'var(--destructive)';
+          const dim = (b.counted === false) ? 'opacity:.55;' : '';
+          return `<div class="ats-row" style="${dim}"><div class="ats-row-top"><span>${b.label}</span>`
                + `<span class="tabular" style="color:var(--muted-foreground);">${b.points}/${b.max}</span></div>`
                + `<div class="ats-bar"><div class="ats-bar-fill" style="width:${pct}%;background:${c};"></div></div></div>`;
         }).join('');

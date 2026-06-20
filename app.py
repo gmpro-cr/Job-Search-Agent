@@ -2447,6 +2447,7 @@ def cv_page():
     # Score distribution across all user-scored jobs
     score_dist_data = [0, 0, 0, 0, 0]  # 0-20, 21-40, 41-60, 61-80, 81-100
     total_scored = 0
+    strong_match_count = 0
     avg_match_score = 0
     if uid:
         cur.execute(
@@ -2455,6 +2456,7 @@ def cv_page():
         )
         _scores = [r["cv_score"] for r in cur.fetchall()]
         total_scored = len(_scores)
+        strong_match_count = sum(1 for s in _scores if s >= 70)
         if _scores:
             avg_match_score = round(sum(_scores) / len(_scores))
             for sc in _scores:
@@ -2516,6 +2518,7 @@ def cv_page():
         skill_gaps=skill_gaps,
         score_dist_data=score_dist_data,
         total_scored=total_scored,
+        strong_match_count=strong_match_count,
         avg_match_score=avg_match_score,
         portal_breakdown=portal_breakdown,
         top_titles=top_titles,

@@ -112,3 +112,27 @@ def test_analyze_jobs_no_llm_and_scores():
     assert all("relevance_score" in j for j in analyzed)
     assert any(j["role"] == "Product Manager" for j in qualified)
     assert all(j["role"] != "Registered Nurse" for j in qualified)
+
+
+def test_ats_score_is_keyword_driven_and_honest():
+    """ATS score is dominated by keyword coverage vs target roles, and never
+    fabricates a keyword score when market data is missing."""
+    from analyzer import compute_ats_score
+    cv = {"raw_text": ("Jane Doe jane@x.com +91 9999999999\nEXPERIENCE Led team grew "
+                       "revenue 40% reduced churn 18% launched scaled built\nEDUCATION MBA\nSKILLS"),
+          "skills": ["Product Strategy", "SQL", "Agile", "Roadmapping", "A/B Testing",
+                     "Stakeholder Management", "Analytics", "PRD"]}
+    market = [{"skill": s} for s in ["Product Strategy", "SQL", "Agile", "Roadmapping",
+                                     "A/B Testing", "Stakeholder Management"]]
+    high = compute_ats_score(cv, {}, market)              # strong coverage
+    low_market = [{"skill": s} for s in ["Kubernetes", "Rust", "Solidity", "CUDA",
+                                         "Verilog", "COBOL"]]
+    low = compute_ats_score(cv, {}, low_market)           # poor coverage
+    assert high["score"] > low["score"] + 15, (high["score"], low["score"])
+    # keyword component is the largest weight (40)
+    kw = next(b for b in high["breakdown"] if "Keyword match" in b["label"])
+    assert kw["max"] == 40
+    # no market -> keyword component not counted (honest), still returns a score
+    no_market = compute_ats_score(cv, {}, [])
+    nkw = next(b for b in no_market["breakdown"] if "Keyword match" in b["label"])
+    assert nkw["counted"] is False and 0 <= no_market["score"] <= 100

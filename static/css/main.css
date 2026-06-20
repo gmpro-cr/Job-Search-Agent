@@ -3607,6 +3607,68 @@ body.public-page {
 }
 .ats-tips li.ats-ok { padding-left: 0; color: var(--success); font-weight: 500; }
 
+/* ── Profile & CV page (cv.html) ── */
+.cv-ats-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 1.5rem;
+}
+.cv-stats { display: flex; flex-wrap: wrap; gap: 2rem; }
+.cv-stat-num {
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.cv-stat-lbl {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  margin-top: 0.3rem;
+}
+.cv-bars { display: flex; flex-direction: column; gap: 0.5rem; }
+.cv-bar-row { display: flex; align-items: center; gap: 0.75rem; }
+.cv-bar-label {
+  flex: 0 0 11rem;
+  font-size: 0.8125rem;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cv-bar {
+  flex: 1;
+  height: 7px;
+  background: var(--muted);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.cv-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.6s var(--ease-out-soft);
+}
+.cv-bar-fill-muted { background: var(--border-strong); }
+.cv-bar-val { flex: 0 0 2.75rem; text-align: right; font-size: 0.75rem; color: var(--muted-foreground); }
+.cv-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.cv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  background: var(--muted);
+  color: var(--muted-strong);
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+.cv-chip b { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 640px) {
+  .cv-ats-grid { grid-template-columns: 1fr; }
+  .cv-bar-label { flex-basis: 7rem; }
+}
+
 /* ── Glass / gloss components ── */
 .gloss-input {
   width: 100%;

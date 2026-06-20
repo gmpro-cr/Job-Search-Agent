@@ -1786,90 +1786,81 @@ def compute_ats_score(cv_data, preferences=None, market_skills=None):
     breakdown = []
     suggestions = []
 
-    def add(label, pts, mx, ok, tip=None):
+    def add(label, frac, mx, ok_threshold=0.7, tip=None, counted=True):
+        """Record a component scored as a 0-1 fraction of its max."""
+        frac = max(0.0, min(1.0, frac))
+        pts = round(frac * mx)
+        ok = frac >= ok_threshold
         breakdown.append({
-            "label": label, "points": int(pts), "max": mx,
+            "label": label, "points": pts, "max": mx, "counted": counted,
             "status": "pass" if ok else ("warn" if pts > 0 else "fail"),
         })
         if tip and not ok:
             suggestions.append(tip)
+        return pts
 
-    # 1. Contact details (10)
-    has_email = bool(re.search(r'[\w.+-]+@[\w-]+\.[\w.-]+', raw))
-    has_phone = bool(re.search(r'(\+?\d[\d\s().-]{7,}\d)', raw))
-    c_pts = (5 if has_email else 0) + (5 if has_phone else 0)
-    add("Contact details (email + phone)", c_pts, 10, c_pts == 10,
-        "Add a clear email and phone number near the top — parsers look for them first.")
-
-    # 2. Standard sections (20)
-    sec_pts = 0
-    missing = []
-    for key, hints in _ATS_SECTION_HINTS.items():
-        if any(h in text for h in hints):
-            sec_pts += 5
-        else:
-            missing.append(key)
-    add("Standard sections present", sec_pts, 20, not missing,
-        ("Add clear headings for: " + ", ".join(missing) + ".") if missing else None)
-
-    # 3. Skills depth (15)
-    ns = len(skills)
-    sk_pts = 15 if ns >= 12 else 11 if ns >= 8 else 7 if ns >= 5 else max(0, ns)
-    add(f"Skills listed ({ns})", sk_pts, 15, ns >= 8,
-        "List 8–12 concrete, role-relevant skills in a dedicated Skills section.")
-
-    # 4. Quantified achievements (15)
-    lines_with_numbers = sum(
-        1 for ln in raw.splitlines()
-        if re.search(r'\d', ln) and len(ln.strip()) > 20
-    )
-    q_pts = 15 if lines_with_numbers >= 8 else 10 if lines_with_numbers >= 4 else 5 if lines_with_numbers >= 1 else 0
-    add(f"Quantified achievements ({lines_with_numbers} lines with metrics)", q_pts, 15, lines_with_numbers >= 4,
-        "Quantify impact in your bullets — %, revenue, time saved, users, scale.")
-
-    # 5. Strong action verbs (10)
-    found_verbs = {v for v in _ATS_ACTION_VERBS if re.search(r'\b' + re.escape(v) + r'\b', text)}
-    nv = len(found_verbs)
-    v_pts = 10 if nv >= 8 else 7 if nv >= 5 else 4 if nv >= 2 else 0
-    add(f"Strong action verbs ({nv})", v_pts, 10, nv >= 5,
-        "Start bullets with strong verbs (Led, Built, Launched, Reduced…).")
-
-    # 6. Length (10)
-    words = len(re.findall(r'\b\w+\b', raw))
-    if 350 <= words <= 1000:
-        l_pts, l_ok = 10, True
-    elif 250 <= words <= 1400:
-        l_pts, l_ok = 6, False
-    else:
-        l_pts, l_ok = 3, False
-    add(f"Length (~{words} words)", l_pts, 10, l_ok,
-        "Aim for ~1–2 pages (≈350–1000 words) — too short reads thin, too long won't be read.")
-
-    # 7. Keyword match to target roles (20)
+    # --- Keyword match to target roles (40) — the real ATS differentiator ---
     market = market_skills or []
     if market:
         skl = {s.lower() for s in skills}
-        topn = market[:15]
+        topn = [(m.get("skill") if isinstance(m, dict) else m) for m in market[:20]]
+        topn = [n for n in topn if n]
         present, missing_kw = 0, []
-        for m in topn:
-            name = (m.get("skill") if isinstance(m, dict) else m) or ""
-            if not name:
-                continue
+        for name in topn:
             if name.lower() in skl or name.lower() in text:
                 present += 1
             else:
                 missing_kw.append(name)
         frac = present / max(len(topn), 1)
-        cov_pts = round(frac * 20)
-        cov_ok = frac >= 0.5
-        tip = ("Add in-demand keywords for your target roles where you have real experience: "
-               + ", ".join(missing_kw[:6]) + ".") if (not cov_ok and missing_kw) else None
-        add(f"Keyword match to target roles ({present}/{len(topn)})", cov_pts, 20, cov_ok, tip)
+        add(f"Keyword match to target roles ({present}/{len(topn)})", frac, 40, 0.6,
+            ("Add in-demand keywords you genuinely have experience with: "
+             + ", ".join(missing_kw[:6]) + ".") if missing_kw else None)
     else:
-        # No market data — give a neutral score rather than penalising.
-        add("Keyword match to target roles", 12, 20, True)
+        # Honest: don't fabricate a keyword score. Exclude it and renormalise,
+        # but show it so the user knows it isn't being measured.
+        breakdown.append({"label": "Keyword match — set your target roles to measure",
+                          "points": 0, "max": 40, "counted": False, "status": "warn"})
+        suggestions.append("Set your target roles in Preferences so we can score keyword "
+                           "match — it's the biggest ATS factor.")
 
-    score = max(0, min(100, sum(b["points"] for b in breakdown)))
+    # --- Quantified achievements (15) ---
+    lines_with_numbers = sum(
+        1 for ln in raw.splitlines() if re.search(r'\d', ln) and len(ln.strip()) > 20)
+    add(f"Quantified achievements ({lines_with_numbers} bullets with metrics)",
+        min(lines_with_numbers / 8.0, 1.0), 15, 0.5,
+        "Quantify impact in your bullets — %, revenue, time saved, users, scale.")
+
+    # --- Standard sections (12) ---
+    missing = [k for k, hints in _ATS_SECTION_HINTS.items() if not any(h in text for h in hints)]
+    present_secs = len(_ATS_SECTION_HINTS) - len(missing)
+    add("Standard sections present", present_secs / max(len(_ATS_SECTION_HINTS), 1), 12, 1.0,
+        ("Add clear headings for: " + ", ".join(missing) + ".") if missing else None)
+
+    # --- Skills depth (10) ---
+    ns = len(skills)
+    add(f"Skills listed ({ns})", min(ns / 12.0, 1.0), 10, 0.67,
+        "List 8–12 concrete, role-relevant skills in a dedicated Skills section.")
+
+    # --- Contact details (8) ---
+    has_email = bool(re.search(r'[\w.+-]+@[\w-]+\.[\w.-]+', raw))
+    has_phone = bool(re.search(r'(\+?\d[\d\s().-]{7,}\d)', raw))
+    add("Contact details (email + phone)", (int(has_email) + int(has_phone)) / 2.0, 8, 1.0,
+        "Add a clear email and phone near the top — parsers look there first.")
+
+    # --- Strong action verbs (8) ---
+    found_verbs = {v for v in _ATS_ACTION_VERBS if re.search(r'\b' + re.escape(v) + r'\b', text)}
+    add(f"Strong action verbs ({len(found_verbs)})", min(len(found_verbs) / 8.0, 1.0), 8, 0.625,
+        "Start bullets with strong verbs (Led, Built, Launched, Reduced…).")
+
+    # --- Length (7) ---
+    words = len(re.findall(r'\b\w+\b', raw))
+    length_frac = 1.0 if 350 <= words <= 1000 else 0.6 if 250 <= words <= 1400 else 0.3
+    add(f"Length (~{words} words)", length_frac, 7, 1.0,
+        "Aim for ~1–2 pages (≈350–1000 words).")
+
+    earned = sum(b["points"] for b in breakdown if b.get("counted", True))
+    possible = sum(b["max"] for b in breakdown if b.get("counted", True))
+    score = round(earned / possible * 100) if possible else 0
     band = ("Strong" if score >= 80 else "Good" if score >= 60
             else "Needs work" if score >= 40 else "Weak")
     return {"score": score, "band": band, "breakdown": breakdown, "suggestions": suggestions[:6]}
