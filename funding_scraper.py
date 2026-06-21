@@ -62,10 +62,13 @@ def parse_listing(html_text, region_slug):
 def scrape_finsmes(regions=None, timeout=30):
     """Scrape the given region slugs (default: all). Returns a flat list of rows.
     Best-effort per region — a failing region is logged and skipped."""
+    import time
     from curl_cffi import requests as cffi
     slugs = regions or list(REGIONS.keys())
     rows = []
-    for slug in slugs:
+    for idx, slug in enumerate(slugs):
+        if idx:
+            time.sleep(2.5)   # pace requests — finsmes 429s on rapid-fire hits
         try:
             r = cffi.get(_BASE.format(slug=slug), impersonate="chrome", timeout=timeout)
             if r.status_code != 200:
