@@ -41,14 +41,9 @@
         </div>
       </div>
       <div class="fund-card-actions">
-        {% if user_title %}
         <a class="btn btn-default btn-sm" target="_blank" rel="noopener"
-           href="https://www.linkedin.com/jobs/search/?keywords={{ (c.startup ~ ' ' ~ user_title)|trim|urlencode }}"
-           title="Search LinkedIn for {{ user_title }} roles at {{ c.startup }}">Find roles at {{ c.startup|truncate(22, true, '…') }}</a>
-        {% else %}
-        <a class="btn btn-default btn-sm" target="_blank" rel="noopener"
-           href="https://www.linkedin.com/jobs/search/?keywords={{ c.startup|urlencode }}">Find roles</a>
-        {% endif %}
+           href="https://duckduckgo.com/?q={{ ('\\' ~ c.startup ~ ' official website')|urlencode }}"
+           title="Go to {{ c.startup }}'s website">Visit website</a>
         <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="{{ c.source_url }}">Source</a>
       </div>
     </div>
