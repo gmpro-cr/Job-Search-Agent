@@ -416,6 +416,22 @@ def init_db():
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_reminders_user ON user_reminders(user_id)")
 
+    # Startup funding news scraped from finsmes (per region). Shared, not per-user.
+    cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS funding_news (
+            id          {_serial_pk()},
+            startup     TEXT,
+            title       TEXT,
+            amount      TEXT,
+            round       TEXT,
+            region      TEXT,
+            source_url  TEXT UNIQUE NOT NULL,
+            posted_date TEXT,
+            scraped_at  TEXT
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_funding_region ON funding_news(region)")
+
     # Idempotent column additions on users / outreach_queue
     _add_columns_idempotent(conn, cursor, "users", ["is_admin INTEGER DEFAULT 0"])
     _add_columns_idempotent(conn, cursor, "outreach_queue", ["user_id INTEGER"])
@@ -555,6 +571,72 @@ def select_digest_jobs(qualified_jobs, top_n, days=7, user_id=None):
         return fresh[:top_n]
     backfill = [j for j in qualified_jobs if j.get("job_id") in already]
     return (fresh + backfill)[:top_n]
+
+
+# ---------------------------------------------------------------------------
+# Startup funding news (finsmes)
+# ---------------------------------------------------------------------------
+
+def insert_funding_bulk(items):
+    """Insert scraped funding rows on one connection. Dedup by source_url via
+    ON CONFLICT DO NOTHING. Returns the number of new rows."""
+    items = [i for i in (items or []) if i.get("source_url")]
+    if not items:
+        return 0
+    now = datetime.now().isoformat()
+    rows = [(i.get("startup"), i.get("title"), i.get("amount"), i.get("round"),
+             i.get("region"), i["source_url"], i.get("posted_date"), now) for i in items]
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT source_url FROM funding_news")
+    existing = {r["source_url"] for r in cursor.fetchall()}
+    new = [r for r in rows if r[5] not in existing]
+    if new:
+        cursor.executemany(
+            "INSERT INTO funding_news "
+            "(startup, title, amount, round, region, source_url, posted_date, scraped_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (source_url) DO NOTHING",
+            new,
+        )
+    conn.commit()
+    conn.close()
+    return len(new)
+
+
+def get_funding_news(region=None, limit=120):
+    conn = get_connection()
+    cursor = conn.cursor()
+    if region and region.lower() != "all":
+        cursor.execute(
+            "SELECT * FROM funding_news WHERE LOWER(region) = ? "
+            "ORDER BY posted_date DESC, id DESC LIMIT ?",
+            (region.lower(), int(limit)))
+    else:
+        cursor.execute(
+            "SELECT * FROM funding_news ORDER BY posted_date DESC, id DESC LIMIT ?",
+            (int(limit),))
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
+def get_funding_regions():
+    """Distinct regions that currently have funding rows (for the page selector)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT DISTINCT region FROM funding_news WHERE region IS NOT NULL ORDER BY region")
+    rows = [r["region"] for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
+def delete_old_funding(days=120):
+    cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM funding_news WHERE scraped_at < ?", (cutoff,))
+    conn.commit()
+    conn.close()
 
 
 # ---------------------------------------------------------------------------

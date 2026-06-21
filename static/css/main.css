@@ -3669,6 +3669,56 @@ body.public-page {
   .cv-bar-label { flex-basis: 7rem; }
 }
 
+/* ── Startup funding page (funding.html) ── */
+.fund-regions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.fund-region-pill {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted-strong);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  text-decoration: none;
+  transition: border-color var(--duration-snap), color var(--duration-snap), background var(--duration-snap);
+}
+.fund-region-pill:hover { border-color: var(--border-strong); color: var(--foreground); }
+.fund-region-pill.is-active { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+
+.fund-list { display: flex; flex-direction: column; gap: 0.625rem; }
+.fund-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1.125rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--duration-snap), box-shadow var(--duration-snap);
+}
+.fund-card:hover { border-color: var(--border-strong); box-shadow: 0 1px 2px rgba(10,10,12,0.04), 0 4px 8px rgba(10,10,12,0.05); }
+.fund-card-main { min-width: 0; flex: 1; }
+.fund-card-head { display: flex; align-items: baseline; gap: 0.625rem; flex-wrap: wrap; }
+.fund-startup { font-size: 0.9375rem; font-weight: 600; color: var(--foreground); letter-spacing: -0.01em; }
+.fund-amount {
+  font-size: 0.8125rem; font-weight: 700; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.fund-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.4rem; }
+.fund-tag {
+  padding: 0.1rem 0.5rem; font-size: 0.6875rem; font-weight: 500;
+  background: var(--muted); color: var(--muted-strong); border-radius: 999px;
+}
+.fund-tag-region { background: var(--accent-soft); color: var(--accent); }
+.fund-date { font-size: 0.6875rem; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.fund-card-actions { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .fund-card { flex-direction: column; align-items: stretch; }
+  .fund-card-actions { justify-content: flex-end; }
+}
+
 /* ── Glass / gloss components ── */
 .gloss-input {
   width: 100%;

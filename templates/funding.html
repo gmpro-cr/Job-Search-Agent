@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Startup Funding — Job Search Agent{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <header class="page-header">
+    <div class="page-header-row">
+      <div style="flex:1;min-width:0;">
+        <span class="eyebrow">Market</span>
+        <h1>Startup Funding</h1>
+        <p class="page-lede">Recently-funded startups by region, refreshed daily from FinSMEs.</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- Region selector -->
+  <div class="fund-regions">
+    {% set _regions = ['All'] + regions %}
+    {% for rg in _regions %}
+      {% set slug = 'all' if rg == 'All' else rg %}
+      <a href="{{ url_for('funding_page') }}?region={{ slug }}"
+         class="fund-region-pill{% if selected_region|lower == slug|lower %} is-active{% endif %}">{{ rg }}</a>
+    {% endfor %}
+  </div>
+
+  {% if news %}
+  <div class="fund-list">
+    {% for c in news %}
+    <div class="fund-card">
+      <div class="fund-card-main">
+        <div class="fund-card-head">
+          <span class="fund-startup">{{ c.startup }}</span>
+          {% if c.amount %}<span class="fund-amount">{{ c.amount }}</span>{% endif %}
+        </div>
+        <div class="fund-meta">
+          {% if c.round %}<span class="fund-tag">{{ c.round }}</span>{% endif %}
+          {% if c.region %}<span class="fund-tag fund-tag-region">{{ c.region }}</span>{% endif %}
+          {% if c.posted_date %}<span class="fund-date">{{ c.posted_date[:7] }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="fund-card-actions">
+        {% if user_title %}
+        <a class="btn btn-default btn-sm" target="_blank" rel="noopener"
+           href="https://www.linkedin.com/jobs/search/?keywords={{ (c.startup ~ ' ' ~ user_title)|trim|urlencode }}"
+           title="Search LinkedIn for {{ user_title }} roles at {{ c.startup }}">Find roles at {{ c.startup|truncate(22, true, '…') }}</a>
+        {% else %}
+        <a class="btn btn-default btn-sm" target="_blank" rel="noopener"
+           href="https://www.linkedin.com/jobs/search/?keywords={{ c.startup|urlencode }}">Find roles</a>
+        {% endif %}
+        <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="{{ c.source_url }}">Source</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card">
+    <div class="card-content" style="padding:2.5rem;text-align:center;">
+      <p style="font-weight:600;margin:0 0 .25rem;">No funding news yet</p>
+      <p class="text-muted" style="font-size:.875rem;margin:0;">The daily scrape will populate this shortly{% if selected_region|lower != 'all' %} for {{ selected_region }}{% endif %}.</p>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -2348,6 +2348,28 @@ def api_digest_deactivate():
 
 
 # ---------------------------------------------------------------------------
+# Startup funding (finsmes)
+# ---------------------------------------------------------------------------
+
+@app.route("/funding")
+def funding_page():
+    """Recently-funded startups by region (scraped daily from finsmes)."""
+    uid = require_user_id()
+    if isinstance(uid, tuple):
+        return uid
+    from database import get_funding_news, get_funding_regions
+    region = (request.args.get("region") or "all").strip()
+    news = get_funding_news(region=region, limit=150)
+    regions = get_funding_regions()
+    # Top target title for the "Find roles at X" deep-link.
+    prefs = load_preferences(uid) or {}
+    titles = prefs.get("job_titles") or []
+    user_title = titles[0] if titles else ""
+    return render_template("funding.html", news=news, regions=regions,
+                           selected_region=region, user_title=user_title)
+
+
+# ---------------------------------------------------------------------------
 # CV Management Routes
 # ---------------------------------------------------------------------------
 

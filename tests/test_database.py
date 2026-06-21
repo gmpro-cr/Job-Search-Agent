@@ -315,3 +315,21 @@ def test_purge_stale_demo_users():
     assert get_user_by_email(f"demo-old@{domain}") is None
     assert get_user_by_email(f"demo-fresh@{domain}") is not None
     assert get_user_by_email("real-user@gmail.com") is not None
+
+
+def test_funding_news_insert_dedup_and_filter():
+    from database import init_db, insert_funding_bulk, get_funding_news, get_funding_regions
+    init_db()
+    items = [
+        {"startup": "Crest", "title": "Crest Raises $3.1M", "amount": "$3.1M", "round": "Pre-Seed",
+         "region": "India", "source_url": "https://f.com/a", "posted_date": "2026-06-01"},
+        {"startup": "Acme", "title": "Acme Raises $10M", "amount": "$10M", "round": "Series A",
+         "region": "USA", "source_url": "https://f.com/b", "posted_date": "2026-06-02"},
+    ]
+    assert insert_funding_bulk(items) == 2
+    assert insert_funding_bulk(items) == 0          # dedup by source_url
+    assert insert_funding_bulk(items + [{"startup": "New", "source_url": "https://f.com/c"}]) == 1
+    india = get_funding_news(region="India")
+    assert len(india) == 1 and india[0]["startup"] == "Crest"
+    assert len(get_funding_news()) == 3              # all regions
+    assert set(get_funding_regions()) >= {"India", "USA"}
