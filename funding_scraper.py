@@ -68,9 +68,13 @@ def scrape_finsmes(regions=None, timeout=30):
     rows = []
     for idx, slug in enumerate(slugs):
         if idx:
-            time.sleep(2.5)   # pace requests — finsmes 429s on rapid-fire hits
+            time.sleep(3.0)   # pace requests — finsmes 429s on rapid-fire hits
         try:
             r = cffi.get(_BASE.format(slug=slug), impersonate="chrome", timeout=timeout)
+            if r.status_code == 429:
+                # Rate-limited: back off once and retry.
+                time.sleep(20)
+                r = cffi.get(_BASE.format(slug=slug), impersonate="chrome", timeout=timeout)
             if r.status_code != 200:
                 logger.warning("finsmes %s: HTTP %s", slug, r.status_code)
                 continue

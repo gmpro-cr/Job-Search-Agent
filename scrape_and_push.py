@@ -331,16 +331,9 @@ def main():
     except Exception as e:
         logger.warning("Routine run failed: %s", e)
 
-    # --- Phase 7d: Scrape startup funding news (finsmes, all regions) ---
-    try:
-        from funding_scraper import scrape_finsmes
-        from database import insert_funding_bulk, delete_old_funding
-        funding = scrape_finsmes()
-        new = insert_funding_bulk(funding)
-        delete_old_funding(days=120)
-        logger.info("Funding news: %d scraped, %d new", len(funding), new)
-    except Exception as e:
-        logger.warning("Funding scrape failed: %s", e)
+    # NOTE: finsmes funding is NOT scraped here — Cloudflare 403s GitHub Actions'
+    # datacenter IP. It's scraped from a residential IP via scripts/scrape_funding.py
+    # (run locally / on a Mac launchd schedule). See that script's docstring.
 
     # --- Phase 8: Auto-discover hiring managers ---
     try:

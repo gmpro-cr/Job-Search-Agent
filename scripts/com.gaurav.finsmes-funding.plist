@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Daily local funding scrape (residential IP) for finsmes -> Neon.
+  finsmes' Cloudflare 403s datacenter IPs, so this must run from your Mac.
+
+  Install:
+    cp scripts/com.gaurav.finsmes-funding.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.gaurav.finsmes-funding.plist
+    launchctl start com.gaurav.finsmes-funding      # run once now to test
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.gaurav.finsmes-funding.plist
+
+  Adjust the python path / hour if your setup differs. Requires curl_cffi
+  installed in that interpreter (pip install curl_cffi).
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.gaurav.finsmes-funding</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/anaconda3/bin/python3</string>
+        <string>-m</string>
+        <string>scripts.scrape_funding</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/gaurav/job-search-agent</string>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/gaurav/job-search-agent/funding_scrape.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/gaurav/job-search-agent/funding_scrape.log</string>
+</dict>
+</plist>
