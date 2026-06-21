@@ -36,6 +36,7 @@
         <div class="fund-meta">
           {% if c.round %}<span class="fund-tag">{{ c.round }}</span>{% endif %}
           {% if c.region %}<span class="fund-tag fund-tag-region">{{ c.region }}</span>{% endif %}
+          {% if c.source %}<span class="fund-source">{{ c.source }}</span>{% endif %}
           {% if c.posted_date %}<span class="fund-date">{{ c.posted_date[:7] }}</span>{% endif %}
         </div>
       </div>

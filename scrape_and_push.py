@@ -331,9 +331,18 @@ def main():
     except Exception as e:
         logger.warning("Routine run failed: %s", e)
 
-    # NOTE: finsmes funding is NOT scraped here — Cloudflare 403s GitHub Actions'
-    # datacenter IP. It's scraped from a residential IP via scripts/scrape_funding.py
-    # (run locally / on a Mac launchd schedule). See that script's docstring.
+    # --- Phase 7d: Funding news from public RSS sources (Google News + TechCrunch) ---
+    # These work from the Actions IP (no Cloudflare). finsmes is NOT scraped here
+    # (it 403s datacenter IPs) — it's refreshed locally via scripts/scrape_funding.py.
+    try:
+        from news_scraper import scrape_news_sources
+        from database import insert_funding_bulk, delete_old_funding
+        funding = scrape_news_sources()
+        new = insert_funding_bulk(funding)
+        delete_old_funding(days=120)
+        logger.info("Funding news (RSS): %d scraped, %d new", len(funding), new)
+    except Exception as e:
+        logger.warning("Funding news scrape failed: %s", e)
 
     # --- Phase 8: Auto-discover hiring managers ---
     try:

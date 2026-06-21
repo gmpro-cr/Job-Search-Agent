@@ -425,12 +425,14 @@ def init_db():
             amount      TEXT,
             round       TEXT,
             region      TEXT,
+            source      TEXT,
             source_url  TEXT UNIQUE NOT NULL,
             posted_date TEXT,
             scraped_at  TEXT
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_funding_region ON funding_news(region)")
+    _add_columns_idempotent(conn, cursor, "funding_news", ["source TEXT"])
 
     # Idempotent column additions on users / outreach_queue
     _add_columns_idempotent(conn, cursor, "users", ["is_admin INTEGER DEFAULT 0"])
@@ -577,30 +579,54 @@ def select_digest_jobs(qualified_jobs, top_n, days=7, user_id=None):
 # Startup funding news (finsmes)
 # ---------------------------------------------------------------------------
 
+def _funding_key(startup, amount):
+    """Cross-source dedup key — same round reported by multiple outlets collapses
+    to one. Only deduped when an amount is present (None amounts are too coarse)."""
+    if not amount:
+        return None
+    return ((startup or "").strip().lower(), amount.strip().lower())
+
+
 def insert_funding_bulk(items):
-    """Insert scraped funding rows on one connection. Dedup by source_url via
-    ON CONFLICT DO NOTHING. Returns the number of new rows."""
+    """Insert scraped funding rows on one connection. Deduped by source_url AND
+    by (startup, amount) across sources. Returns the number of new rows."""
     items = [i for i in (items or []) if i.get("source_url")]
     if not items:
         return 0
     now = datetime.now().isoformat()
-    rows = [(i.get("startup"), i.get("title"), i.get("amount"), i.get("round"),
-             i.get("region"), i["source_url"], i.get("posted_date"), now) for i in items]
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT source_url FROM funding_news")
-    existing = {r["source_url"] for r in cursor.fetchall()}
-    new = [r for r in rows if r[5] not in existing]
-    if new:
+    cursor.execute("SELECT startup, amount, source_url FROM funding_news")
+    seen_urls = set()
+    seen_keys = set()
+    for r in cursor.fetchall():
+        seen_urls.add(r["source_url"])
+        k = _funding_key(r["startup"], r["amount"])
+        if k:
+            seen_keys.add(k)
+    rows = []
+    for i in items:
+        url = i["source_url"]
+        if url in seen_urls:
+            continue
+        key = _funding_key(i.get("startup"), i.get("amount"))
+        if key and key in seen_keys:
+            continue
+        seen_urls.add(url)
+        if key:
+            seen_keys.add(key)
+        rows.append((i.get("startup"), i.get("title"), i.get("amount"), i.get("round"),
+                     i.get("region"), i.get("source"), url, i.get("posted_date"), now))
+    if rows:
         cursor.executemany(
             "INSERT INTO funding_news "
-            "(startup, title, amount, round, region, source_url, posted_date, scraped_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (source_url) DO NOTHING",
-            new,
+            "(startup, title, amount, round, region, source, source_url, posted_date, scraped_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (source_url) DO NOTHING",
+            rows,
         )
     conn.commit()
     conn.close()
-    return len(new)
+    return len(rows)
 
 
 def get_funding_news(region=None, limit=120):

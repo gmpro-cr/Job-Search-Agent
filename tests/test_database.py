@@ -333,3 +333,23 @@ def test_funding_news_insert_dedup_and_filter():
     assert len(india) == 1 and india[0]["startup"] == "Crest"
     assert len(get_funding_news()) == 3              # all regions
     assert set(get_funding_regions()) >= {"India", "USA"}
+
+
+def test_funding_news_source_column_and_cross_source_dedup():
+    from database import init_db, insert_funding_bulk, get_funding_news
+    init_db()
+    # same round reported by two outlets (same startup + amount) collapses to one,
+    # even though the source_urls differ. The source tag is persisted.
+    items = [
+        {"startup": "Zappo", "title": "Zappo Raises $7M Seed", "amount": "$7M", "round": "Seed",
+         "region": "India", "source": "Inc42", "source_url": "https://inc42.com/zappo"},
+        {"startup": "zappo", "title": "Zappo raises $7M seed round", "amount": "$7M", "round": "Seed",
+         "region": "India", "source": "YourStory", "source_url": "https://yourstory.com/zappo"},
+    ]
+    assert insert_funding_bulk(items) == 1
+    rows = [r for r in get_funding_news(region="India") if r["startup"].lower() == "zappo"]
+    assert len(rows) == 1 and rows[0]["source"] == "Inc42"
+    # a different amount for the same startup is NOT deduped
+    assert insert_funding_bulk([
+        {"startup": "Zappo", "amount": "$20M", "round": "Series A",
+         "region": "India", "source": "ET", "source_url": "https://et.com/zappo-b"}]) == 1

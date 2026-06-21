@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import database as db                       # noqa: E402
 from funding_scraper import scrape_finsmes  # noqa: E402
+from news_scraper import scrape_news_sources  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("scrape_funding")
@@ -27,7 +28,9 @@ logger = logging.getLogger("scrape_funding")
 
 def main():
     db.init_db()  # ensure funding_news exists
-    rows = scrape_finsmes()                 # all regions, paced
+    # Full refresh from a residential IP: finsmes (Cloudflare) + the public RSS
+    # sources (which the cloud cron also runs).
+    rows = scrape_finsmes() + scrape_news_sources()
     new = db.insert_funding_bulk(rows)
     try:
         db.delete_old_funding(days=120)

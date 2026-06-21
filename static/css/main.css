@@ -3711,6 +3711,8 @@ body.public-page {
   background: var(--muted); color: var(--muted-strong); border-radius: 999px;
 }
 .fund-tag-region { background: var(--accent-soft); color: var(--accent); }
+.fund-source { font-size: 0.6875rem; color: var(--muted-foreground); }
+.fund-source::before { content: "via "; opacity: 0.7; }
 .fund-date { font-size: 0.6875rem; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
 .fund-card-actions { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
 

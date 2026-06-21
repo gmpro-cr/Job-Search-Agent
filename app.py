@@ -2353,7 +2353,8 @@ def api_digest_deactivate():
 
 @app.route("/funding")
 def funding_page():
-    """Recently-funded startups by region (scraped daily from finsmes)."""
+    """Recently-funded startups by region, aggregated from public sources
+    (Google News + TechCrunch RSS via the cron; finsmes via the local refresh)."""
     uid = require_user_id()
     if isinstance(uid, tuple):
         return uid
