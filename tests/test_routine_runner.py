@@ -142,3 +142,26 @@ def test_no_gmail_creds_is_noop(monkeypatch):
     send_fn = _recorder()
     summary = routine_runner.run_routines(send_fn=send_fn)
     assert summary["emails_sent"] == 0 and send_fn.sent == []
+
+
+def test_routine_email_header_reflects_routine(monkeypatch):
+    """The email's Searching-for/Locations come from the routine, not app prefs."""
+    import routine_runner
+    monkeypatch.setenv("GMAIL_ADDRESS", "bot@test.local")
+    monkeypatch.setenv("GMAIL_APP_PASSWORD", "pw")
+    db.init_db()
+    uid = db.get_or_create_user("rr-hdr@test.local", "H")
+    db.save_user_reminders(uid, [_routine(id="h1", email="me@test.local",
+                                          keyword="AI Product Manager, AI",
+                                          location="Pune, Remote")])
+    _seed_job("rr-hdr-1", "AI Product Manager", "Pune", 80,
+              datetime.now().isoformat(), for_user=uid)
+    captured = {}
+
+    def send_fn(recipient, jobs, preferences, subject=None):
+        captured["prefs"] = preferences
+        return True
+
+    routine_runner.run_routines(send_fn=send_fn, user_id=uid)
+    assert captured["prefs"]["job_titles"] == ["AI Product Manager", "AI"]
+    assert captured["prefs"]["locations"] == ["Pune", "Remote"]

@@ -84,8 +84,13 @@ def run_routines(send_fn=None, now=None, user_id=None):
             name = (r.get("name") or "Saved routine").strip()
             plural = "" if len(jobs) == 1 else "es"
             subject = f"{name}: {len(jobs)} new match{plural}"
+            # Header reflects THIS routine's filters (not the app prefs), so the
+            # email's "Searching for / Locations" line matches what the user set.
+            routine_prefs = dict(send_prefs)
+            routine_prefs["job_titles"] = [k.strip() for k in keyword.split(",") if k.strip()]
+            routine_prefs["locations"] = [l.strip() for l in (r.get("location") or "").split(",") if l.strip()]
             try:
-                ok = send_fn(recipient, jobs, send_prefs, subject=subject)
+                ok = send_fn(recipient, jobs, routine_prefs, subject=subject)
             except Exception as e:
                 logger.warning("Routine %s email failed: %s", r.get("id"), e)
                 ok = False

@@ -220,11 +220,27 @@ def main():
     logger.info("Wrote %d jobs to %s", len(payload_jobs), SCRAPE_OUTPUT)
 
 
-    # --- Phase 6: Email digest ---
+    # --- Phase 6: Default email digest ---
+    # Skip it when the owner has saved routines — Phase 7c sends per-routine
+    # emails that reflect each routine's own keywords/locations. The default
+    # digest's header comes from preferences (DEFAULT_PREFS in CI), so sending
+    # both produced an email whose "Searching for" line didn't match the routine.
+    owner_has_routines = False
+    try:
+        from database import get_user_reminders
+        owner_has_routines = owner_user_id is not None and any(
+            r.get("enabled", True) and (r.get("keyword") or "").strip()
+            for r in (get_user_reminders(owner_user_id) or [])
+        )
+    except Exception as e:
+        logger.warning("Could not check owner routines: %s", e)
+
     recipient = preferences.get("email", "").strip()
     gmail_addr = preferences.get("gmail_address", "").strip()
     gmail_pass = preferences.get("gmail_app_password", "").strip()
-    if recipient and gmail_addr and gmail_pass:
+    if owner_has_routines:
+        logger.info("Owner has saved routines — skipping default digest (routine emails cover it)")
+    elif recipient and gmail_addr and gmail_pass:
         try:
             ok, err = send_job_email(recipient, digest_jobs, preferences)
             if ok:
