@@ -238,12 +238,17 @@ def main():
     recipient = preferences.get("email", "").strip()
     gmail_addr = preferences.get("gmail_address", "").strip()
     gmail_pass = preferences.get("gmail_app_password", "").strip()
+    # Only mark the digest jobs as "sent" (Phase 7) if we actually emailed them.
+    # Otherwise the owner's routine dedup (Phase 7c) would treat these fresh,
+    # top-scoring jobs as already-delivered and email the owner nothing.
+    default_digest_emailed = False
     if owner_has_routines:
         logger.info("Owner has saved routines — skipping default digest (routine emails cover it)")
     elif recipient and gmail_addr and gmail_pass:
         try:
             ok, err = send_job_email(recipient, digest_jobs, preferences)
             if ok:
+                default_digest_emailed = True
                 logger.info("Email digest sent to %s (%d jobs)", recipient, len(digest_jobs))
             else:
                 logger.error("Email digest failed: %s", err)
@@ -286,8 +291,11 @@ def main():
     except Exception as e:
         logger.warning("bulk embedding persist failed: %s", e)
     # Mark the jobs we just emailed as sent (AFTER insert, so the UPDATE hits
-    # real rows) — this is what makes the next run's dedup work.
-    if digest_job_ids:
+    # real rows) — this is what makes the next run's dedup work. Only do this
+    # when the default digest was actually emailed; when the owner has routines
+    # the default digest is skipped, and marking here would starve the owner's
+    # routine email (Phase 7c) of the very jobs it should send.
+    if digest_job_ids and default_digest_emailed:
         try:
             mark_sent_in_digest(digest_job_ids, user_id=owner_user_id)
             logger.info("Marked %d jobs as sent in digest", len(digest_job_ids))
