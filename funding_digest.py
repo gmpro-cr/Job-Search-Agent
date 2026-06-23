@@ -56,6 +56,72 @@ def _infer_region(title, source, stored):
     return stored or "Global"
 
 
+def _norm_name(s):
+    """Collapse a startup name for dedup: drop {tags}, 'funding alert', and
+    non-alphanumerics so 'Recykal' and '{Funding Alert} Recykal' match."""
+    s = (s or "").lower()
+    s = re.sub(r"\{[^}]*\}", "", s)
+    s = s.replace("funding alert", "")
+    return re.sub(r"[^a-z0-9]", "", s)
+
+
+def _dedup(rows):
+    seen, out = set(), []
+    for r in rows:
+        k = _norm_name(r.get("startup"))
+        if not k or k in seen:
+            continue
+        seen.add(k)
+        out.append(r)
+    return out
+
+
+def _compose(pool, limit):
+    """India-first, but keep other regions: lead with India companies, then fill
+    the remainder with other regions (reserving room so others always appear)."""
+    for it in pool:
+        it["region"] = _infer_region(it.get("title"), it.get("source"), it.get("region"))
+    india = [it for it in pool if it["region"] == "India"]
+    others = [it for it in pool if it["region"] != "India"]
+    n_others = min(len(others), max(4, limit // 3))   # guarantee some non-India
+    n_india = min(len(india), limit - n_others)
+    items = india[:n_india] + others[:n_others]
+    if len(items) < limit:                             # backfill, India first
+        items += (india[n_india:] + others[n_others:])[:limit - len(items)]
+    return items[:limit]
+
+
+# Newest funding with an amount first; region re-derived in _compose. No '?'/'%'
+# in the SQL (the cursor adapter treats them as bind placeholders).
+_SELECT_SQL = """
+    SELECT startup, amount, round, region, source, source_url, title, posted_date
+    FROM funding_news
+    WHERE posted_date::date >= CURRENT_DATE - {days}
+    ORDER BY (amount IS NOT NULL) DESC, posted_date DESC NULLS LAST, id DESC
+    LIMIT {limit}
+"""
+
+
+def select_funding_items(days=3, limit=12):
+    """Pick the funding rows for a rundown: recent, deduped, India-first with
+    other regions filling the rest. Widens the window if the last few days were
+    quiet so the digest is never empty. Shared by the cron and the manual script."""
+    import database as db
+
+    def _fetch(d, lim):
+        conn = db.get_connection()
+        cur = conn.cursor()
+        cur.execute(_SELECT_SQL.format(days=int(d), limit=int(lim)))
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return rows
+
+    pool = _dedup(_fetch(days, limit * 8))
+    if len(pool) < 8:
+        pool = _dedup(_fetch(7, limit * 8))
+    return _compose(pool, limit)
+
+
 def _headline(it):
     amt = (it.get("amount") or "").strip()
     return f"{_esc(it.get('startup'))} raises {_esc(amt)}" if amt else f"{_esc(it.get('startup'))} lands new funding"

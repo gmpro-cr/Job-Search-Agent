@@ -665,6 +665,30 @@ def delete_old_funding(days=120):
     conn.close()
 
 
+def get_funding_subscribers():
+    """Account emails of users who enabled the Funding Rundown routine
+    (prefs_json.funding_digest_enabled). Used by the cron to fan out the email."""
+    import json
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT u.email AS email, p.prefs_json AS prefs "
+        "FROM users u JOIN user_preferences p ON p.user_id = u.id"
+    )
+    out = []
+    for r in cursor.fetchall():
+        prefs = r["prefs"]
+        if isinstance(prefs, str):
+            try:
+                prefs = json.loads(prefs or "{}")
+            except (ValueError, TypeError):
+                prefs = {}
+        if (prefs or {}).get("funding_digest_enabled") and (r["email"] or "").strip():
+            out.append(r["email"].strip())
+    conn.close()
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Embedding vectors (float32 BLOB/BYTEA) for the deterministic+embedding scorer
 # ---------------------------------------------------------------------------

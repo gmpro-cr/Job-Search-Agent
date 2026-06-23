@@ -1,7 +1,8 @@
 name: Email Funding Rundown
 
-# On-demand + daily: email recently-funded startups in The Rundown AI format.
-# Runs here (not locally) because the Gmail app password lives only in GH secrets.
+# Manual / on-demand only. The automatic daily send now happens inside the main
+# scrape cron (scrape_and_push.py, Phase 7e) for users who enabled the Funding
+# Rundown routine on the digests page. Use this for a one-off / test send.
 on:
   workflow_dispatch:
     inputs:
@@ -13,9 +14,6 @@ on:
         description: 'Look-back window (days)'
         required: false
         default: '3'
-  schedule:
-    # 02:20 UTC = 07:50 IST — after the morning scrape (01:30 UTC) refreshes funding.
-    - cron: '20 2 * * *'
 
 jobs:
   email:

@@ -352,6 +352,35 @@ def main():
     except Exception as e:
         logger.warning("Funding news scrape failed: %s", e)
 
+    # --- Phase 7e: Funding Rundown email (morning run only) ---
+    # Emails the newly-funded-startups rundown to every user who turned the
+    # "Funding Rundown" routine on (digests page). Gated to the morning run so
+    # it goes out once a day, not after both the 7 AM and 7 PM scrapes.
+    try:
+        from datetime import datetime as _dt
+        if _dt.utcnow().hour < 12:
+            from database import get_funding_subscribers
+            from funding_digest import select_funding_items, build_funding_digest
+            from email_notifier import send_html_email
+            from main import apply_env_overrides
+            subscribers = get_funding_subscribers()
+            send_prefs = apply_env_overrides({})
+            if subscribers and send_prefs.get("gmail_address") and send_prefs.get("gmail_app_password"):
+                items = select_funding_items(days=3, limit=12)
+                if items:
+                    subject, html_body, text_body = build_funding_digest(items)
+                    sent = 0
+                    for rcpt in subscribers:
+                        ok, _err = send_html_email(rcpt, subject, html_body, text_body, send_prefs)
+                        sent += 1 if ok else 0
+                    logger.info("Funding Rundown: emailed %d/%d subscribers (%d startups)",
+                                sent, len(subscribers), len(items))
+            else:
+                logger.info("Funding Rundown: %d subscribers, creds set=%s — nothing sent",
+                            len(subscribers), bool(send_prefs.get("gmail_address")))
+    except Exception as e:
+        logger.warning("Funding Rundown email phase failed: %s", e)
+
     # --- Phase 8: Auto-discover hiring managers ---
     try:
         from hiring_managers_search import (

@@ -94,6 +94,37 @@
       </form>
     </div>
 
+    <div class="routine-cards">
+      <div class="routine-card" id="funding-routine-card">
+        <div class="routine-card-body">
+          <div class="routine-card-left">
+            <div class="routine-card-info">
+              <div class="routine-card-titlerow">
+                <span class="routine-card-name">Funding Rundown</span>
+                <span class="routine-status-tag" id="funding-status-tag"{% if not funding_enabled %} style="opacity:.45"{% endif %}>
+                  <span class="routine-status-dot"></span><span id="funding-status-label">{{ 'Active' if funding_enabled else 'Paused' }}</span>
+                </span>
+              </div>
+              <div class="routine-card-chips">
+                <span class="routine-chip">Newly-funded startups</span>
+                <span class="routine-chip">India first</span>
+                <span class="routine-chip">Rundown format</span>
+              </div>
+              <p class="routine-edit-hint" style="margin-top:.45rem">Emailed each morning after the 7 AM scrape — recently funded startups, India first, each with a one-line note and source link.</p>
+            </div>
+          </div>
+          <div class="routine-card-right">
+            <div class="routine-card-actions">
+              <button type="button" id="funding-toggle-btn"
+                class="btn btn-sm {{ 'btn-default' if funding_enabled else 'btn-ghost' }}"
+                onclick="toggleFunding()">{{ 'Turn off' if funding_enabled else 'Turn on' }}</button>
+            </div>
+            <span class="digest-action-status" id="funding-status" role="status" aria-live="polite"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     {% if job_alerts %}
     <div class="routine-cards">
       {% for r in job_alerts %}
@@ -262,6 +293,36 @@
 
 {% block scripts %}
 <script>
+let fundingOn = {{ 'true' if funding_enabled else 'false' }};
+async function toggleFunding() {
+  const btn = document.getElementById('funding-toggle-btn');
+  const tag = document.getElementById('funding-status-tag');
+  const label = document.getElementById('funding-status-label');
+  const status = document.getElementById('funding-status');
+  const next = !fundingOn;
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/digest/funding-toggle', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({enabled: next}),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
+    fundingOn = data.enabled;
+    btn.textContent = fundingOn ? 'Turn off' : 'Turn on';
+    btn.className = 'btn btn-sm ' + (fundingOn ? 'btn-default' : 'btn-ghost');
+    label.textContent = fundingOn ? 'Active' : 'Paused';
+    tag.style.opacity = fundingOn ? '' : '.45';
+    status.textContent = fundingOn ? 'On — emailed each morning.' : 'Paused.';
+    status.style.display = 'inline';
+  } catch (err) {
+    status.textContent = 'Could not update: ' + err.message;
+    status.style.display = 'inline';
+  } finally {
+    btn.disabled = false;
+  }
+}
 async function saveDigestSettings(e) {
   e.preventDefault();
   const btn = document.getElementById('ds-save-btn');
