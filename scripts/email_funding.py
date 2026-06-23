@@ -11,9 +11,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import database as db                          # noqa: E402
-from funding_digest import build_funding_digest  # noqa: E402
-from email_notifier import send_html_email        # noqa: E402
+import database as db                                          # noqa: E402
+from funding_digest import build_funding_digest, _infer_region  # noqa: E402
+from email_notifier import send_html_email                      # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("email_funding")
@@ -23,15 +23,14 @@ RECIPIENT = (os.environ.get("FUNDING_RECIPIENT") or "mahalegauravk@gmail.com").s
 DAYS = int(os.environ.get("FUNDING_DAYS") or "3")
 LIMIT = int(os.environ.get("FUNDING_LIMIT") or "12")
 
-# India-based companies first, then rows carrying an amount, then newest. No
-# '?'/'%' in the SQL (the cursor adapter would treat them as bind placeholders).
+# Newest funding with an amount first; region is re-derived in Python (the stored
+# region is the unreliable news-edition guess). No '?'/'%' in the SQL (the cursor
+# adapter would treat them as bind placeholders).
 _SQL = """
     SELECT startup, amount, round, region, source, source_url, title, posted_date
     FROM funding_news
     WHERE posted_date::date >= CURRENT_DATE - {days}
-    ORDER BY (LOWER(region) = 'india') DESC,
-             (amount IS NOT NULL) DESC,
-             posted_date DESC NULLS LAST, id DESC
+    ORDER BY (amount IS NOT NULL) DESC, posted_date DESC NULLS LAST, id DESC
     LIMIT {limit}
 """
 
@@ -54,9 +53,9 @@ def _norm_name(s):
     return re.sub(r"[^a-z0-9]", "", s)
 
 
-def _dedup(rows, limit):
-    """Keep the first occurrence of each company (rows are pre-sorted India-first,
-    amount, newest), so the same round reported by multiple outlets shows once."""
+def _dedup(rows):
+    """Keep the first occurrence of each company (rows are pre-sorted by amount,
+    newest), so the same round reported by multiple outlets shows once."""
     seen, out = set(), []
     for r in rows:
         k = _norm_name(r.get("startup"))
@@ -64,27 +63,38 @@ def _dedup(rows, limit):
             continue
         seen.add(k)
         out.append(r)
-        if len(out) >= limit:
-            break
     return out
 
 
+def _compose(pool, limit):
+    """India-first, but keep other regions: lead with India companies, then fill
+    the remainder with other regions (reserving room so others always appear)."""
+    for it in pool:
+        it["region"] = _infer_region(it.get("title"), it.get("source"), it.get("region"))
+    india = [it for it in pool if it["region"] == "India"]
+    others = [it for it in pool if it["region"] != "India"]
+    n_others = min(len(others), max(4, limit // 3))   # guarantee some non-India
+    n_india = min(len(india), limit - n_others)
+    items = india[:n_india] + others[:n_others]
+    if len(items) < limit:                             # backfill leftovers, India first
+        items += (india[n_india:] + others[n_others:])[:limit - len(items)]
+    return items[:limit]
+
+
 def main():
-    # Over-fetch, then dedup to LIMIT distinct companies.
-    items = _dedup(_fetch(DAYS, LIMIT * 6), LIMIT)
+    pool = _dedup(_fetch(DAYS, LIMIT * 8))
     # Widen the window if the last few days were quiet, so the email is never empty.
-    if len(items) < 5:
-        items = _dedup(_fetch(7, LIMIT * 6), LIMIT)
-    logger.info("Funding items selected: %d (window <= %d days)", len(items), DAYS)
+    if len(pool) < 8:
+        pool = _dedup(_fetch(7, LIMIT * 8))
+    items = _compose(pool, LIMIT)
+    regions = {}
+    for it in items:
+        regions[it["region"]] = regions.get(it["region"], 0) + 1
+    logger.info("Funding items selected: %d (window <= %d days) by region: %s",
+                len(items), DAYS, regions)
     if not items:
         logger.warning("No funding rows to send — skipping email")
         return
-
-    # Best-effort: a one-line "what they do" per startup (Gemini, optional).
-    from funding_digest import gemini_blurbs
-    blurbs = gemini_blurbs(items)
-    for i, it in enumerate(items, 1):
-        it["blurb"] = blurbs.get(str(i), "")
 
     subject, html_body, text_body = build_funding_digest(items)
     prefs = {

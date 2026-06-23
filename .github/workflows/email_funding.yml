@@ -32,7 +32,6 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           FUNDING_RECIPIENT: ${{ github.event.inputs.recipient }}
           FUNDING_DAYS: ${{ github.event.inputs.days }}
         run: python -m scripts.email_funding

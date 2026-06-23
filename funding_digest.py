@@ -7,9 +7,7 @@ Each item is a dict with: startup, amount, round, region, source, source_url,
 title, posted_date.
 """
 import html as _html
-import json
 import logging
-import os
 import re
 from datetime import datetime
 
@@ -31,45 +29,31 @@ def _clean_name(s):
     return s.strip(" -–—:\"") or str(s or "")
 
 
-def gemini_blurbs(items, timeout=30):
-    """Best-effort one-line "what they do" per startup via the Gemini REST API
-    (no SDK — uses requests, which is in the slim deps). Returns a dict keyed by
-    the 1-based item index as a string, e.g. {"1": "Blockchain data infra"}.
-    Returns {} when GEMINI_API_KEY is unset or anything fails — callers must
-    treat blurbs as optional. Index-keyed (not name-keyed) so messy startup
-    names still map back cleanly.
-    """
-    key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not key or not items:
-        return {}
-    import requests
-    listing = "\n".join(
-        f"{i}. {it.get('startup')} — {it.get('title') or ''}" for i, it in enumerate(items, 1)
-    )
-    prompt = (
-        "These startups just raised funding. For EACH numbered item, write a very "
-        "short description (max 14 words) of what the company does or its sector, "
-        "grounded in the company name and the funding headline. Do not invent "
-        "specific metrics or claims. Return ONLY a JSON object mapping the item "
-        "number (as a string) to its description.\n\n" + listing
-    )
-    body = {"contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1024}}
-    for model in ("gemini-flash-lite-latest", "gemini-2.0-flash-lite", "gemini-1.5-flash"):
-        try:
-            url = ("https://generativelanguage.googleapis.com/v1beta/models/"
-                   f"{model}:generateContent?key={key}")
-            r = requests.post(url, json=body, timeout=timeout)
-            if r.status_code != 200:
-                continue
-            txt = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-            txt = re.sub(r"^```(?:json)?|```$", "", txt, flags=re.M).strip()
-            data = json.loads(txt)
-            logger.info("Gemini blurbs: %d via %s", len(data), model)
-            return {str(k).strip(): str(v).strip() for k, v in data.items()}
-        except Exception as e:
-            logger.warning("Gemini blurbs failed on %s: %s", model, e)
-    return {}
+# Google News country editions tag every story with the edition's country, so a
+# Kenyan or UK startup surfaced in the India edition gets mislabelled "India".
+# Re-derive the region from geography mentioned in the headline / publisher.
+_REGION_SIGNALS = [
+    ("India",       r'\b(india|indian|bengaluru|bangalore|mumbai|delhi|gurugram|gurgaon|noida|pune|hyderabad|chennai|kolkata|ncr|indiatimes)\b'),
+    ("UK",          r'\b(u\.?k\.?|britain|british|england|english|london|bristol|cambridge|oxford|manchester|scotland|scottish)\b'),
+    ("USA",         r'\b(usa|u\.s\.|us[- ]based|american|silicon valley|new york|san francisco|boston|seattle|austin|california)\b'),
+    ("Singapore",   r'\b(singapore|singaporean)\b'),
+    ("Australia",   r'\b(australia|australian|sydney|melbourne|brisbane)\b'),
+    ("Canada",      r'\b(canada|canadian|toronto|ontario|montreal|vancouver)\b'),
+    ("Africa",      r'\b(kenya|kenyan|nigeria|nigerian|african|lagos|nairobi|egypt|egyptian|south\s?africa|ghana|ghanaian)\b'),
+    ("Middle East", r'\b(uae|dubai|abu dhabi|saudi|riyadh|qatar|israeli|israel|tel aviv)\b'),
+    ("Europe",      r'\b(czech|german|germany|berlin|munich|french|france|paris|dutch|netherlands|amsterdam|spain|spanish|madrid|italy|italian|milan|sweden|swedish|stockholm|finland|finnish|denmark|danish|austria|austrian|vienna|belgium|belgian|swiss|switzerland|zurich|estonia|estonian|poland|polish|ireland|irish|dublin|portugal|portuguese|norway|norwegian|europe|european)\b'),
+]
+def _infer_region(title, source, stored):
+    """A country/city signal in the HEADLINE overrides the stored region (which
+    for news rows is just the Google-News edition guess and is often wrong, e.g.
+    a Kenyan startup surfaced in the India edition). The publisher is ignored on
+    purpose — an Indian outlet reporting a US round doesn't make the startup
+    Indian. With no signal in the headline we keep the stored region."""
+    hay = (title or "").lower()
+    for region, pat in _REGION_SIGNALS:
+        if re.search(pat, hay):
+            return region
+    return stored or "Global"
 
 
 def _headline(it):
