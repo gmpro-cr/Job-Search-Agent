@@ -7,16 +7,107 @@ Each item is a dict with: startup, amount, round, region, source, source_url,
 title, posted_date.
 """
 import html as _html
+import json
+import logging
+import os
+import re
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 def _esc(s):
     return _html.escape(str(s or "")).strip()
 
 
+def _clean_name(s):
+    """Tidy a scraped startup name for display: drop '{Funding Alert}' tags and
+    trailing descriptor clauses ('Baseten, a US-based company,' -> 'Baseten')."""
+    s = re.sub(r"\{[^}]*\}", "", str(s or "")).strip()
+    s = re.sub(r"^(?:funding alert:?\s*)", "", s, flags=re.I).strip()
+    s = re.split(r"\s*[,;]\s*", s)[0]               # cut trailing clause
+    s = re.split(r"\s+(?:raises|raised|secures|secured|closes|lands|bags|nets)\b",
+                 s, flags=re.I)[0]
+    return s.strip(" -–—:\"") or str(s or "")
+
+
+def gemini_blurbs(items, timeout=30):
+    """Best-effort one-line "what they do" per startup via the Gemini REST API
+    (no SDK — uses requests, which is in the slim deps). Returns a dict keyed by
+    the 1-based item index as a string, e.g. {"1": "Blockchain data infra"}.
+    Returns {} when GEMINI_API_KEY is unset or anything fails — callers must
+    treat blurbs as optional. Index-keyed (not name-keyed) so messy startup
+    names still map back cleanly.
+    """
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not key or not items:
+        return {}
+    import requests
+    listing = "\n".join(
+        f"{i}. {it.get('startup')} — {it.get('title') or ''}" for i, it in enumerate(items, 1)
+    )
+    prompt = (
+        "These startups just raised funding. For EACH numbered item, write a very "
+        "short description (max 14 words) of what the company does or its sector, "
+        "grounded in the company name and the funding headline. Do not invent "
+        "specific metrics or claims. Return ONLY a JSON object mapping the item "
+        "number (as a string) to its description.\n\n" + listing
+    )
+    body = {"contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1024}}
+    for model in ("gemini-flash-lite-latest", "gemini-2.0-flash-lite", "gemini-1.5-flash"):
+        try:
+            url = ("https://generativelanguage.googleapis.com/v1beta/models/"
+                   f"{model}:generateContent?key={key}")
+            r = requests.post(url, json=body, timeout=timeout)
+            if r.status_code != 200:
+                continue
+            txt = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            txt = re.sub(r"^```(?:json)?|```$", "", txt, flags=re.M).strip()
+            data = json.loads(txt)
+            logger.info("Gemini blurbs: %d via %s", len(data), model)
+            return {str(k).strip(): str(v).strip() for k, v in data.items()}
+        except Exception as e:
+            logger.warning("Gemini blurbs failed on %s: %s", model, e)
+    return {}
+
+
 def _headline(it):
     amt = (it.get("amount") or "").strip()
     return f"{_esc(it.get('startup'))} raises {_esc(amt)}" if amt else f"{_esc(it.get('startup'))} lands new funding"
+
+
+# Purpose clause ("...to bring AI agents to banking") and sector descriptor
+# ("Blockchain data startup ...") pulled straight from the headline — a free,
+# hallucination-proof "what they do" when Gemini isn't available.
+_PURPOSE = re.compile(
+    r'\bto\s+((?:build|bring|make|develop|provide|power|help|create|automate|scale|'
+    r'deliver|launch|enable|offer|expand|accelerate|transform|deploy|fight|tackle|'
+    r'modernize|digitize|reinvent)\b.{4,64}?)(?:\s*[-–—|:]|\.|$)', re.I)
+_SECTOR = re.compile(
+    r'\b((?:[A-Za-z][\w&/.-]*\s+){1,4}?'
+    r'(?:startup|start-up|platform|fintech|fin-tech|insurtech|healthtech|edtech|'
+    r'deeptech|biotech|agritech|marketplace|network|maker|provider))\b', re.I)
+
+
+def _blurb_from_title(title, startup):
+    t = _html.unescape(re.sub(r"<[^>]+>", "", title or "")).strip()
+    if not t:
+        return ""
+    m = _PURPOSE.search(t)
+    if m:
+        s = m.group(1).strip().rstrip(".")
+        return s[:1].upper() + s[1:] if s else ""
+    m = _SECTOR.search(t)
+    if m:
+        phrase = m.group(1).strip()
+        # Reject when the match is really just the company's own name.
+        sw = (startup or "").strip().lower()
+        if phrase.lower() == sw or (sw and sw.startswith(phrase.split()[0].lower())
+                                    and phrase.lower().endswith(("labs", "lab", "app"))):
+            return ""
+        return phrase
+    return ""
 
 
 def _why_it_matters(it):
@@ -42,6 +133,11 @@ def _read_minutes(n):
 
 def build_funding_digest(items):
     items = list(items or [])
+    for it in items:
+        it["startup"] = _clean_name(it.get("startup"))
+        # Effective "what they do": Gemini blurb if set, else derive from headline.
+        if not it.get("blurb"):
+            it["blurb"] = _blurb_from_title(it.get("title"), it.get("startup"))
     today = datetime.now().strftime("%A, %b %d, %Y")
     n = len(items)
     top = items[0]["startup"] if n else "startups"
@@ -79,6 +175,7 @@ def build_funding_digest(items):
         <tr><td style="padding:22px 0 0">
           <div style="font:700 12px/1 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:{accent};letter-spacing:.04em">{i:02d}</div>
           <h2 style="{css_h};margin-top:6px">{_headline(it)}</h2>
+          {(f'<p style="font:400 14px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:{muted};margin:0 0 10px;font-style:italic">' + _esc(it.get("blurb")) + '</p>') if it.get("blurb") else ""}
           <p style="{css_p}"><span style="{css_lbl}">The Rundown:</span> {_esc(it.get('title') or _headline(it))}</p>
           <p style="{css_lbl};margin:0 0 4px">The details:</p>
           <ul style="margin:0 0 10px;padding-left:18px">{det_rows}</ul>
@@ -121,6 +218,8 @@ def build_funding_digest(items):
     tlines.append("")
     for i, it in enumerate(items, 1):
         tlines.append(f"{i:02d}. {_html.unescape(_headline(it))}")
+        if it.get("blurb"):
+            tlines.append(f"    {it['blurb']}")
         tlines.append(f"    The Rundown: {it.get('title') or ''}")
         det = []
         for k in ("amount", "round", "region", "source", "posted_date"):
