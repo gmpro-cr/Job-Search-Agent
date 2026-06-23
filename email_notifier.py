@@ -122,6 +122,48 @@ def _build_plain_body(jobs, preferences):
     return "\n".join(lines)
 
 
+def send_html_email(recipient, subject, html_body, plain_body, preferences):
+    """Send a pre-built HTML email (with a plain-text alternative) via Gmail SMTP.
+
+    Generic sibling of send_job_email for non-job digests (e.g. the funding
+    rundown). Reads gmail_address / gmail_app_password from preferences.
+    Returns (ok: bool, err: str | None).
+    """
+    gmail_address = _ascii_only(preferences.get("gmail_address", ""))
+    gmail_app_password = _ascii_only(preferences.get("gmail_app_password", ""))
+    recipient = _ascii_only(recipient)
+
+    if not gmail_address or not gmail_app_password:
+        logger.info("Gmail credentials not configured - skipping email")
+        return False, "no credentials"
+    if not recipient:
+        return False, "no recipient"
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = gmail_address
+    msg["To"] = recipient
+    msg.set_content(plain_body or "", charset="utf-8")
+    msg.add_alternative(html_body, subtype="html", charset="utf-8")
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(gmail_address, gmail_app_password)
+            server.send_message(msg)
+        logger.info("HTML email sent to %s (%r)", recipient, subject)
+        return True, None
+    except smtplib.SMTPAuthenticationError:
+        return False, "Gmail authentication failed — use an App Password."
+    except OSError as e:
+        return False, f"Cannot reach Gmail SMTP ({e})."
+    except Exception as e:
+        logger.error("Failed to send email to %s: %s", recipient, e)
+        return False, f"Send failed: {e}"
+
+
 def send_job_email(recipient, jobs, preferences, subject=None):
     """
     Send a job digest email via Gmail SMTP.

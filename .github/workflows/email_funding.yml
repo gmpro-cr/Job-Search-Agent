@@ -1,0 +1,37 @@
+name: Email Funding Rundown
+
+# On-demand + daily: email recently-funded startups in The Rundown AI format.
+# Runs here (not locally) because the Gmail app password lives only in GH secrets.
+on:
+  workflow_dispatch:
+    inputs:
+      recipient:
+        description: 'Recipient email'
+        required: false
+        default: 'mahalegauravk@gmail.com'
+      days:
+        description: 'Look-back window (days)'
+        required: false
+        default: '3'
+  schedule:
+    # 02:20 UTC = 07:50 IST — after the morning scrape (01:30 UTC) refreshes funding.
+    - cron: '20 2 * * *'
+
+jobs:
+  email:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install slim deps
+        run: pip install -r requirements.txt
+      - name: Send funding rundown
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          FUNDING_RECIPIENT: ${{ github.event.inputs.recipient }}
+          FUNDING_DAYS: ${{ github.event.inputs.days }}
+        run: python -m scripts.email_funding
