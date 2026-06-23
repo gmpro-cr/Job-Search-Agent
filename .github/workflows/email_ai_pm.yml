@@ -1,0 +1,29 @@
+name: Email AI PM Jobs
+
+# On-demand: email the owner every AI Product Manager job currently in the DB.
+# Runs here (not locally) because the Gmail app password lives only in GH secrets.
+on:
+  workflow_dispatch:
+    inputs:
+      recipient:
+        description: 'Recipient email'
+        required: false
+        default: 'mahalegauravk@gmail.com'
+
+jobs:
+  email:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install slim deps
+        run: pip install -r requirements.txt
+      - name: Send AI PM digest
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          AI_PM_RECIPIENT: ${{ github.event.inputs.recipient }}
+        run: python -m scripts.email_ai_pm
