@@ -9,6 +9,11 @@ on:
         description: 'Recipient email'
         required: false
         default: 'mahalegauravk@gmail.com'
+  schedule:
+    # 02:15 UTC = 07:45 IST — ~45 min after the morning scrape (01:30 UTC) so
+    # the DB is fresh. On a scheduled run inputs.recipient is empty and the
+    # script falls back to its default recipient.
+    - cron: '15 2 * * *'
 
 jobs:
   email:
