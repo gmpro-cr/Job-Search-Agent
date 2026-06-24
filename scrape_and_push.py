@@ -380,6 +380,37 @@ def main():
     except Exception as e:
         logger.warning("Funding Rundown email phase failed: %s", e)
 
+    # --- Phase 7f: AI Product Manager jobs email (morning run only) ---
+    # Emails the full AI-PM jobs list to every user who turned the routine on
+    # (digests page). Morning-only so it goes out once a day. NOTE: send_job_email
+    # is the module-level import (line ~37) used in Phase 6 — do NOT re-import it
+    # locally here or it shadows that use and breaks the run.
+    try:
+        from datetime import datetime as _dt_aipm
+        if _dt_aipm.utcnow().hour < 12:
+            from database import get_ai_pm_subscribers, get_ai_pm_jobs
+            ai_subs = get_ai_pm_subscribers()
+            ai_prefs = apply_env_overrides({})
+            if ai_subs and ai_prefs.get("gmail_address") and ai_prefs.get("gmail_app_password"):
+                ai_jobs = get_ai_pm_jobs()
+                if ai_jobs:
+                    subject = "AI Product Manager jobs — full list (%d roles, %s)" % (
+                        len(ai_jobs), _dt_aipm.now().strftime("%b %d, %Y"))
+                    sent = 0
+                    for rcpt in ai_subs:
+                        p = dict(ai_prefs)
+                        p["email"] = rcpt
+                        p["job_titles"] = ["AI Product Manager"]
+                        ok, _err = send_job_email(rcpt, ai_jobs, p, subject=subject)
+                        sent += 1 if ok else 0
+                    logger.info("AI PM jobs email: emailed %d/%d subscribers (%d jobs)",
+                                sent, len(ai_subs), len(ai_jobs))
+            else:
+                logger.info("AI PM jobs email: %d subscribers, creds set=%s — nothing sent",
+                            len(ai_subs), bool(ai_prefs.get("gmail_address")))
+    except Exception as e:
+        logger.warning("AI PM jobs email phase failed: %s", e)
+
     # --- Phase 8: Auto-discover hiring managers ---
     try:
         from hiring_managers_search import (

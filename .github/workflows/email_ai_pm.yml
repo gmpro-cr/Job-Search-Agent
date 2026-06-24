@@ -1,7 +1,8 @@
 name: Email AI PM Jobs
 
-# On-demand: email the owner every AI Product Manager job currently in the DB.
-# Runs here (not locally) because the Gmail app password lives only in GH secrets.
+# Manual / on-demand only. The automatic daily send now happens inside the main
+# scrape cron (scrape_and_push.py, Phase 7f) for users who enabled the AI PM jobs
+# routine on the digests page. Use this for a one-off / test send.
 on:
   workflow_dispatch:
     inputs:
@@ -9,11 +10,6 @@ on:
         description: 'Recipient email'
         required: false
         default: 'mahalegauravk@gmail.com'
-  schedule:
-    # 02:15 UTC = 07:45 IST — ~45 min after the morning scrape (01:30 UTC) so
-    # the DB is fresh. On a scheduled run inputs.recipient is empty and the
-    # script falls back to its default recipient.
-    - cron: '15 2 * * *'
 
 jobs:
   email:

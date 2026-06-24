@@ -2203,9 +2203,10 @@ def digests():
     job_alerts = get_user_reminders(uid) if uid else []
     user_email = dict(session).get('user', {}).get('email', '')
     funding_enabled = bool((prefs or {}).get("funding_digest_enabled"))
+    aipm_enabled = bool((prefs or {}).get("ai_pm_digest_enabled"))
     return render_template("digests.html", prefs=prefs,
                            user_email=user_email, job_alerts=job_alerts,
-                           funding_enabled=funding_enabled)
+                           funding_enabled=funding_enabled, aipm_enabled=aipm_enabled)
 
 
 @app.route("/api/digest/send-now", methods=["POST"])
@@ -2347,6 +2348,26 @@ def api_digest_funding_toggle():
         save_preferences(updated, user_id=uid)
     except Exception as e:
         logger.error("Failed to toggle funding digest for user %s: %s", uid, e)
+        return jsonify({"ok": False, "error": "Failed to save"}), 500
+    return jsonify({"ok": True, "enabled": enabled})
+
+
+@app.route("/api/digest/aipm-toggle", methods=["POST"])
+def api_digest_aipm_toggle():
+    """Enable/disable the AI Product Manager jobs email routine. The morning
+    scrape cron sends the full AI-PM list to every user with this on."""
+    uid = current_user_id()
+    if not uid:
+        return jsonify({"ok": False, "error": "Not authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    enabled = bool(data.get("enabled"))
+    existing = load_preferences(uid) or DEFAULT_PREFS.copy()
+    updated = dict(existing)
+    updated["ai_pm_digest_enabled"] = enabled
+    try:
+        save_preferences(updated, user_id=uid)
+    except Exception as e:
+        logger.error("Failed to toggle AI PM digest for user %s: %s", uid, e)
         return jsonify({"ok": False, "error": "Failed to save"}), 500
     return jsonify({"ok": True, "enabled": enabled})
 

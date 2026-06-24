@@ -665,9 +665,9 @@ def delete_old_funding(days=120):
     conn.close()
 
 
-def get_funding_subscribers():
-    """Account emails of users who enabled the Funding Rundown routine
-    (prefs_json.funding_digest_enabled). Used by the cron to fan out the email."""
+def _subscribers_for(pref_flag):
+    """Account emails of users whose prefs_json has the given flag truthy. Used by
+    the cron to fan out optional email routines (Funding Rundown, AI PM jobs)."""
     import json
     conn = get_connection()
     cursor = conn.cursor()
@@ -683,10 +683,43 @@ def get_funding_subscribers():
                 prefs = json.loads(prefs or "{}")
             except (ValueError, TypeError):
                 prefs = {}
-        if (prefs or {}).get("funding_digest_enabled") and (r["email"] or "").strip():
+        if (prefs or {}).get(pref_flag) and (r["email"] or "").strip():
             out.append(r["email"].strip())
     conn.close()
     return out
+
+
+def get_funding_subscribers():
+    """Emails of users who enabled the Funding Rundown routine."""
+    return _subscribers_for("funding_digest_enabled")
+
+
+def get_ai_pm_subscribers():
+    """Emails of users who enabled the AI Product Manager jobs email routine."""
+    return _subscribers_for("ai_pm_digest_enabled")
+
+
+def get_ai_pm_jobs(limit=None):
+    r"""All AI Product Manager roles: a PM/Owner/Lead title carrying an AI signal
+    as whole words (\m \M), newest first. Postgres-only regex (runs against Neon
+    in the cron). No '?'/'%' in the SQL — the cursor adapter would treat them as
+    bind placeholders."""
+    sql = (
+        "SELECT role, company, location, salary, apply_url, date_posted, remote_status, "
+        "experience_min, experience_max, relevance_score, portal, job_description "
+        "FROM job_listings "
+        "WHERE LOWER(role) ~ '(product manager|product owner|product lead)' "
+        r"AND LOWER(role) ~ '(\mai\M|\mml\M|artificial intelligence|machine learning|genai|gen ai|generative ai|\mllm\M)' "
+        "ORDER BY date_posted DESC NULLS LAST, relevance_score DESC NULLS LAST"
+    )
+    if limit:
+        sql += f" LIMIT {int(limit)}"
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
 
 
 # ---------------------------------------------------------------------------

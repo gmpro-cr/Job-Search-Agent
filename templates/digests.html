@@ -123,6 +123,34 @@
           </div>
         </div>
       </div>
+      <div class="routine-card" id="aipm-routine-card">
+        <div class="routine-card-body">
+          <div class="routine-card-left">
+            <div class="routine-card-info">
+              <div class="routine-card-titlerow">
+                <span class="routine-card-name">AI Product Manager jobs</span>
+                <span class="routine-status-tag" id="aipm-status-tag"{% if not aipm_enabled %} style="opacity:.45"{% endif %}>
+                  <span class="routine-status-dot"></span><span id="aipm-status-label">{{ 'Active' if aipm_enabled else 'Paused' }}</span>
+                </span>
+              </div>
+              <div class="routine-card-chips">
+                <span class="routine-chip">All AI PM roles</span>
+                <span class="routine-chip">Full list</span>
+                <span class="routine-chip">Newest first</span>
+              </div>
+              <p class="routine-edit-hint" style="margin-top:.45rem">Emailed each morning after the 7 AM scrape — every current AI Product Manager / Owner / Lead role, newest first.</p>
+            </div>
+          </div>
+          <div class="routine-card-right">
+            <div class="routine-card-actions">
+              <button type="button" id="aipm-toggle-btn"
+                class="btn btn-sm {{ 'btn-default' if aipm_enabled else 'btn-ghost' }}"
+                onclick="toggleAipm()">{{ 'Turn off' if aipm_enabled else 'Turn on' }}</button>
+            </div>
+            <span class="digest-action-status" id="aipm-status" role="status" aria-live="polite"></span>
+          </div>
+        </div>
+      </div>
     </div>
 
     {% if job_alerts %}
@@ -294,35 +322,39 @@
 {% block scripts %}
 <script>
 let fundingOn = {{ 'true' if funding_enabled else 'false' }};
-async function toggleFunding() {
-  const btn = document.getElementById('funding-toggle-btn');
-  const tag = document.getElementById('funding-status-tag');
-  const label = document.getElementById('funding-status-label');
-  const status = document.getElementById('funding-status');
-  const next = !fundingOn;
+let aipmOn = {{ 'true' if aipm_enabled else 'false' }};
+async function _routineToggle(prefix, endpoint, cur) {
+  const btn = document.getElementById(prefix + '-toggle-btn');
+  const tag = document.getElementById(prefix + '-status-tag');
+  const label = document.getElementById(prefix + '-status-label');
+  const status = document.getElementById(prefix + '-status');
   btn.disabled = true;
   try {
-    const res = await fetch('/api/digest/funding-toggle', {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({enabled: next}),
+      body: JSON.stringify({enabled: !cur}),
     });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || 'Failed');
-    fundingOn = data.enabled;
-    btn.textContent = fundingOn ? 'Turn off' : 'Turn on';
-    btn.className = 'btn btn-sm ' + (fundingOn ? 'btn-default' : 'btn-ghost');
-    label.textContent = fundingOn ? 'Active' : 'Paused';
-    tag.style.opacity = fundingOn ? '' : '.45';
-    status.textContent = fundingOn ? 'On — emailed each morning.' : 'Paused.';
+    const on = data.enabled;
+    btn.textContent = on ? 'Turn off' : 'Turn on';
+    btn.className = 'btn btn-sm ' + (on ? 'btn-default' : 'btn-ghost');
+    label.textContent = on ? 'Active' : 'Paused';
+    tag.style.opacity = on ? '' : '.45';
+    status.textContent = on ? 'On — emailed each morning.' : 'Paused.';
     status.style.display = 'inline';
+    return on;
   } catch (err) {
     status.textContent = 'Could not update: ' + err.message;
     status.style.display = 'inline';
+    return cur;
   } finally {
     btn.disabled = false;
   }
 }
+async function toggleFunding() { fundingOn = await _routineToggle('funding', '/api/digest/funding-toggle', fundingOn); }
+async function toggleAipm() { aipmOn = await _routineToggle('aipm', '/api/digest/aipm-toggle', aipmOn); }
 async function saveDigestSettings(e) {
   e.preventDefault();
   const btn = document.getElementById('ds-save-btn');
