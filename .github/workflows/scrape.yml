@@ -65,8 +65,8 @@ jobs:
           # Neon Postgres — database.py auto-routes to psycopg when set.
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
-          # Vercel Blob — digest_generator + prd_generator push artefacts here
-          # so the Vercel-hosted web UI can read them.
+          # Vercel Blob — digest_generator pushes artefacts here so the
+          # Vercel-hosted web UI can read them.
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
