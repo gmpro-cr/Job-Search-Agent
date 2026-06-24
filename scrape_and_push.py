@@ -362,7 +362,6 @@ def main():
             from database import get_funding_subscribers
             from funding_digest import select_funding_items, build_funding_digest
             from email_notifier import send_html_email
-            from main import apply_env_overrides
             subscribers = get_funding_subscribers()
             send_prefs = apply_env_overrides({})
             if subscribers and send_prefs.get("gmail_address") and send_prefs.get("gmail_app_password"):
