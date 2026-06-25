@@ -135,6 +135,10 @@ def _security_headers(response):
 # CSRF protection
 # ---------------------------------------------------------------------------
 from flask_wtf.csrf import CSRFProtect, generate_csrf
+# Token valid for the session lifetime instead of the 1h default — the digests
+# page (and others) sit open and POST via fetch long after load; a 1h-expired
+# token was 400ing toggles and routine saves. Still session-bound + same-origin.
+app.config["WTF_CSRF_TIME_LIMIT"] = None
 csrf = CSRFProtect(app)
 
 @app.after_request
