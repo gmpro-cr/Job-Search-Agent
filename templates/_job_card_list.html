@@ -246,22 +246,27 @@
           container.dataset.loaded = '1';
           return;
         }
+        // Bands must mirror scorer.deterministic_score.
         const dims = [
-          ['Title Match', data.title || 0, 30],
-          ['Domain Fit', data.domain || 0, 30],
-          ['PM Keywords', data.pm_keywords || 0, 20],
-          ['Location', data.location || 0, 10],
-          ['CV Skills', data.cv_skills || 0, 15],
+          ['Title Match', data.title || 0, 30, ''],
+          ['BFSI Fit', data.bfsi || 0, 20, data.bfsi_match || ''],
+          ['AI Fit', data.ai || 0, 20, data.ai_match || ''],
+          ['CV Skills', data.cv_skills || 0, 20, ''],
+          ['Location', data.location || 0, 10, ''],
+          ['Industry', data.domain || 0, 5, ''],
         ];
-        if (data.seniority_penalty) {
-          dims.push(['Seniority', data.seniority_penalty, 0]);
+        if (data.no_domain_penalty) {
+          dims.push(['No BFSI/AI', data.no_domain_penalty, 15, '']);
         }
         container.innerHTML = dims.map(function (d) {
-          var label = d[0], val = d[1], max = d[2];
+          var label = d[0], val = d[1], max = d[2], evidence = d[3];
           var pct = max ? Math.min(100, Math.round(Math.abs(val) / max * 100)) : 0;
           var barColor = val < 0 ? 'bg-red-400' : 'bg-gray-700';
-          return '<div class="flex items-center gap-3">'
-            + '<span class="text-[11px] text-gray-500 w-28 flex-shrink-0">' + label + '</span>'
+          var title = evidence ? ' title="matched: ' + evidence + '"' : '';
+          return '<div class="flex items-center gap-3"' + title + '>'
+            + '<span class="text-[11px] text-gray-500 w-40 flex-shrink-0 truncate">' + label
+            + (evidence ? ' <span class="text-gray-400">· ' + evidence + '</span>' : '')
+            + '</span>'
             + '<div class="flex-1 bg-gray-200 rounded-full h-1">'
             + '<div class="h-1 rounded-full ' + barColor + '" style="width:' + pct + '%"></div>'
             + '</div>'
