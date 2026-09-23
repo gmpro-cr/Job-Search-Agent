@@ -93,17 +93,23 @@ def main():
         return 0
 
     print(f"\napplying {len(updates)} updates in batches of {args.batch} ...")
+    # Write through a FRESH cursor. Reusing the SELECT cursor left a tail of
+    # updates unapplied (the first production run needed a second pass), because
+    # committing mid-iteration on the cursor that still held the read's result
+    # set dropped writes silently.
+    write_cur = conn.cursor()
     done = 0
     for i in range(0, len(updates), args.batch):
-        for score, job_id in updates[i:i + args.batch]:
-            cursor.execute(
+        batch = updates[i:i + args.batch]
+        for score, job_id in batch:
+            write_cur.execute(
                 "UPDATE job_listings SET relevance_score = ? WHERE job_id = ?",
                 (score, job_id))
         conn.commit()
-        done += len(updates[i:i + args.batch])
+        done += len(batch)
         print(f"  committed {done}/{len(updates)}")
     conn.close()
-    print("done.")
+    print(f"done. re-run without --apply to confirm 0 rows differ.")
     return 0
 
 
