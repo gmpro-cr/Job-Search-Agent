@@ -61,6 +61,25 @@ def test_irrelevant_domain_gate():
     assert bd.get("irrelevant") is True and s == 0
 
 
+def test_irrelevant_gate_ignores_jd_body():
+    """Regression: the gate scanned the whole JD, so a bank PM role was
+    hard-zeroed by "lunches prepared by in-house chefs" in the perks list."""
+    s, bd = deterministic_score(
+        _job("Senior Product Manager (UK Cards)",
+             "Own the cards roadmap. Perks: complimentary lunches prepared by "
+             "in-house chefs. Experience in banking required."), CV, PREFS)
+    assert not bd.get("irrelevant")
+    assert s > 0 and bd["bfsi"] > 0
+
+
+def test_irrelevant_gate_ignores_foreign_language_false_friend():
+    """"Chef de projet" is French for project manager, not a cook."""
+    s, bd = deterministic_score(
+        _job("Product owner", "Minimum 5 ans dans un poste similaire (Chef de projet)."),
+        CV, PREFS)
+    assert not bd.get("irrelevant")
+
+
 def test_blend_uses_both_components():
     jv = np.array([1.0, 0.0], dtype=np.float32)
     pv = np.array([1.0, 0.0], dtype=np.float32)   # cosine 1.0 -> semantic 100

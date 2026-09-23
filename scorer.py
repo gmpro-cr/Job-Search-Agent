@@ -28,6 +28,13 @@ SEMANTIC_BONUS_MAX = 20
 # Domains that mean "definitely not for this candidate" -> hard zero.
 _IRRELEVANT = ["nurse", "nursing", "phlebotom", "welder", "electrician",
                "truck driver", "chef", "barista", "security guard"]
+# Matched against the ROLE TITLE only, on a leading word boundary. Scanning the
+# whole JD body substring-matched perks and unrelated prose: a bank's "Senior
+# Product Manager (UK Cards)" was hard-zeroed by "lunches prepared by in-house
+# chefs", a French PM role by "Chef de projet", and a health-tech PM role by
+# "doctors, nurses and care teams". No trailing \b — "phlebotom" is a prefix.
+_IRRELEVANT_RE = re.compile(
+    r"\b(" + "|".join(re.escape(k) for k in _IRRELEVANT) + r")", re.I)
 _NEG = re.compile(r"\b(no|not|without|don't need|do not need)\b[^.]{0,40}", re.I)
 
 # Phrases that turn a passing mention of a domain into a stated requirement.
@@ -117,8 +124,8 @@ def deterministic_score(job, cv_data, preferences):
     bd = {"title": 0, "location": 0, "cv_skills": 0, "bfsi": 0, "ai": 0,
           "domain": 0, "no_domain_penalty": 0}
 
-    # Irrelevant-domain hard gate.
-    if any(k in text for k in _IRRELEVANT):
+    # Irrelevant-domain hard gate — role title only (see _IRRELEVANT_RE).
+    if _IRRELEVANT_RE.search(role):
         bd["irrelevant"] = True
         return 0, bd
 
