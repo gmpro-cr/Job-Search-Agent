@@ -215,6 +215,19 @@
         </div>
       </div>
 
+      <!-- Scoring profile -->
+      <div>
+        <label for="p-scoring-profile" style="display:block;font-size:.875rem;font-weight:600;color:var(--foreground);margin-bottom:.5rem;">Scoring profile</label>
+        {% set saved_profile = prefs.get('scoring_profile') or 'auto' %}
+        <select id="p-scoring-profile" class="input" style="width:100%;font-size:.875rem;">
+          <option value="auto" {% if saved_profile not in scoring_profiles %}selected{% endif %}>Auto from CV (currently: {{ scoring_profiles[auto_profile].label }})</option>
+          {% for key, spec in scoring_profiles.items() %}
+          <option value="{{ key }}" {% if saved_profile == key %}selected{% endif %}>{{ spec.label }}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs text-muted" style="margin:.375rem 0 0;">Decides which background earns the extra match points. Saving re-scores every job.</p>
+      </div>
+
     </div><!-- /body -->
 
     <!-- Footer -->
@@ -602,6 +615,7 @@
       work_modes: modes,
       transferable_skills: getTags('p-skills-list'),
       industries: getTags('p-industries-list'),
+      scoring_profile: document.getElementById('p-scoring-profile').value,
     };
 
     try {

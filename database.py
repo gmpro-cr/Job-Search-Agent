@@ -2107,6 +2107,38 @@ def save_user_preferences(user_id: int, prefs: dict) -> None:
     invalidate_cv_embedding(user_id)
 
 
+def set_user_scoring_stamp(user_id: int, stamp: str) -> bool:
+    """Record which scorer version + profile the user's stored cv_scores were
+    last fully rebuilt with (prefs key `_scored_with`). Unlike
+    save_user_preferences this leaves the CV embedding alone — bookkeeping,
+    not a preference change.
+
+    Returns False without writing when the user has no preferences row:
+    creating one holding only the stamp would make the web app treat it as
+    saved (empty) preferences instead of falling back to DEFAULT_PREFS."""
+    if not user_id:
+        raise ValueError("user_id is required")
+    prefs = get_user_preferences(user_id)
+    if not prefs:
+        return False
+    prefs["_scored_with"] = stamp
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO user_preferences (user_id, prefs_json, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+            prefs_json = excluded.prefs_json,
+            updated_at = excluded.updated_at
+        """,
+        (user_id, _json.dumps(prefs), datetime.now().isoformat()),
+    )
+    conn.commit()
+    conn.close()
+    return True
+
+
 # ---------------------------------------------------------------------------
 # user_cv_data
 # ---------------------------------------------------------------------------
@@ -2281,6 +2313,20 @@ def get_unscored_jobs_for_user(user_id: int, limit: int = 200) -> list[dict]:
         LIMIT ?
         """,
         (user_id, int(limit)),
+    )
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
+def get_all_jobs_for_scoring() -> list[dict]:
+    """Every job with the fields the scorer reads. Used for a full per-user
+    rescore after a scoring-profile or scorer-version change."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT job_id, role, company, location, job_description, remote_status "
+        "FROM job_listings"
     )
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()

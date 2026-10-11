@@ -4,8 +4,11 @@ See docs/plans/2026-06-16-deterministic-embedding-scorer-design.md and
 docs/plans/2026-09-23-bfsi-ai-scoring-design.md.
 
 The deterministic component is synonym-aware fuzzy matching with negation
-handling and hard gates, weighted towards the candidate's two differentiators:
-a BFSI background and an AI/ML background, each scored in its own band.
+handling and hard gates, weighted towards the candidate's two differentiators,
+each scored in its own band. Which two depends on the candidate's scoring
+profile (scoring_maps.SCORING_PROFILES): BFSI + AI for a product manager with
+a banking and LLM background, delivery methods + PM governance for a project
+manager. See resolve_scoring_profile().
 
 Seniority/experience grading was removed on 2026-09-23 — `experience_min` /
 `experience_max` are still extracted in analyzer.py and remain available as an
@@ -13,7 +16,8 @@ explicit user filter, rather than being folded invisibly into the score.
 """
 import re
 from rapidfuzz import fuzz
-from scoring_maps import (canonical_terms, domain_terms, domain_terms_ranked,
+from scoring_maps import (DEFAULT_PROFILE, SCORING_PROFILES, canonical_terms,
+                          domain_terms, domain_terms_ranked, profile_signal_terms,
                           term_in_text, term_pattern)
 from embeddings import cosine, semantic_score
 
@@ -45,11 +49,16 @@ _REQ_CUE = re.compile(
     r"proficien|knowledge of|worked (?:in|on|with)|years? (?:in|of)|"
     r"strong grasp|deep understanding|prior work)", re.I)
 
+# Bump when a scoring change means stored per-user scores must be recomputed;
+# the scrape compares it (with the profile) against each user's last full
+# rescore stamp. See scoring_stamp().
+SCORER_VERSION = "2026-10-11"
+
 # How far either side of a domain term we look for a requirement cue.
 _REQ_WINDOW = 60
 
 # Full band when the JD asks for the background, half when the sector is
-# merely mentioned. Applies to both the BFSI and AI bands.
+# merely mentioned. Applies to both differentiator bands of every profile.
 _BAND_REQUIRED = 20
 _BAND_SECTOR = 10
 
@@ -101,28 +110,87 @@ def _band_score(terms, text, negated):
     return 0, None
 
 
+def _cv_text(cv_data, preferences):
+    """Lowercased text the profile detector reads: CV body, skills and the
+    candidate's target titles."""
+    cv_data = cv_data or {}
+    preferences = preferences or {}
+    parts = [cv_data.get("raw_text") or ""]
+    parts += [str(s) for s in (cv_data.get("skills") or [])]
+    parts += [str(t) for t in (preferences.get("job_titles") or [])]
+    return " ".join(parts).lower()
+
+
+def resolve_scoring_profile(cv_data, preferences):
+    """Pick the scoring profile for a candidate.
+
+    An explicit preferences["scoring_profile"] wins. Otherwise ("auto" or
+    unset) the CV is read: the profile whose signal terms appear most often
+    (distinct terms) is chosen, ties going to DEFAULT_PROFILE so the original
+    BFSI + AI scoring is unchanged for anyone the detector cannot tell apart.
+    """
+    preferences = preferences or {}
+    explicit = (preferences.get("scoring_profile") or "").strip()
+    if explicit in SCORING_PROFILES:
+        return explicit
+    text = _cv_text(cv_data, preferences)
+
+    def hits(name):
+        return sum(1 for t in profile_signal_terms(name) if term_in_text(t, text))
+
+    best, best_hits = DEFAULT_PROFILE, hits(DEFAULT_PROFILE)
+    for name in SCORING_PROFILES:
+        if name != DEFAULT_PROFILE and hits(name) > best_hits:
+            best, best_hits = name, hits(name)
+    return best
+
+
+def scoring_stamp(cv_data, preferences):
+    """Identifies the scorer + profile a user's stored scores were built with."""
+    return f"{SCORER_VERSION}:{resolve_scoring_profile(cv_data, preferences)}"
+
+
+def _band_terms(table, cv_scoped, cv_text):
+    """Terms a band scores against. A cv_scoped band keeps only the terms the
+    candidate's CV mentions; if the CV mentions none (thin or unparsed CV) the
+    whole table is used so the band still works."""
+    terms = domain_terms_ranked(table)
+    if not cv_scoped:
+        return terms
+    own = tuple(t for t in terms if term_in_text(t, cv_text))
+    return own or terms
+
+
 def deterministic_score(job, cv_data, preferences):
     """Return (score_0_100, breakdown).
 
-    Bands: title 0-30, location 0-10, cv_skills 0-20, bfsi 0-20, ai 0-20,
-    domain (generic industries) 0-5, minus a 15-point no_domain penalty when
-    the posting carries neither a BFSI nor an AI signal.
+    Bands: title 0-30, location 0-10, cv_skills 0-20, two differentiator bands
+    0-20 each, domain (generic industries) 0-5, minus a 15-point
+    no_domain_penalty when the posting carries neither differentiator.
 
-    BFSI and AI are scored separately and weighted above everything except the
-    title because they are the candidate's differentiators (9 yrs banking /
-    credit risk, shipped LLM products). A posting that merely operates in the
-    sector scores half of one that asks for the background outright.
+    The differentiator bands come from the candidate's scoring profile:
+    bfsi + ai for the BFSI/AI product profile (9 yrs banking / credit risk,
+    shipped LLM products), delivery + governance for the project-delivery
+    profile. A posting that merely mentions a band's vocabulary scores half
+    of one that asks for it outright.
 
-    breakdown carries each band plus an 'irrelevant' flag and the matched
-    bfsi/ai evidence terms for full explainability.
+    breakdown carries each band plus an 'irrelevant' flag, the matched
+    evidence term per band (<key>_match), the profile name and its band
+    layout ('bands', 'penalty_label') so the UI can label it.
     """
     cv_data = cv_data or {}
     preferences = preferences or {}
+    profile = resolve_scoring_profile(cv_data, preferences)
+    spec = SCORING_PROFILES[profile]
     role = (job.get("role") or "").lower()
     jd = (job.get("job_description") or "").lower()
     text = f"{role} {jd}"
-    bd = {"title": 0, "location": 0, "cv_skills": 0, "bfsi": 0, "ai": 0,
-          "domain": 0, "no_domain_penalty": 0}
+    bd = {"title": 0, "location": 0, "cv_skills": 0, "domain": 0,
+          "no_domain_penalty": 0, "profile": profile,
+          "bands": [[key, label, _BAND_REQUIRED] for key, label, _t, _s in spec["bands"]],
+          "penalty_label": spec["penalty_label"]}
+    for key, _label, _table, _scoped in spec["bands"]:
+        bd[key] = 0
 
     # Irrelevant-domain hard gate — role title only (see _IRRELEVANT_RE).
     if _IRRELEVANT_RE.search(role):
@@ -157,29 +225,30 @@ def deterministic_score(job, cv_data, preferences):
     hits = sum(1 for s in skills if s and _term_in(s, text) >= _FUZZ_STRONG)
     bd["cv_skills"] = min(hits * 5, 20)
 
-    # BFSI background (0-20) and AI background (0-20).
-    bd["bfsi"], bfsi_term = _band_score(domain_terms_ranked("bfsi"), text, negated)
-    bd["ai"], ai_term = _band_score(domain_terms_ranked("ai"), text, negated)
-    if bfsi_term:
-        bd["bfsi_match"] = bfsi_term
-    if ai_term:
-        bd["ai_match"] = ai_term
+    # Differentiator bands (0-20 each), per the profile.
+    cv_text = _cv_text(cv_data, preferences)
+    covered = set()
+    for key, _label, table, scoped in spec["bands"]:
+        bd[key], term = _band_score(_band_terms(table, scoped, cv_text), text, negated)
+        if term:
+            bd[f"{key}_match"] = term
+        covered |= domain_terms(table)
 
-    # Generic industry (0-5), for preferred sectors outside BFSI/AI (saas,
-    # ecommerce, ...). Terms already covered by a dedicated band are skipped so
-    # fintech/AI cannot be counted twice.
-    covered = domain_terms("bfsi") | domain_terms("ai")
+    # Generic industry (0-5), for preferred sectors outside the profile's
+    # bands (saas, ecommerce, ...). Terms already covered by a dedicated band
+    # are skipped so they cannot be counted twice.
     inds = canonical_terms(preferences.get("industries", []), "industry") - covered
     dhits = sum(1 for d in inds if d and term_in_text(d, text))
     bd["domain"] = min(dhits * 5, 5)
 
     # Neither differentiator present -> demote, but never hard-zero: a strong
-    # generalist PM role can still clear the threshold on its other bands.
-    if not bd["bfsi"] and not bd["ai"]:
+    # generalist role can still clear the threshold on its other bands.
+    band_total = sum(bd[key] for key, _l, _t, _s in spec["bands"])
+    if not band_total:
         bd["no_domain_penalty"] = -15
 
-    total = (bd["title"] + bd["location"] + bd["cv_skills"] + bd["bfsi"]
-             + bd["ai"] + bd["domain"] + bd["no_domain_penalty"])
+    total = (bd["title"] + bd["location"] + bd["cv_skills"] + band_total
+             + bd["domain"] + bd["no_domain_penalty"])
     return max(0, min(100, total)), bd
 
 

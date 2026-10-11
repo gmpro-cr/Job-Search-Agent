@@ -1478,6 +1478,11 @@ def jobs():
     clean_filters = {k: v for k, v in filters.items() if v and v != "0" and k not in _internal_keys}
 
     prefs = (load_preferences(uid) if uid else None) or DEFAULT_PREFS.copy()
+    # What "Auto" resolves to for this user, shown next to the profile picker.
+    from scorer import resolve_scoring_profile
+    from scoring_maps import SCORING_PROFILES
+    auto_profile = resolve_scoring_profile(cv_data if cv_uploaded else {},
+                                           dict(prefs, scoring_profile="auto"))
 
     return render_template(
         "jobs.html",
@@ -1486,6 +1491,8 @@ def jobs():
         filters=filters, clean_filters=clean_filters,
         cv_uploaded=cv_uploaded,
         prefs=prefs,
+        scoring_profiles=SCORING_PROFILES,
+        auto_profile=auto_profile,
     )
 
 
@@ -1824,6 +1831,10 @@ def api_save_preferences():
         updated["transferable_skills"] = [s.strip() for s in data["transferable_skills"] if s.strip()]
     if "industries" in data:
         updated["industries"] = [s.strip() for s in data["industries"] if s.strip()]
+    if "scoring_profile" in data:
+        from scoring_maps import SCORING_PROFILES
+        profile = (data["scoring_profile"] or "").strip()
+        updated["scoring_profile"] = profile if profile in SCORING_PROFILES else "auto"
     try:
         save_preferences(updated, user_id=uid)
     except Exception as e:

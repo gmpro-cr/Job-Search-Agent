@@ -246,17 +246,21 @@
           container.dataset.loaded = '1';
           return;
         }
-        // Bands must mirror scorer.deterministic_score.
-        const dims = [
-          ['Title Match', data.title || 0, 30, ''],
-          ['BFSI Fit', data.bfsi || 0, 20, data.bfsi_match || ''],
-          ['AI Fit', data.ai || 0, 20, data.ai_match || ''],
+        // Bands must mirror scorer.deterministic_score. The two differentiator
+        // bands come from the scoring profile (data.bands); breakdowns stored
+        // before profiles existed carry none and are BFSI + AI.
+        const bands = data.bands || [['bfsi', 'BFSI Fit', 20], ['ai', 'AI Fit', 20]];
+        const dims = [['Title Match', data.title || 0, 30, '']];
+        bands.forEach(function (b) {
+          dims.push([b[1], data[b[0]] || 0, b[2], data[b[0] + '_match'] || '']);
+        });
+        dims.push(
           ['CV Skills', data.cv_skills || 0, 20, ''],
           ['Location', data.location || 0, 10, ''],
-          ['Industry', data.domain || 0, 5, ''],
-        ];
+          ['Industry', data.domain || 0, 5, '']
+        );
         if (data.no_domain_penalty) {
-          dims.push(['No BFSI/AI', data.no_domain_penalty, 15, '']);
+          dims.push([data.penalty_label || 'No BFSI/AI', data.no_domain_penalty, 15, '']);
         }
         container.innerHTML = dims.map(function (d) {
           var label = d[0], val = d[1], max = d[2], evidence = d[3];

@@ -15,7 +15,8 @@ _TITLE_CLUSTERS = [
     {"credit analyst", "credit risk", "underwriting", "credit appraisal",
      "credit manager", "risk analyst"},
     {"business analyst", "ba", "business analysis"},
-    {"program manager", "programme manager", "project manager"},
+    {"program manager", "programme manager", "project manager",
+     "delivery manager", "project lead"},
     {"data analyst", "analytics", "business intelligence"},
 ]
 _SKILL_CLUSTERS = [
@@ -58,7 +59,76 @@ AI_TERMS = {
     "vector database", "computer vision", "mlops", "recommendation engine",
 }
 
-_DOMAIN_TABLES = {"bfsi": BFSI_TERMS, "ai": AI_TERMS}
+# Project / delivery management: how the work is run. Used by the
+# "project_delivery" scoring profile for candidates whose differentiator is
+# delivery craft rather than a business domain.
+DELIVERY_TERMS = {
+    "agile", "scrum", "kanban", "scaled agile", "scaled agile framework",
+    "sprint", "sprint planning", "backlog grooming", "backlog refinement",
+    "retrospectives", "waterfall", "sdlc", "release management",
+    "release planning", "jira", "confluence", "azure devops", "ms project",
+    "microsoft project", "scrum master", "agile coach", "agile transformation",
+    "project delivery", "delivery management", "program delivery",
+}
+
+# Project governance and certification vocabulary: the controls side of the job.
+GOVERNANCE_TERMS = {
+    "pmp", "prince2", "csm", "psm", "capm", "pmi-acp", "safe agilist", "pmo",
+    "project governance", "risk register", "raid", "raid log",
+    "budget management", "budgeting", "cost control", "resource planning",
+    "resource management", "capacity planning", "scope management",
+    "change control", "change management", "project plan", "project planning",
+    "project scheduling", "gantt", "milestones", "status reporting",
+    "steering committee", "statement of work", "vendor management",
+    "earned value", "dependency management", "critical path",
+}
+
+_DOMAIN_TABLES = {"bfsi": BFSI_TERMS, "ai": AI_TERMS,
+                  "delivery": DELIVERY_TERMS, "governance": GOVERNANCE_TERMS}
+
+# --- Scoring profiles ----------------------------------------------------------
+# A profile names the two differentiator bands scored for a candidate. Each
+# band is (key, label, domain table, cv_scoped). cv_scoped bands only credit
+# terms that also appear in the candidate's own CV, so the band rewards the
+# methods the candidate has actually used rather than any methodology at all
+# (agile appears in nearly every IT project-manager JD).
+SCORING_PROFILES = {
+    "bfsi_ai": {
+        "label": "BFSI + AI product",
+        "bands": (("bfsi", "BFSI Fit", "bfsi", False),
+                  ("ai", "AI Fit", "ai", False)),
+        "penalty_label": "No BFSI/AI",
+    },
+    "project_delivery": {
+        "label": "Project & delivery management",
+        "bands": (("delivery", "Delivery Methods", "delivery", True),
+                  ("governance", "PM Governance", "governance", True)),
+        "penalty_label": "No delivery signal",
+    },
+}
+DEFAULT_PROFILE = "bfsi_ai"
+
+# Terms too generic to tell profiles apart when reading a CV: a project
+# manager's CV says "risk management" and "portfolio management" about
+# projects, and IT-services CVs name banking clients.
+_DETECT_EXCLUDE = {
+    "risk management", "portfolio management", "change management", "credit",
+    "cards", "trading", "wealth", "loan", "loans", "bank", "banking",
+    "payments", "ai", "ml", "a.i.", "evals", "rag", "budgeting", "milestones",
+    "project plan", "project planning", "jira", "confluence",
+}
+
+
+def profile_signal_terms(profile):
+    """All terms whose presence in a CV points at `profile`, minus the
+    ambiguous ones in _DETECT_EXCLUDE."""
+    spec = SCORING_PROFILES.get(profile)
+    if not spec:
+        return set()
+    out = set()
+    for _key, _label, table, _scoped in spec["bands"]:
+        out |= _DOMAIN_TABLES.get(table, set())
+    return out - _DETECT_EXCLUDE
 
 _PATTERN_CACHE = {}
 
@@ -67,7 +137,7 @@ _SORTED_CACHE = {}
 
 
 def domain_terms(table):
-    """Return the flat term set for a domain band ('bfsi' or 'ai')."""
+    """Return the flat term set for a domain band (a _DOMAIN_TABLES key)."""
     return _DOMAIN_TABLES.get(table, set())
 
 

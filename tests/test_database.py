@@ -353,3 +353,31 @@ def test_funding_news_source_column_and_cross_source_dedup():
     assert insert_funding_bulk([
         {"startup": "Zappo", "amount": "$20M", "round": "Series A",
          "region": "India", "source": "ET", "source_url": "https://et.com/zappo-b"}]) == 1
+
+
+def test_scoring_stamp_written_without_touching_embedding():
+    from database import (init_db, get_or_create_user, save_user_cv_data,
+                          set_cv_embedding, get_cv_embedding, save_user_preferences,
+                          get_user_preferences, set_user_scoring_stamp)
+    import numpy as np
+    init_db()
+    uid = get_or_create_user("stamp@test.local", "X")
+    save_user_cv_data(uid, {"skills": ["a"]})
+    save_user_preferences(uid, {"job_titles": ["Project Manager"]})
+    set_cv_embedding(uid, np.array([1, 2, 3], dtype=np.float32))
+    assert set_user_scoring_stamp(uid, "v1:project_delivery") is True
+    prefs = get_user_preferences(uid)
+    assert prefs["_scored_with"] == "v1:project_delivery"
+    assert prefs["job_titles"] == ["Project Manager"]       # merged, not replaced
+    assert get_cv_embedding(uid) is not None                # bookkeeping only
+
+
+def test_scoring_stamp_skips_user_without_prefs():
+    """A prefs row holding only the stamp would read as saved-but-empty
+    preferences and hide DEFAULT_PREFS in the web app."""
+    from database import (init_db, get_or_create_user, get_user_preferences,
+                          set_user_scoring_stamp)
+    init_db()
+    uid = get_or_create_user("stamp-noprefs@test.local", "X")
+    assert set_user_scoring_stamp(uid, "v1:bfsi_ai") is False
+    assert get_user_preferences(uid) is None
