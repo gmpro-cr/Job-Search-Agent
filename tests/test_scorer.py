@@ -181,3 +181,102 @@ def test_seniority_no_longer_scored():
         _job("Director of Product", "15+ years required in banking"), CV, PREFS)
     assert "seniority_penalty" not in bd
     assert "experience" not in bd
+
+
+# --- Scoring profiles ---------------------------------------------------------
+from scorer import resolve_scoring_profile, scoring_stamp, SCORER_VERSION  # noqa: E402
+
+PM_PREFS = {"job_titles": ["Project Manager"], "locations": ["Pune", "Remote"],
+            "industries": [], "transferable_skills": ["Stakeholder Management"]}
+PM_CV = {
+    "skills": ["Agile", "Scrum", "JIRA", "Stakeholder Management", "PMP"],
+    "raw_text": ("Project Manager with 9 years delivering Agile/Scrum projects. "
+                 "PMP and CSM certified. Sprint planning, release management, "
+                 "RAID log, resource planning, MS Project. Delivered a core "
+                 "banking migration for a bank client."),
+}
+BFSI_AI_CV = {
+    "skills": ["Product Strategy", "LLM", "Credit Risk"],
+    "raw_text": ("Product manager, 9 years in credit risk, underwriting and "
+                 "lending at an NBFC. Shipped LLM products with RAG and prompt "
+                 "engineering; generative AI evals. Agile, Jira."),
+}
+
+
+def test_default_profile_when_cv_gives_no_signal():
+    assert resolve_scoring_profile(CV, PREFS) == "bfsi_ai"
+    assert resolve_scoring_profile({}, {}) == "bfsi_ai"
+
+
+def test_detects_project_delivery_cv():
+    """A banking client on a PM CV must not pull it into the BFSI profile."""
+    assert resolve_scoring_profile(PM_CV, PM_PREFS) == "project_delivery"
+
+
+def test_detects_bfsi_ai_cv_despite_agile_mentions():
+    assert resolve_scoring_profile(BFSI_AI_CV, PREFS) == "bfsi_ai"
+
+
+def test_explicit_profile_overrides_detection():
+    assert resolve_scoring_profile(
+        PM_CV, dict(PM_PREFS, scoring_profile="bfsi_ai")) == "bfsi_ai"
+    assert resolve_scoring_profile(
+        BFSI_AI_CV, dict(PREFS, scoring_profile="project_delivery")) == "project_delivery"
+    # Unknown / "auto" fall back to detection.
+    assert resolve_scoring_profile(
+        PM_CV, dict(PM_PREFS, scoring_profile="auto")) == "project_delivery"
+
+
+def test_project_manager_role_scores_well_on_delivery_profile():
+    """The regression this fixes: a typical IT project-manager JD capped at ~50
+    under the BFSI/AI bands, below a routine's min_score, so Purva's routine
+    emailed nothing."""
+    job = _job("Senior Project Manager",
+               "Experience in Agile/Scrum delivery required. PMP preferred. "
+               "Own sprint planning, RAID log and stakeholder management.",
+               loc="Pune")
+    s, bd = deterministic_score(job, PM_CV, PM_PREFS)
+    assert bd["profile"] == "project_delivery"
+    assert bd["delivery"] == 20 and bd["governance"] > 0
+    assert bd["no_domain_penalty"] == 0
+    assert "bfsi" not in bd and "ai" not in bd
+    assert s >= 70
+    bfsi_s, _ = deterministic_score(job, PM_CV, dict(PM_PREFS, scoring_profile="bfsi_ai"))
+    assert bfsi_s < 55 <= s
+
+
+def test_non_it_project_manager_is_demoted():
+    """A construction PM role carries no delivery-method signal."""
+    s, bd = deterministic_score(
+        _job("Project Manager", "Manage site engineers and civil contractors.",
+             loc="Pune"), PM_CV, PM_PREFS)
+    assert bd["delivery"] == 0 and bd["governance"] == 0
+    assert bd["no_domain_penalty"] == -15
+    assert s < 55
+
+
+def test_delivery_band_only_credits_methods_on_the_cv():
+    """cv_scoped: a Kanban-only JD earns nothing for a CV that never used Kanban."""
+    s, bd = deterministic_score(
+        _job("Project Manager", "Kanban experience required."), PM_CV, PM_PREFS)
+    assert bd["delivery"] == 0
+
+
+def test_cv_scoped_band_falls_back_to_full_table_for_thin_cv():
+    thin = {"skills": ["x"], "raw_text": ""}
+    s, bd = deterministic_score(
+        _job("Project Manager", "Kanban experience required."),
+        thin, dict(PM_PREFS, scoring_profile="project_delivery"))
+    assert bd["delivery"] == 20
+
+
+def test_breakdown_describes_profile_bands():
+    _, bd = deterministic_score(_job("Product Manager"), CV, PREFS)
+    assert bd["profile"] == "bfsi_ai"
+    assert [b[0] for b in bd["bands"]] == ["bfsi", "ai"]
+    assert bd["penalty_label"] == "No BFSI/AI"
+
+
+def test_scoring_stamp_tracks_version_and_profile():
+    assert scoring_stamp(PM_CV, PM_PREFS) == f"{SCORER_VERSION}:project_delivery"
+    assert scoring_stamp(CV, PREFS) == f"{SCORER_VERSION}:bfsi_ai"
