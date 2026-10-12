@@ -319,6 +319,11 @@ Sidebar:
   `requirements-scraper.txt`.
 - Push directly to `main` with `--force` — Vercel will deploy
   whatever you push, including broken state.
+- Run tests against Neon. Test fixtures `DELETE FROM` real tables
+  (`tests/test_routine_runner.py`), and in Sept 2026 a run with the
+  production `DATABASE_URL` in `.env` wiped every saved routine and all
+  `user_job_state`. `tests/conftest.py` now blanks `DATABASE_URL` and aborts
+  if Postgres is selected — don't remove it.
 
 ---
 
