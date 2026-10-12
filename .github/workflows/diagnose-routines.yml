@@ -1,0 +1,29 @@
+name: Diagnose Routines
+
+# Read-only funnel report for saved routines (scripts/diagnose_routines.py).
+# Prints counts and filters only — no recipient addresses or CV text.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/busy-allen-p8k48f]
+    paths:
+      - scripts/diagnose_routines.py
+      - .github/workflows/diagnose-routines.yml
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Routine funnel
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m scripts.diagnose_routines
