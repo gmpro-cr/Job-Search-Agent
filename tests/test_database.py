@@ -381,3 +381,42 @@ def test_scoring_stamp_skips_user_without_prefs():
     uid = get_or_create_user("stamp-noprefs@test.local", "X")
     assert set_user_scoring_stamp(uid, "v1:bfsi_ai") is False
     assert get_user_preferences(uid) is None
+
+
+def test_outcome_snapshot_survives_retention_and_keeps_max_stage():
+    from datetime import timedelta
+    from database import (init_db, get_or_create_user, update_applied_status_user,
+                          hide_job_user, get_outcome_examples, delete_old_jobs)
+    init_db()
+    uid = get_or_create_user("outcomes@test.local", "O")
+    old = (datetime.now() - timedelta(days=30)).isoformat()
+    conn = get_connection()
+    cur = conn.cursor()
+    for jid in ("oc-1", "oc-2", "oc-3"):
+        cur.execute("INSERT INTO job_listings (job_id, portal, company, role, job_description, date_found) "
+                    "VALUES (?, 'naukri', 'Acme', 'Product Manager', 'Lending.', ?)",
+                    (jid, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+
+    update_applied_status_user(uid, "oc-1", 1)
+    update_applied_status_user(uid, "oc-1", 4)          # interview
+    update_applied_status_user(uid, "oc-1", 6)          # ...then rejected
+    hide_job_user(uid, "oc-2")
+    update_applied_status_user(uid, "oc-3", 2)
+    update_applied_status_user(uid, "oc-3", 0)          # reset = mis-click, dropped
+
+    # Age the jobs so the retention sweep purges them.
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE job_listings SET date_found = ? WHERE job_id LIKE 'oc-%'", (old,))
+    conn.commit()
+    conn.close()
+    delete_old_jobs(days=7)
+
+    ex = {e["job_id"]: e for e in get_outcome_examples(uid)}
+    assert set(ex) == {"oc-1", "oc-2"}
+    assert ex["oc-1"]["status"] == 6 and ex["oc-1"]["max_status"] == 4
+    assert ex["oc-1"]["applied_date"]
+    assert ex["oc-1"]["job"]["role"] == "Product Manager"
+    assert ex["oc-2"]["hidden"] == 1

@@ -1835,6 +1835,15 @@ def api_save_preferences():
         from scoring_maps import SCORING_PROFILES
         profile = (data["scoring_profile"] or "").strip()
         updated["scoring_profile"] = profile if profile in SCORING_PROFILES else "auto"
+    if "target_companies" in data:
+        updated["target_companies"] = [c.strip() for c in data["target_companies"] or []
+                                       if c and c.strip()]
+    if "years_experience" in data:
+        try:
+            years = int(data["years_experience"])
+            updated["years_experience"] = years if 0 < years <= 40 else None
+        except (TypeError, ValueError):
+            updated["years_experience"] = None
     try:
         save_preferences(updated, user_id=uid)
     except Exception as e:
@@ -2709,6 +2718,12 @@ def _schedule_rescore(cv_data, preferences, user_id):
     return 0
 
 
+# job_listings fields the scorer reads (fit rules need portal / poster_email /
+# experience_min on top of the text fields).
+_SCORING_COLS = ("job_id, role, company, location, job_description, remote_status, "
+                 "portal, poster_email, experience_min, experience_max")
+
+
 def _rescore_all_jobs(cv_data, user_id: int = None, preferences: dict = None,
                       limit: int = None):
     """Score jobs in the DB against cv_data + preferences and persist
@@ -2736,15 +2751,11 @@ def _rescore_all_jobs(cv_data, user_id: int = None, preferences: dict = None,
     cursor = conn.cursor()
     if limit:
         cursor.execute(
-            "SELECT job_id, role, company, location, job_description, remote_status "
-            "FROM job_listings ORDER BY date_found DESC LIMIT ?",
+            f"SELECT {_SCORING_COLS} FROM job_listings ORDER BY date_found DESC LIMIT ?",
             (int(limit),),
         )
     else:
-        cursor.execute(
-            "SELECT job_id, role, company, location, job_description, remote_status "
-            "FROM job_listings"
-        )
+        cursor.execute(f"SELECT {_SCORING_COLS} FROM job_listings")
     jobs = [dict(r) for r in cursor.fetchall()]
     conn.close()
 
@@ -2752,7 +2763,10 @@ def _rescore_all_jobs(cv_data, user_id: int = None, preferences: dict = None,
         return 0
 
     if user_id:
-        scores = {job["job_id"]: cv_score(job, cv_data, preferences) for job in jobs}
+        from database import load_outcome_model
+        model = load_outcome_model(user_id, cv_data, preferences)
+        scores = {job["job_id"]: cv_score(job, cv_data, preferences, outcome_model=model)
+                  for job in jobs}
         bulk_set_user_cv_scores(user_id, scores)
         logger.info("Re-scored %d jobs against CV+prefs for user %s", len(jobs), user_id)
         return len(jobs)
@@ -2829,7 +2843,10 @@ def _score_unscored_for_user(user_id: int, limit: int = 200) -> int:
     if not jobs:
         return 0
     preferences = load_preferences(user_id) or {}
-    scores = {j["job_id"]: cv_score(j, cv_data, preferences) for j in jobs}
+    from database import load_outcome_model
+    model = load_outcome_model(user_id, cv_data, preferences)
+    scores = {j["job_id"]: cv_score(j, cv_data, preferences, outcome_model=model)
+              for j in jobs}
     bulk_set_user_cv_scores(user_id, scores)
     logger.info("Lazy-scored %d new jobs for user %s", len(jobs), user_id)
     return len(jobs)
@@ -3168,6 +3185,20 @@ def gap_analysis(job_id):
     job = dict(row)
     result = compute_gap_analysis(job, cv_data)
     return jsonify({"ok": True, **result})
+
+
+@app.route("/api/scoring/insights")
+def scoring_insights_api():
+    """What the user's outcome model has learned so far: example counts,
+    base rates and the features that help / hurt most."""
+    uid = require_user_id()
+    from database import load_outcome_model
+    cv_data = load_cv_data(uid) or {}
+    model = load_outcome_model(uid, cv_data, load_preferences(uid) or {})
+    if model is None:
+        return jsonify({"ok": False, "error": "Outcome model unavailable"}), 500
+    return jsonify({"ok": True, "fingerprint": model.fingerprint,
+                    "insights": model.insights()})
 
 
 @app.route("/api/jobs/<job_id>/score-breakdown")
