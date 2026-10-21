@@ -23,6 +23,11 @@ The deployment plan + history of decisions lives in the user memory
 file `job_search_agent_deployment.md`. Read it for context on *why*
 something looks the way it does.
 
+**Who the primary user is and what he's looking for** (profile, target
+roles/companies, fit rules, outreach style) lives in
+[`docs/CANDIDATE_CONTEXT.md`](docs/CANDIDATE_CONTEXT.md). Read it before
+touching scoring, matching, or outreach drafting.
+
 ---
 
 ## Architecture in 30 seconds
