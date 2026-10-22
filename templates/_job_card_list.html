@@ -262,8 +262,17 @@
         if (data.no_domain_penalty) {
           dims.push([data.penalty_label || 'No BFSI/AI', data.no_domain_penalty, 15, '']);
         }
+        // Fit rules and learned track-record lines: [key, label, points, evidence].
+        (data.adjustments || []).forEach(function (a) {
+          dims.push([a[1], a[2], 20, a[3] || '']);
+        });
+        var esc = function (t) {
+          return String(t).replace(/[&<>"']/g, function (c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+          });
+        };
         container.innerHTML = dims.map(function (d) {
-          var label = d[0], val = d[1], max = d[2], evidence = d[3];
+          var label = esc(d[0]), val = d[1], max = d[2], evidence = esc(d[3]);
           var pct = max ? Math.min(100, Math.round(Math.abs(val) / max * 100)) : 0;
           var barColor = val < 0 ? 'bg-red-400' : 'bg-gray-700';
           var title = evidence ? ' title="matched: ' + evidence + '"' : '';

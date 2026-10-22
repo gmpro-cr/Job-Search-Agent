@@ -722,7 +722,7 @@ Respond with ONLY a JSON array of strings, like: ["point 1", "point 2", ...]"""
 
 
 def analyze_jobs(jobs, preferences, config, progress_callback=None, cv_data=None,
-                 profile_vec=None):
+                 profile_vec=None, outcome_model=None):
     """
     Analyze and score all jobs with the deterministic + embedding scorer
     (scorer.score_job) — no LLM. CV data drives scoring for accuracy.
@@ -762,10 +762,17 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None, cv_data=None
             job.get("location", ""),
         ])
 
+        # Experience range first: the scorer's experience-floor rule reads it.
+        exp_text = " ".join([job.get("role", ""), job.get("job_description", "")])
+        exp_min, exp_max = extract_experience_years(exp_text)
+        job["experience_min"] = exp_min
+        job["experience_max"] = exp_max
+
         # Deterministic + (optional) semantic scoring — no LLM, no quota.
         score, breakdown = scorer.score_job(
             job, cv_data, preferences,
             job_vec=job.get("_vec"), profile_vec=profile_vec,
+            outcome_model=outcome_model,
         )
         job["relevance_score"] = score
         job["score_breakdown"] = json.dumps(breakdown)
@@ -775,12 +782,6 @@ def analyze_jobs(jobs, preferences, config, progress_callback=None, cv_data=None
         # Extract skills and generate email for all jobs
         job["skills"] = extract_skills(job.get("job_description", ""))
         job["application_email"] = generate_application_email(job, preferences)
-
-        # Extract experience range
-        exp_text = " ".join([job.get("role", ""), job.get("job_description", "")])
-        exp_min, exp_max = extract_experience_years(exp_text)
-        job["experience_min"] = exp_min
-        job["experience_max"] = exp_max
 
         # Parse salary to annual INR
         salary_min, salary_max = parse_salary_to_annual_inr(
@@ -1704,19 +1705,21 @@ def save_cv_data(cv_data, user_id: int = None):
         json.dump(cv_data, f, indent=2)
 
 
-def cv_score(job, cv_data, preferences=None, job_vec=None, profile_vec=None):
+def cv_score(job, cv_data, preferences=None, job_vec=None, profile_vec=None,
+             outcome_model=None):
     """
     Score a job 0-100 against the user's CV + preferences.
 
     Thin wrapper over the unified scorer.score_job (deterministic + optional
-    embedding semantic component). When job_vec and profile_vec are both
-    provided the semantic component is blended in; otherwise the score is
-    deterministic-only. Returns int 0-100.
+    embedding semantic component + optional learned outcome model). When
+    job_vec and profile_vec are both provided the semantic component is
+    blended in; otherwise the score is deterministic-only. Returns int 0-100.
     """
     if not cv_data:
         return 0
     return scorer.score_job(job, cv_data, preferences or {},
-                            job_vec=job_vec, profile_vec=profile_vec)[0]
+                            job_vec=job_vec, profile_vec=profile_vec,
+                            outcome_model=outcome_model)[0]
 
 
 def _preference_boost(job, jd_text_lower, preferences):

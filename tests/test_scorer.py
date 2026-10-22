@@ -280,3 +280,138 @@ def test_breakdown_describes_profile_bands():
 def test_scoring_stamp_tracks_version_and_profile():
     assert scoring_stamp(PM_CV, PM_PREFS) == f"{SCORER_VERSION}:project_delivery"
     assert scoring_stamp(CV, PREFS) == f"{SCORER_VERSION}:bfsi_ai"
+
+
+# --- Fit rules (docs/CANDIDATE_CONTEXT.md) -------------------------------------
+
+FIT_CV = {"raw_text": "AVP Relationship Manager. 9 years in corporate credit.",
+          "skills": ["Credit Appraisal", "Stakeholder Management"]}
+FIT_PREFS = {"job_titles": ["Product Manager", "Relationship Manager"],
+             "locations": ["Pune", "Remote"], "scoring_profile": "bfsi_ai"}
+
+
+def _fit(role, jd="", loc="Pune", remote="hybrid", **kw):
+    job = dict(_job(role, jd, loc=loc, remote=remote), **kw)
+    _s, bd = deterministic_score(job, FIT_CV, FIT_PREFS)
+    return {a[0]: a[2] for a in bd["adjustments"]}, bd
+
+
+def test_credit_moat_and_ai_x_bfsi_boost():
+    adj, bd = _fit("Product Manager",
+                   "Build LLM credit underwriting. Experience in lending required. "
+                   "Working capital and DSCR.")
+    assert adj["moat"] == 10                      # 3+ moat terms, capped
+    assert adj["ai_x_bfsi"] == 5
+    assert bd["fit"] == 15
+
+
+def test_target_company_default_list_and_override():
+    adj, _ = _fit("Product Manager", "Fintech lending.", company="Perfios")
+    assert adj.get("target_company") == 10
+    prefs = dict(FIT_PREFS, target_companies=["Acme"])
+    _s, bd = deterministic_score(dict(_job("Product Manager"), company="Perfios"), FIT_CV, prefs)
+    assert "target_company" not in {a[0] for a in bd["adjustments"]}
+
+
+def test_too_senior_title_product_track_only():
+    adj, bd = _fit("Director of Product")
+    assert adj["seniority"] == -12 and bd["track"] == "product"
+    adj, _ = _fit("VP Product")
+    assert adj["seniority"] == -12
+    # VP / AVP are ordinary banking grades.
+    adj, bd = _fit("AVP - Relationship Manager")
+    assert "seniority" not in adj and bd["track"] == "banking"
+
+
+def test_experience_floor_uses_cv_years():
+    adj, _ = _fit("Product Manager", experience_min=13)
+    assert adj["exp_floor"] == -10
+    adj, _ = _fit("Product Manager", experience_min=10)
+    assert "exp_floor" not in adj
+
+
+def test_experience_floor_off_without_candidate_years():
+    job = dict(_job("Product Manager"), experience_min=20)
+    _s, bd = deterministic_score(job, {"skills": []}, FIT_PREFS)
+    assert "exp_floor" not in {a[0] for a in bd["adjustments"]}
+
+
+def test_pm_tenure_requirement_penalised():
+    adj, _ = _fit("Product Manager", "7+ years of product management experience.")
+    assert adj["pm_tenure"] == -8
+    adj, _ = _fit("Product Manager", "2+ years of product management experience.")
+    assert "pm_tenure" not in adj
+
+
+def test_engineering_role_gets_no_boosts():
+    adj, _ = _fit("Machine Learning Engineer",
+                  "Credit scoring. Experience in lending required. LLM.", company="Lendingkart")
+    assert adj == {"engineering": -20}
+
+
+def test_retail_mortgage_mismatch():
+    adj, _ = _fit("Credit Risk Analyst - Home Loans")
+    assert adj["domain_mismatch"] == -10
+    adj, _ = _fit("Product Manager", "Mortgage underwriting experience required.")
+    assert adj["domain_mismatch"] == -10
+    adj, _ = _fit("Product Manager", "We also offer mortgages to customers.")
+    assert "domain_mismatch" not in adj
+
+
+def test_bank_employer_on_product_track_only():
+    adj, _ = _fit("Product Manager", company="HDFC Bank")
+    assert adj["bank_employer"] == -8
+    adj, _ = _fit("Relationship Manager", company="HDFC Bank")
+    assert "bank_employer" not in adj
+
+
+def test_relocation_penalty():
+    adj, _ = _fit("Product Manager", loc="Delhi", remote="on-site")
+    assert adj["relocation"] == -10
+    adj, _ = _fit("Product Manager", loc="Delhi", remote="remote")
+    assert "relocation" not in adj
+    adj, _ = _fit("Product Manager", loc="Pune", remote="on-site")
+    assert "relocation" not in adj
+
+
+def test_red_flags():
+    adj, _ = _fit("Product Manager", poster_email="hr.jobs@gmail.com")
+    assert adj["red_flag"] == -15
+    adj, _ = _fit("Product Manager", "A registration fee is applicable.")
+    assert adj["red_flag"] == -15
+
+
+def test_fit_is_clamped():
+    adj, bd = _fit("Head of Machine Learning Engineer", "15+ years of product management.",
+                   loc="Delhi", remote="on-site", experience_min=15,
+                   poster_email="x@gmail.com")
+    assert sum(adj.values()) < -30 and bd["fit"] == -30
+
+
+def test_project_delivery_profile_skips_candidate_rules():
+    prefs = dict(FIT_PREFS, scoring_profile="project_delivery")
+    job = dict(_job("Director, Project Management", loc="Delhi", remote="on-site"),
+               company="HDFC Bank", experience_min=20)
+    _s, bd = deterministic_score(job, FIT_CV, prefs)
+    assert bd["adjustments"] == []
+
+
+def test_score_job_appends_outcome_lines():
+    class Model:
+        def adjust(self, job, bd):
+            return [["conversion", "Your outcomes", 7, "like x"]]
+    job = _job("Product Manager", "Fintech lending.")
+    base, _ = score_job(job, FIT_CV, FIT_PREFS)
+    s, bd = score_job(job, FIT_CV, FIT_PREFS, outcome_model=Model())
+    assert s == min(100, base + 7) and bd["learned"] == 7
+    assert bd["adjustments"][-1][0] == "conversion"
+
+
+def test_scoring_stamp_includes_outcome_fingerprint():
+    from scorer import scoring_stamp
+    class Model:
+        fingerprint = "abc123"
+    base = scoring_stamp(FIT_CV, FIT_PREFS)
+    assert scoring_stamp(FIT_CV, FIT_PREFS, Model()) == base + ":abc123"
+    Model.fingerprint = ""
+    assert scoring_stamp(FIT_CV, FIT_PREFS, Model()) == base

@@ -74,6 +74,8 @@ Vercel Blob or `<DATA_DIR>/blob_local/`** — picked from
 | `main.py` | CLI scraper / shared `load_preferences` + `save_preferences` (session-aware). |
 | `analyzer.py` | CV parsing, gap analysis, `load_cv_data` / `save_cv_data` (session-aware). |
 | `reminder_runner.py` | Reminder load/save (session-aware) + cross-user `run_reminders`. |
+| `scorer.py` / `scoring_maps.py` | Job scoring: bands + per-profile fit rules (see `docs/plans/2026-10-21-conversion-scoring-design.md`). |
+| `outcome_model.py` | Per-user learned "track record" from `user_outcome_examples` (survives the 7-day sweep). |
 | `scrapers.py` | Per-portal scrapers. Lazy-imports `selenium`. |
 | `scrape_and_push.py` | GitHub Actions entrypoint. |
 | `blob_storage.py` | Vercel Blob client + FS fallback. |

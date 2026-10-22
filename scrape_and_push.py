@@ -173,9 +173,16 @@ def main():
         except Exception as e:
             logger.warning("set_cv_embedding failed: %s", e)
 
+    # The owner's learned outcome model (no-op until they have outcomes).
+    owner_model = None
+    if owner_user_id is not None:
+        from database import load_outcome_model
+        owner_model = load_outcome_model(owner_user_id, owner_cv, owner_prefs)
+
     logger.info("Analyzing and scoring jobs...")
     qualified_jobs, all_analyzed = analyze_jobs(
-        all_jobs, owner_prefs, config, cv_data=owner_cv, profile_vec=profile_vec)
+        all_jobs, owner_prefs, config, cv_data=owner_cv, profile_vec=profile_vec,
+        outcome_model=owner_model)
     logger.info("Analyzed %d jobs, %d qualified", len(all_analyzed), len(qualified_jobs))
 
     # --- Phase 3: Generate IDs ---
@@ -313,11 +320,12 @@ def main():
     # --- Phase 7b: Score new jobs for every user (incremental) ---
     # Only scores jobs the user hasn't seen yet — ~150 new jobs per run,
     # not the full 6k. Takes ~0.1s per user regardless of DB size.
-    # Exception: when the scorer version or the user's scoring profile changed
-    # since their last full rebuild, every stored score is on the wrong scale,
-    # so that user gets one full rescore and a new stamp.
+    # Exception: when the scorer version, the user's scoring profile or their
+    # learned outcome model changed since their last full rebuild, every
+    # stored score is stale, so that user gets one full rescore and a new stamp.
     try:
         from analyzer import cv_score as _cv_score
+        from database import load_outcome_model
         from scorer import scoring_stamp as _scoring_stamp
         all_users = get_all_users_with_cv_data()
         logger.info("Scoring new jobs for %d users", len(all_users))
@@ -325,14 +333,16 @@ def main():
             _uid  = _u["user_id"]
             _cv   = _u["cv_data"]
             _pref = _u["prefs"]
-            _stamp = _scoring_stamp(_cv, _pref)
+            _model = load_outcome_model(_uid, _cv, _pref)
+            _stamp = _scoring_stamp(_cv, _pref, _model)
             if _pref and _pref.get("_scored_with") != _stamp:
                 # Isolated so one user's failure doesn't stop everyone else's
                 # scoring; the stamp stays unset, so it retries next run.
                 try:
                     _all = get_all_jobs_for_scoring()
                     bulk_set_user_cv_scores(
-                        _uid, {j["job_id"]: _cv_score(j, _cv, _pref) for j in _all})
+                        _uid, {j["job_id"]: _cv_score(j, _cv, _pref, outcome_model=_model)
+                               for j in _all})
                     set_user_scoring_stamp(_uid, _stamp)
                     logger.info("  User %d: full rescore of %d jobs (%s)",
                                 _uid, len(_all), _stamp)
@@ -342,7 +352,8 @@ def main():
             _unscored = get_unscored_jobs_for_user(_uid, limit=500)
             if not _unscored:
                 continue
-            _scores = {j["job_id"]: _cv_score(j, _cv, _pref) for j in _unscored}
+            _scores = {j["job_id"]: _cv_score(j, _cv, _pref, outcome_model=_model)
+                       for j in _unscored}
             bulk_set_user_cv_scores(_uid, _scores)
             logger.info("  User %d: scored %d new jobs", _uid, len(_scores))
     except Exception as e:

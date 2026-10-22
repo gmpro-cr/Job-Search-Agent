@@ -443,6 +443,25 @@ def init_db():
     _add_columns_idempotent(conn, cursor, "job_listings", [f"embedding {_BLOB_TYPE}"])
     _add_columns_idempotent(conn, cursor, "user_cv_data", [f"cv_embedding {_BLOB_TYPE}"])
 
+    # Outcome examples for the per-user outcome model (outcome_model.py).
+    # A snapshot of each job a user engaged with, kept independently of
+    # job_listings so the 7-day retention sweep does not erase the user's
+    # application history. max_status remembers the furthest stage reached
+    # (phone screen 3 / interview 4 / offer 5) even after a later rejection.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_outcome_examples (
+            user_id       INTEGER NOT NULL,
+            job_id        TEXT    NOT NULL,
+            status        INTEGER DEFAULT 0,
+            max_status    INTEGER DEFAULT 0,
+            hidden        INTEGER DEFAULT 0,
+            applied_date  TEXT,
+            job_json      TEXT,
+            updated_at    TEXT,
+            PRIMARY KEY (user_id, job_id)
+        )
+    """)
+
     conn.commit()
     conn.close()
     logger.info("Database initialized at %s", DB_PATH)
@@ -1539,6 +1558,11 @@ def delete_old_jobs(days: int = 7) -> dict:
     Returns: dict with rowcount per table — {"jobs", "user_state", "outreach"}.
     """
     cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+    # Keep the outcome history of jobs about to be purged (outcome model).
+    try:
+        snapshot_outcomes(before=cutoff)
+    except Exception as e:
+        logger.warning("delete_old_jobs: outcome snapshot failed: %s", e)
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -2258,6 +2282,7 @@ def update_applied_status_user(user_id: int, job_id: str, status: int,
     if status == 6 and rejection_reason is not None:
         fields["rejection_reason"] = rejection_reason
     upsert_user_job_state(user_id, job_id, **fields)
+    _snapshot_outcome_safe(user_id, job_id)
 
 
 def update_job_notes_user(user_id: int, job_id: str, notes: str) -> None:
@@ -2266,6 +2291,134 @@ def update_job_notes_user(user_id: int, job_id: str, notes: str) -> None:
 
 def hide_job_user(user_id: int, job_id: str, hidden: bool = True) -> None:
     upsert_user_job_state(user_id, job_id, hidden=1 if hidden else 0)
+    _snapshot_outcome_safe(user_id, job_id)
+
+
+# ---------------------------------------------------------------------------
+# user_outcome_examples (outcome_model.py)
+# ---------------------------------------------------------------------------
+
+# Job fields the outcome model re-scores a snapshot with.
+_OUTCOME_JOB_COLS = ("role", "company", "location", "job_description",
+                     "remote_status", "portal", "poster_email",
+                     "experience_min", "experience_max")
+_OUTCOME_JD_CHARS = 6000
+
+_OUTCOME_UPSERT = """
+    INSERT INTO user_outcome_examples
+        (user_id, job_id, status, max_status, hidden, applied_date, job_json, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT (user_id, job_id) DO UPDATE SET
+        status       = EXCLUDED.status,
+        max_status   = CASE WHEN EXCLUDED.max_status > user_outcome_examples.max_status
+                            THEN EXCLUDED.max_status
+                            ELSE user_outcome_examples.max_status END,
+        hidden       = EXCLUDED.hidden,
+        applied_date = COALESCE(EXCLUDED.applied_date, user_outcome_examples.applied_date),
+        job_json     = EXCLUDED.job_json,
+        updated_at   = EXCLUDED.updated_at
+"""
+
+
+def _outcome_select(where):
+    cols = ", ".join(f"j.{c}" for c in _OUTCOME_JOB_COLS)
+    return (
+        "SELECT s.user_id, s.job_id, s.applied_status, s.hidden, s.applied_date, "
+        f"{cols} FROM user_job_state s JOIN job_listings j ON j.job_id = s.job_id "
+        "WHERE (COALESCE(s.applied_status, 0) > 0 OR COALESCE(s.hidden, 0) = 1) "
+        + where
+    )
+
+
+def _outcome_params(row, now):
+    status = int(row["applied_status"] or 0)
+    job = {c: row[c] for c in _OUTCOME_JOB_COLS}
+    job["job_description"] = (job.get("job_description") or "")[:_OUTCOME_JD_CHARS]
+    return (row["user_id"], row["job_id"], status,
+            status if status in (3, 4, 5) else 0,
+            1 if row["hidden"] else 0, row["applied_date"],
+            _json.dumps(job, default=str), now)
+
+
+def snapshot_outcome(user_id: int, job_id: str) -> None:
+    """Sync one job's outcome example with its current user_job_state. A job
+    the user has reset to New (status 0, not hidden) is dropped as a
+    mis-click rather than kept as a label."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(_outcome_select("AND s.user_id = ? AND s.job_id = ?"),
+                   (user_id, job_id))
+    row = cursor.fetchone()
+    if row:
+        cursor.execute(_OUTCOME_UPSERT, _outcome_params(row, datetime.now().isoformat()))
+    else:
+        cursor.execute("DELETE FROM user_outcome_examples WHERE user_id = ? AND job_id = ?",
+                       (user_id, job_id))
+    conn.commit()
+    conn.close()
+
+
+def _snapshot_outcome_safe(user_id, job_id):
+    # Status updates must never fail because of the learning side-table.
+    try:
+        snapshot_outcome(user_id, job_id)
+    except Exception as e:
+        logger.warning("snapshot_outcome(%s, %s) failed: %s", user_id, job_id, e)
+
+
+def snapshot_outcomes(before: str = None) -> int:
+    """Bulk-sync outcome examples from user_job_state, for every user. With
+    `before`, only jobs whose date_found is older than it (the retention
+    sweep's victims). Returns the number of examples written."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    if before:
+        cursor.execute(_outcome_select("AND j.date_found < ?"), (before,))
+    else:
+        cursor.execute(_outcome_select(""))
+    now = datetime.now().isoformat()
+    rows = [_outcome_params(r, now) for r in cursor.fetchall()]
+    if rows:
+        cursor.executemany(_OUTCOME_UPSERT, rows)
+    conn.commit()
+    conn.close()
+    return len(rows)
+
+
+def get_outcome_examples(user_id: int) -> list[dict]:
+    """A user's outcome examples, each with the job snapshot under 'job'."""
+    if not user_id:
+        return []
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT job_id, status, max_status, hidden, applied_date, job_json, updated_at "
+        "FROM user_outcome_examples WHERE user_id = ?",
+        (user_id,),
+    )
+    out = []
+    for r in cursor.fetchall():
+        ex = dict(r)
+        try:
+            ex["job"] = _json.loads(ex.pop("job_json") or "{}")
+        except ValueError:
+            ex["job"] = {}
+        out.append(ex)
+    conn.close()
+    return out
+
+
+def load_outcome_model(user_id: int, cv_data: dict, preferences: dict):
+    """Build the user's OutcomeModel, or None when it cannot be loaded (the
+    scorer then runs without the learned lines)."""
+    if not user_id:
+        return None
+    try:
+        import outcome_model
+        return outcome_model.build(get_outcome_examples(user_id), cv_data, preferences)
+    except Exception as e:
+        logger.warning("load_outcome_model(%s) failed: %s", user_id, e)
+        return None
 
 
 def mark_job_viewed(user_id: int, job_id: str) -> None:
@@ -2304,7 +2457,8 @@ def get_unscored_jobs_for_user(user_id: int, limit: int = 200) -> list[dict]:
     cursor.execute(
         """
         SELECT j.job_id, j.role, j.company, j.location, j.job_description,
-               j.remote_status, j.date_found
+               j.remote_status, j.date_found, j.portal, j.poster_email,
+               j.experience_min, j.experience_max
         FROM job_listings j
         LEFT JOIN user_job_state s
           ON s.job_id = j.job_id AND s.user_id = ?
@@ -2325,7 +2479,8 @@ def get_all_jobs_for_scoring() -> list[dict]:
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT job_id, role, company, location, job_description, remote_status "
+        "SELECT job_id, role, company, location, job_description, remote_status, "
+        "portal, poster_email, experience_min, experience_max "
         "FROM job_listings"
     )
     rows = [dict(r) for r in cursor.fetchall()]

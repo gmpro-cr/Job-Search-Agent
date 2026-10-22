@@ -86,6 +86,85 @@ GOVERNANCE_TERMS = {
 _DOMAIN_TABLES = {"bfsi": BFSI_TERMS, "ai": AI_TERMS,
                   "delivery": DELIVERY_TERMS, "governance": GOVERNANCE_TERMS}
 
+# --- Fit-rule vocabularies (scorer._fit_adjustments) ---------------------------
+# See docs/CANDIDATE_CONTEXT.md and docs/plans/2026-10-21-conversion-scoring-design.md.
+
+# Indian corporate-credit depth: the workflows only an insider has run. A JD
+# that names these is asking for exactly the candidate's moat, which BFSI_TERMS
+# ("bank", "payments", ...) cannot tell apart from a generic fintech mention.
+CREDIT_MOAT_TERMS = {
+    "credit appraisal", "credit appraisal memo", "cam", "mpbf", "dscr",
+    "drawing power", "sma-0", "npa", "asset reconstruction", "covenant",
+    "covenant monitoring", "funds transfer pricing", "ftp pricing",
+    "working capital", "underwriting", "credit underwriting",
+    "credit decisioning", "risk decisioning", "decisioning", "loan origination",
+    "collections", "kyc", "aml", "co-lending", "credit bureau", "credit policy",
+    "credit scoring", "msme lending", "sme lending", "supply chain finance",
+    "treds", "invoice discounting", "trade finance",
+}
+
+# Conversational / voice AI vocabulary; with a BFSI signal it is the Vaani lane.
+VOICE_AI_TERMS = {
+    "conversational ai", "voice ai", "voice agent", "voice bot", "voicebot",
+    "voice banking", "speech-to-text", "speech to text", "text-to-speech",
+    "speech recognition", "ivr", "chatbot", "virtual assistant",
+}
+
+# Retail-mortgage / consumer-risk work: banking, but the wrong side of it.
+DOMAIN_MISMATCH_TERMS = {
+    "mortgage", "mortgages", "home loan", "home loans", "housing finance",
+    "consumer risk", "retail risk", "retail credit risk", "consumer credit risk",
+}
+
+# Titles on the banking track (relationship / credit roles). Everything else
+# a bfsi_ai candidate scores is treated as the product track.
+BANKING_TRACK_TITLE_RE = re.compile(
+    r"\b(relationship manager|credit manager|credit analyst|credit officer|"
+    r"underwriter|credit risk manager|credit risk analyst|rm)\b", re.I)
+
+# Very senior titles. VP / AVP are ordinary banking grades (the candidate is an
+# AVP), so they only count against the product track.
+SENIOR_TITLE_RE = re.compile(r"\b(director|head|chief|cxo|cpo|cto)\b", re.I)
+SENIOR_PRODUCT_TITLE_RE = re.compile(
+    r"\b(vp|vice president|svp|group product manager|principal product manager)\b", re.I)
+
+# Hands-on engineering / research roles: deep infra or ML engineering.
+ENGINEERING_TITLE_RE = re.compile(
+    r"\b(software|backend|back-end|frontend|front-end|full[- ]stack|data|ml|"
+    r"machine learning|ai|mlops|devops|platform|cloud|research|deep learning|nlp)"
+    r"\s+(engineer|developer|scientist|architect)\b|\bdata scientist\b|\bsde\b",
+    re.I)
+
+# Asks for N years of formal product-management tenure, either phrasing.
+PM_TENURE_RE = re.compile(
+    r"(\d{1,2})\s*\+?\s*(?:years?|yrs?)\b[^.]{0,40}?product management"
+    r"|product management[^.]{0,30}?(\d{1,2})\s*\+?\s*(?:years?|yrs?)\b", re.I)
+
+# Recruiters on personal mail, and fee language. "No fee" disclaimers are
+# listed because in practice they come from the same consultancies.
+PERSONAL_EMAIL_DOMAINS = {"gmail.com", "yahoo.com", "yahoo.co.in", "hotmail.com",
+                          "outlook.com", "rediffmail.com", "live.com"}
+FEE_RED_FLAG_RE = re.compile(
+    r"\b(registration|processing|training|security|joining)\s+(fee|fees|deposit|charges)\b"
+    r"|\bpay\s+(?:a\s+|the\s+)?fee\b|\bno\s+(?:registration\s+)?fee\b"
+    r"|\bwe do not charge\b|\bfree of cost\b", re.I)
+
+# Warm-outreach short list for the BFSI + AI product track, used when the
+# candidate has not set preferences["target_companies"]. Lowercase.
+DEFAULT_TARGET_COMPANIES = (
+    "credgenics", "perfios", "yubi", "bureau.id", "signzy", "setu",
+    "lendingkart", "moneyview", "money view", "kreditbee", "cred", "experian",
+    "crif", "zest ai", "upstart", "stripe", "plaid", "scale ai", "salesforce",
+    "fis",
+)
+
+# Every fit rule scorer._fit_adjustments knows. Profiles opt in by name.
+ALL_FIT_RULES = frozenset({
+    "seniority", "exp_floor", "pm_tenure", "domain_mismatch", "engineering",
+    "bank_employer", "relocation", "red_flag", "moat", "ai_x_bfsi", "voice_ai",
+    "target_company",
+})
+
 # --- Scoring profiles ----------------------------------------------------------
 # A profile names the two differentiator bands scored for a candidate. Each
 # band is (key, label, domain table, cv_scoped). cv_scoped bands only credit
@@ -98,12 +177,20 @@ SCORING_PROFILES = {
         "bands": (("bfsi", "BFSI Fit", "bfsi", False),
                   ("ai", "AI Fit", "ai", False)),
         "penalty_label": "No BFSI/AI",
+        # Fit rules from docs/CANDIDATE_CONTEXT.md: a banking domain expert
+        # moving into AI product, plus a separate banking (RM / credit) track.
+        "fit_rules": ALL_FIT_RULES,
+        "default_targets": DEFAULT_TARGET_COMPANIES,
     },
     "project_delivery": {
         "label": "Project & delivery management",
         "bands": (("delivery", "Delivery Methods", "delivery", True),
                   ("governance", "PM Governance", "governance", True)),
         "penalty_label": "No delivery signal",
+        # Only the candidate-neutral rules; target companies apply only when
+        # the candidate sets preferences["target_companies"].
+        "fit_rules": frozenset({"red_flag", "target_company"}),
+        "default_targets": (),
     },
 }
 DEFAULT_PROFILE = "bfsi_ai"
