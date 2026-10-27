@@ -522,7 +522,7 @@
   };
   function contactLine(job) {
     const parts = [];
-    const name = job.poster_name ? `<span>${escHtml(job.poster_name)}</span>` : '';
+    const name = job.poster_name ? `<span>${escHtml(job.poster_name)}</span><span class="top-job-dot">·</span>` : '';
     if (job.poster_email) {
       const label = CONTACT_SOURCE_LABELS[job.contact_source] || '';
       parts.push(`<a href="mailto:${escHtml(job.poster_email)}">${escHtml(job.poster_email)}</a>`
