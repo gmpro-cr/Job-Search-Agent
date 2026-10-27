@@ -491,7 +491,7 @@
       const applyUrl = escHtml(job.apply_url || '#');
       const scoreClass = score >= 80 ? 'top-job-score-high' : score >= 60 ? 'top-job-score-mid' : 'top-job-score-low';
 
-      return `<a href="${applyUrl}" target="_blank" rel="noopener noreferrer" class="top-job"
+      return `<div class="top-job-item"><a href="${applyUrl}" target="_blank" rel="noopener noreferrer" class="top-job"
    onclick="navigator.sendBeacon('/api/jobs/${encodeURIComponent(job.job_id)}/view', '')">
   <div class="top-job-logo">${initial}</div>
   <div class="top-job-body">
@@ -508,8 +508,31 @@
     ${score ? `<span class="top-job-score ${scoreClass} tabular">${score}</span>` : ''}
     <svg class="top-job-arrow" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
   </div>
-</a>`;
+</a>${contactLine(job)}</div>`;
     }).join('');
+  }
+
+  // Recruiter contact under a job row. Emails are only ever real ones
+  // (printed in the job post, a company recruiting inbox, or Apollo-verified),
+  // so each one is labelled with where it came from. LinkedIn otherwise.
+  const CONTACT_SOURCE_LABELS = {
+    job_post: 'from job post',
+    company_inbox: 'company inbox',
+    apollo_verified: 'Apollo verified',
+  };
+  function contactLine(job) {
+    const parts = [];
+    const name = job.poster_name ? `<span>${escHtml(job.poster_name)}</span>` : '';
+    if (job.poster_email) {
+      const label = CONTACT_SOURCE_LABELS[job.contact_source] || '';
+      parts.push(`<a href="mailto:${escHtml(job.poster_email)}">${escHtml(job.poster_email)}</a>`
+        + (label ? `<span class="top-job-contact-source">${label}</span>` : ''));
+    }
+    if (job.poster_linkedin && /^https?:\/\/([\w-]+\.)?linkedin\.com\//i.test(job.poster_linkedin)) {
+      parts.push(`<a href="${escHtml(job.poster_linkedin)}" target="_blank" rel="noopener noreferrer">LinkedIn profile</a>`);
+    }
+    if (!parts.length) return '';
+    return `<div class="top-job-contact"><span class="top-job-contact-label">Contact</span>${name}${parts.join('<span class="top-job-dot">·</span>')}</div>`;
   }
 
   function resetFilters() {

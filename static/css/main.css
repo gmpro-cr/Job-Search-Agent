@@ -571,6 +571,41 @@ body.sidebar-collapsed .main-content { margin-left: 0; }
   opacity: 1;
   transform: translate(2px, -2px);
 }
+/* /jobs list: each row is wrapped so a contact line can sit under the link
+   (a mailto can't nest inside the row's <a>). The divider moves to the wrapper. */
+.top-job-item { border-top: 1px solid var(--border); }
+.top-job-item:first-child { border-top: none; }
+.top-job-item > .top-job { border-top: none; }
+.top-job-contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4375rem;
+  /* align with .top-job-body: row padding + logo width + grid gap */
+  padding: 0 1.25rem 0.875rem 4.5rem;
+  margin-top: -0.375rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  min-width: 0;
+}
+.top-job-contact a {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.top-job-contact a:hover { text-decoration: underline; }
+.top-job-contact-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.top-job-contact-source {
+  margin-left: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
 
 .empty-state {
   padding: 2.5rem 1.5rem;

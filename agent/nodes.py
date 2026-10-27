@@ -136,6 +136,20 @@ def deduplicate(state: AgentState) -> dict:
     return {"shortlisted": fresh}
 
 
+def apollo_verified_email(person: dict) -> str:
+    """
+    Return the person's email only when Apollo marks it verified. Apollo also
+    returns guessed/"likely" addresses and locked placeholders
+    (email_not_unlocked@domain.com); we never pass those on.
+    """
+    email = (person.get("email") or "").strip()
+    if not email or email.lower().startswith("email_not_unlocked"):
+        return ""
+    if (person.get("email_status") or "").lower() != "verified":
+        return ""
+    return email
+
+
 def find_hiring_managers(state: AgentState) -> dict:
     """
     For each shortlisted job, resolve a hiring manager name + email.
@@ -196,12 +210,12 @@ def find_hiring_managers(state: AgentState) -> dict:
             if people:
                 person = people[0]
                 name = f"{person.get('first_name','')} {person.get('last_name','')}".strip()
-                email = person.get("email", "")
+                email = apollo_verified_email(person)
                 linkedin = person.get("linkedin_url", "")
                 job["hiring_manager"] = name
                 job["hm_email"] = email
                 job["hm_linkedin"] = job.get("hm_linkedin") or linkedin
-                logger.info("Apollo: found %s <%s> at %s", name, email, company)
+                logger.info("Apollo: found %s <%s> at %s", name, email or "no verified email", company)
             else:
                 job["hiring_manager"] = scraped_name
                 job["hm_email"] = ""
