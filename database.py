@@ -299,6 +299,9 @@ def init_db():
     _extra_cols = [
         "date_posted TEXT",
         "poster_name TEXT", "poster_email TEXT", "poster_phone TEXT", "poster_linkedin TEXT",
+        # Where poster_email came from: "job_post" | "company_inbox" | "apollo_verified" | "".
+        # Emails are only ever stored from a real source, never a guessed pattern.
+        "contact_source TEXT",
         "experience_min INTEGER", "experience_max INTEGER",
         # BIGINT because some scrapers produce salary values above 2^31 (9-digit
         # rupee amounts when misparsed). SQLite treats INTEGER as 8 bytes so
@@ -1351,15 +1354,50 @@ def get_portal_quality_stats():
     return [dict(r) for r in rows]
 
 
-def update_job_contacts(job_id, poster_name, poster_email, poster_phone, poster_linkedin):
+def update_job_contacts(job_id, poster_name, poster_email, poster_phone, poster_linkedin,
+                        contact_source=""):
     """Update contact enrichment fields for a job listing."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
         """UPDATE job_listings
-           SET poster_name = ?, poster_email = ?, poster_phone = ?, poster_linkedin = ?
+           SET poster_name = ?, poster_email = ?, poster_phone = ?, poster_linkedin = ?,
+               contact_source = ?
            WHERE job_id = ?""",
-        (poster_name, poster_email, poster_phone, poster_linkedin, job_id),
+        (poster_name, poster_email, poster_phone, poster_linkedin, contact_source, job_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_jobs_needing_contacts(min_score, limit):
+    """Top-scored jobs whose contacts were never looked up (contact_source IS NULL)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """SELECT job_id, company, job_description, apply_url FROM job_listings
+           WHERE contact_source IS NULL AND relevance_score >= ?
+             AND (poster_email IS NULL OR poster_email = '')
+           ORDER BY relevance_score DESC, date_found DESC
+           LIMIT ?""",
+        (min_score, limit),
+    )
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
+def mark_contacts_checked(job_ids):
+    """Record that a lookup ran but found nothing, so the next scrape skips these jobs."""
+    if not job_ids:
+        return
+    conn = get_connection()
+    cursor = conn.cursor()
+    placeholders = ",".join("?" for _ in job_ids)
+    cursor.execute(
+        f"UPDATE job_listings SET contact_source = '' "
+        f"WHERE job_id IN ({placeholders}) AND contact_source IS NULL",
+        list(job_ids),
     )
     conn.commit()
     conn.close()

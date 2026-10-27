@@ -471,6 +471,36 @@ def main():
     except Exception as e:
         logger.warning("Auto-HM discovery skipped: %s", e)
 
+    # --- Phase 8b: Recruiter contacts for top jobs (real emails only) ---
+    # Emails printed in the full JD, or a recruiting inbox on the company's own
+    # site; LinkedIn profile otherwise. Never a guessed address. No LinkedIn
+    # login here, so LinkedIn jobs use the public full-JD endpoint.
+    try:
+        from contact_scraper import enrich_jobs_with_contacts
+        from database import (get_jobs_needing_contacts, mark_contacts_checked,
+                              update_job_contacts, update_job_description)
+        ce_cfg = config.get("contact_enrichment", {})
+        ce_jobs = get_jobs_needing_contacts(ce_cfg.get("min_score", 60), ce_cfg.get("max_jobs", 30))
+        found = enrich_jobs_with_contacts(ce_jobs)
+        with_email = 0
+        for jid, info in found.items():
+            update_job_contacts(
+                jid,
+                info.get("poster_name", ""),
+                info.get("poster_email", ""),
+                info.get("poster_phone", ""),
+                info.get("poster_linkedin", ""),
+                info.get("contact_source", ""),
+            )
+            if info.get("jd_text"):
+                update_job_description(jid, info["jd_text"])
+            with_email += 1 if info.get("poster_email") else 0
+        mark_contacts_checked([j["job_id"] for j in ce_jobs if j["job_id"] not in found])
+        logger.info("Contact enrichment: %d jobs checked, %d with a real email",
+                    len(ce_jobs), with_email)
+    except Exception as e:
+        logger.warning("Contact enrichment skipped: %s", e)
+
     # --- Phase 9: AI agent — contact enrichment + outreach drafts ---
     # Picks up freshly inserted jobs, looks up hiring manager contacts
     # (Apollo API if APOLLO_API_KEY is set, else falls back to portal-scraped

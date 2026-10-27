@@ -507,8 +507,9 @@ def _run_apollo_enrichment(job_ids):
             info.get("poster_email", ""),
             info.get("poster_phone", ""),
             info.get("poster_linkedin", ""),
+            info.get("contact_source", ""),
         )
-        # Also update the job description if LinkedIn JSON-LD returned one
+        # Also update the job description if LinkedIn returned the full one
         jd = info.get("jd_text", "")
         if jd:
             update_job_description(jid, jd)
@@ -1650,6 +1651,7 @@ def api_jobs_list():
                    j.job_description, j.relevance_score, j.date_found,
                    j.date_first_seen, j.date_posted,
                    j.experience_min, j.experience_max,
+                   j.poster_name, j.poster_email, j.poster_linkedin, j.contact_source,
                    COALESCE(s.cv_score, 0)       AS cv_score,
                    COALESCE(s.applied_status, 0) AS applied_status,
                    s.applied_date                AS applied_date,
@@ -1673,6 +1675,7 @@ def api_jobs_list():
                    remote_status, portal, apply_url, job_description,
                    relevance_score, date_found, date_first_seen, date_posted,
                    experience_min, experience_max,
+                   poster_name, poster_email, poster_linkedin, contact_source,
                    COALESCE(cv_score, 0) AS cv_score,
                    COALESCE(applied_status, 0) AS applied_status,
                    applied_date, user_notes,

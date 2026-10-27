@@ -1,11 +1,17 @@
 """
 contact_scraper.py - Contact enrichment via web scraping (no API key required).
-Uses four strategies in order:
-  0. LinkedIn job detail page: parse "Meet the hiring team" / job poster section
-     (requires LinkedIn credentials in preferences for best results)
-  1. Extract contacts from the job description text itself
-  2. Scrape the company's website (careers/about/team page)
-  3. Google search for HR contacts at the company
+
+Only real contacts are kept — an email must be published somewhere; we never
+build one from a name pattern. Strategies, in order:
+  0. LinkedIn job page: "Meet the hiring team" when logged in, otherwise the
+     full public JD from the guest endpoint
+  1. Emails / LinkedIn profiles written in the job description itself
+  2. A recruiting inbox (careers@, hr@, ...) published on the company's own site
+
+Each result carries `contact_source` describing where the email came from:
+  "job_post"      — printed in the job description
+  "company_inbox" — a generic recruiting inbox from the company website
+  ""              — no email (LinkedIn profile only, or nothing)
 """
 import json
 import re
@@ -13,7 +19,7 @@ import time
 import logging
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import quote_plus, urljoin
+from urllib.parse import urljoin, urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +38,16 @@ _LINKEDIN_RE = re.compile(r'linkedin\.com/in/([\w-]+)', re.IGNORECASE)
 
 # Domains to skip when found in JD text (noisy/irrelevant emails)
 _BLOCKED_EMAIL_DOMAINS = {"example.com", "test.com", "domain.com", "email.com", "yourcompany.com"}
+
+# Local parts that mark a company-site email as a recruiting inbox. Anything
+# else on a website (press@, support@, sales@, privacy@) is not a hiring contact.
+_RECRUITING_LOCAL_RE = re.compile(
+    r'^(careers?|jobs?|hr|hrd|talent|recruit\w*|hiring|people|ta)([._-]\w+)?$',
+    re.IGNORECASE,
+)
+
+_LINKEDIN_JOB_ID_RE = re.compile(r'linkedin\.com/jobs/view/(?:[\w-]*?-)?(\d{6,})')
+_LINKEDIN_GUEST_JD_URL = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}"
 
 
 def extract_contacts_from_text(text):
@@ -80,9 +96,8 @@ def _try_company_website(company_name, apply_url=None):
     domain = None
     if apply_url:
         try:
-            from urllib.parse import urlparse
             parsed = urlparse(apply_url)
-            host = parsed.netloc.lstrip("www.")
+            host = parsed.netloc.removeprefix("www.")
             # Skip known job boards
             known_boards = {"linkedin.com", "naukri.com", "indeed.com", "wellfound.com",
                             "hiringcafe.com", "iimjobs.com", "instahyre.com", "angel.co"}
@@ -108,27 +123,45 @@ def _try_company_website(company_name, apply_url=None):
     return list(dict.fromkeys(emails)), list(dict.fromkeys(linkedin_urls))
 
 
-def _google_search_contacts(company_name):
+def recruiting_inboxes(emails, site_domain):
     """
-    Search Google for HR/recruiter contacts at a company.
-    Parses only the result snippets (no JS rendering needed).
+    Keep only recruiting inboxes (careers@, hr@, talent@ ...) that belong to
+    the company's own domain. A page can mention partners' or vendors'
+    addresses; those are not the company's hiring contact.
     """
-    query = f'"{company_name}" recruiter OR "talent acquisition" OR "HR manager" email'
-    url = f"https://www.google.com/search?q={quote_plus(query)}&num=5"
+    site = (site_domain or "").lower().removeprefix("www.")
+    if not site:
+        return []
+    kept = []
+    for e in emails:
+        local, _, dom = e.lower().partition("@")
+        same_org = dom == site or site.endswith("." + dom) or dom.endswith("." + site)
+        if same_org and _RECRUITING_LOCAL_RE.match(local):
+            kept.append(e)
+    return kept
 
+
+def fetch_linkedin_full_jd(job_url, timeout=15):
+    """
+    Fetch the full job description for a LinkedIn job from the public guest
+    endpoint (no login, no Selenium). Stored JDs are truncated snippets, and
+    "send your CV to ..." lines usually sit at the end. Returns "" on any
+    failure, including LinkedIn's 429 rate limit.
+    """
+    m = _LINKEDIN_JOB_ID_RE.search(job_url or "")
+    if not m:
+        return ""
     try:
-        resp = requests.get(url, headers=_HEADERS, timeout=10)
-        resp.raise_for_status()
+        resp = requests.get(_LINKEDIN_GUEST_JD_URL.format(m.group(1)), headers=_HEADERS, timeout=timeout)
+        if resp.status_code != 200:
+            logger.debug("LinkedIn guest JD %s returned %s", m.group(1), resp.status_code)
+            return ""
         soup = BeautifulSoup(resp.text, "lxml")
-        # Extract text from result snippets only
-        snippets = []
-        for div in soup.find_all("div", class_=re.compile(r"BNeawe|s3v9rd|VwiC3b")):
-            snippets.append(div.get_text())
-        text = " ".join(snippets)
-        return extract_contacts_from_text(text)
+        body = soup.select_one(".show-more-less-html__markup, .description__text")
+        return body.get_text(" ", strip=True) if body else ""
     except Exception as e:
-        logger.debug("Google search failed for %s: %s", company_name, e)
-        return [], []
+        logger.debug("LinkedIn guest JD fetch failed for %s: %s", job_url, e)
+        return ""
 
 
 def _build_selenium_options():
@@ -470,7 +503,8 @@ def enrich_jobs_with_contacts(jobs_needing_contacts, linkedin_email=None, linked
         linkedin_password: LinkedIn account password (optional)
 
     Returns:
-        dict mapping job_id -> {poster_name, poster_email, poster_phone, poster_linkedin, jd_text}
+        dict mapping job_id -> {poster_name, poster_email, poster_phone,
+                                poster_linkedin, contact_source, jd_text}
     """
     results = {}
     company_cache = {}
@@ -499,43 +533,48 @@ def enrich_jobs_with_contacts(jobs_needing_contacts, linkedin_email=None, linked
             poster_name = ""
             emails, linkedin_urls = [], []
             jd_text = ""
+            source = ""
 
-            # Strategy 0: LinkedIn job detail page — scrape the job poster + extract JD
+            # Strategy 0: LinkedIn job page — hiring team when logged in,
+            # else the full public JD from the guest endpoint
             apply_url = job.get("apply_url", "")
             if "linkedin.com" in (apply_url or ""):
-                linkedin_result = scrape_linkedin_job_poster(
-                    apply_url, driver=linkedin_driver
-                )
-                if linkedin_result:
-                    poster_name = linkedin_result.get("poster_name", "")
-                    li_url = linkedin_result.get("poster_linkedin", "")
-                    jd_text = linkedin_result.get("jd_text", "")
-                    if li_url:
-                        linkedin_urls = [li_url]
+                if linkedin_driver:
+                    linkedin_result = scrape_linkedin_job_poster(
+                        apply_url, driver=linkedin_driver
+                    )
+                    if linkedin_result:
+                        poster_name = linkedin_result.get("poster_name", "")
+                        li_url = linkedin_result.get("poster_linkedin", "")
+                        jd_text = linkedin_result.get("jd_text", "")
+                        if li_url:
+                            linkedin_urls = [li_url]
+                else:
+                    jd_text = fetch_linkedin_full_jd(apply_url)
                 time.sleep(1)  # polite delay
 
-            # Strategy 1: Extract directly from the JD text (fastest, zero network calls)
-            if not emails and not linkedin_urls:
-                jd_src = job.get("job_description") or jd_text
-                emails, lk = extract_contacts_from_text(jd_src)
-                if lk and not linkedin_urls:
-                    linkedin_urls = lk
+            # Strategy 1: emails / profiles printed in the JD. Prefer the
+            # freshly fetched full JD — the stored one is usually truncated.
+            jd_src = jd_text or job.get("job_description") or ""
+            emails, lk = extract_contacts_from_text(jd_src)
+            if emails:
+                source = "job_post"
+            if lk and not linkedin_urls:
+                linkedin_urls = lk
 
-            if not emails and not linkedin_urls:
-                # Strategy 2 + 3 — cache by company to avoid duplicate scrapes
+            # Strategy 2: a recruiting inbox published on the company's own
+            # site — cached by company to avoid duplicate scrapes
+            if not emails:
                 cache_key = company.lower()
                 if cache_key not in company_cache:
-                    w_emails, w_linkedin = _try_company_website(company, apply_url)
-                    time.sleep(1)  # polite delay between companies
-
-                    g_emails, g_linkedin = [], []
-                    if not w_emails and not w_linkedin:
-                        g_emails, g_linkedin = _google_search_contacts(company)
-                        time.sleep(2)  # slightly longer delay for Google
-
-                    company_cache[cache_key] = (w_emails + g_emails, w_linkedin + g_linkedin)
-
-                emails, linkedin_urls = company_cache[cache_key]
+                    w_emails, _ = _try_company_website(company, apply_url)
+                    site = urlparse(apply_url or "").netloc
+                    company_cache[cache_key] = recruiting_inboxes(w_emails, site)
+                    if w_emails:
+                        time.sleep(1)  # polite delay between companies
+                emails = company_cache[cache_key]
+                if emails:
+                    source = "company_inbox"
 
             if poster_name or emails or linkedin_urls or jd_text:
                 results[job_id] = {
@@ -543,11 +582,12 @@ def enrich_jobs_with_contacts(jobs_needing_contacts, linkedin_email=None, linked
                     "poster_email": emails[0] if emails else "",
                     "poster_phone": "",
                     "poster_linkedin": linkedin_urls[0] if linkedin_urls else "",
+                    "contact_source": source,
                     "jd_text": jd_text,
                 }
-                logger.info("Found contact for %s at %s: name=%s email=%s jd=%d chars",
+                logger.info("Found contact for %s at %s: name=%s email=%s (%s) jd=%d chars",
                             company, job_id, poster_name or "—",
-                            emails[0] if emails else "—", len(jd_text))
+                            emails[0] if emails else "—", source or "none", len(jd_text))
 
     finally:
         if linkedin_driver:

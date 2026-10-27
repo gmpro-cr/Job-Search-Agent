@@ -1,0 +1,66 @@
+name: Nightly DB Backup
+
+# Neon's free plan keeps only 6 hours of history, so a bad write noticed the
+# next day can't be undone from Neon. This keeps 14 nightly encrypted dumps in
+# Vercel Blob. The repo and the Blob store are both public, so the dump is
+# encrypted with BACKUP_PASSPHRASE before it leaves the runner.
+#
+# Restore:
+#   gpg --batch --pinentry-mode loopback --passphrase-file <file> -d neon_<ts>.sql.gz.gpg \
+#     | gunzip | psql "$TARGET_DATABASE_URL"
+# (restore into a new Neon branch first, never straight over production)
+
+on:
+  schedule:
+    - cron: '30 20 * * *'   # 2:00 AM IST
+  workflow_dispatch:
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install pg_dump 18 (must match the Neon server major version)
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Dump, compress, encrypt
+        env:
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -o pipefail
+          test -n "$BACKUP_PASSPHRASE" || { echo "BACKUP_PASSPHRASE secret is not set"; exit 1; }
+          /usr/lib/postgresql/18/bin/pg_dump --no-owner --no-privileges "$DATABASE_URL_DIRECT" \
+            | gzip -9 \
+            | gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+                  --passphrase-fd 3 -o neon.sql.gz.gpg 3<<<"$BACKUP_PASSPHRASE"
+          ls -la neon.sql.gz.gpg
+
+      - name: Upload to Blob and prune
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        run: python -m scripts.backup_db neon.sql.gz.gpg

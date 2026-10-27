@@ -31,3 +31,38 @@ def test_enrich_returns_dict():
     assert isinstance(result, dict)
     assert "abc123" in result
     assert result["abc123"]["poster_email"] == "hr@testco.com"
+
+
+def test_enrich_labels_job_post_source():
+    jobs = [{"job_id": "j1", "company": "TestCo", "job_description": "Share your CV at priya@testco.com"}]
+    result = enrich_jobs_with_contacts(jobs)
+    assert result["j1"]["poster_email"] == "priya@testco.com"
+    assert result["j1"]["contact_source"] == "job_post"
+
+
+def test_enrich_linkedin_only_has_no_email_source():
+    jobs = [{"job_id": "j2", "company": "TestCo",
+             "job_description": "Reach our recruiter at linkedin.com/in/jane-recruiter"}]
+    result = enrich_jobs_with_contacts(jobs)
+    assert result["j2"]["poster_email"] == ""
+    assert result["j2"]["contact_source"] == ""
+    assert "jane-recruiter" in result["j2"]["poster_linkedin"]
+
+
+def test_recruiting_inboxes_keeps_only_company_hiring_inboxes():
+    from contact_scraper import recruiting_inboxes
+    found = ["careers@acme.com", "hr.india@acme.com", "press@acme.com",
+             "support@acme.com", "careers@vendor.com", "talent@jobs.acme.com"]
+    kept = recruiting_inboxes(found, "www.acme.com")
+    assert kept == ["careers@acme.com", "hr.india@acme.com", "talent@jobs.acme.com"]
+
+
+def test_recruiting_inboxes_needs_a_domain():
+    from contact_scraper import recruiting_inboxes
+    assert recruiting_inboxes(["careers@acme.com"], "") == []
+
+
+def test_linkedin_full_jd_ignores_non_job_urls():
+    from contact_scraper import fetch_linkedin_full_jd
+    assert fetch_linkedin_full_jd("https://www.linkedin.com/in/someone") == ""
+    assert fetch_linkedin_full_jd("") == ""
